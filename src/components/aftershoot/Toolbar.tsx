@@ -29,11 +29,16 @@ export function AppBar({
   tab,
   onChangeTab,
   onHome,
+  albumName = "Album Name",
+  onAdd,
 }: {
   tab: AppTab;
   onChangeTab: (tab: AppTab) => void;
-  // Home returns to the layout selector.
+  // Home returns to the Home screen.
   onHome?: () => void;
+  albumName?: string;
+  // Add opens the import flow to bring more photos into this album.
+  onAdd?: () => void;
 }) {
   return (
     <div className="relative flex h-11 shrink-0 items-center gap-1 border-b border-white/5 bg-[#1a1a1a] px-3">
@@ -45,14 +50,17 @@ export function AppBar({
       <Divider />
       {/* Album name (rename via pencil) */}
       <button className="group ml-1 flex items-center gap-1.5 rounded px-1 py-1 text-[12px] text-neutral-200 hover:text-white">
-        <span>Album Name</span>
+        <span className="max-w-[220px] truncate">{albumName}</span>
         <Pencil
           className="h-3 w-3 text-neutral-500 group-hover:text-neutral-300"
           strokeWidth={1.5}
         />
       </button>
       <Divider />
-      <button className="flex items-center gap-1.5 rounded px-1.5 py-1 text-[12px] text-neutral-300 hover:text-white">
+      <button
+        onClick={onAdd}
+        className="flex items-center gap-1.5 rounded px-1.5 py-1 text-[12px] text-neutral-300 hover:text-white"
+      >
         <ImagePlus className="h-[14px] w-[14px]" strokeWidth={1.5} />
         Add
       </button>

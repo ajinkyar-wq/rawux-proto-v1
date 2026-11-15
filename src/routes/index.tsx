@@ -40,6 +40,17 @@ import {
 import { UxSelector } from "@/components/aftershoot/history/UxSelector";
 import { UndoToast, type UndoFeedbackItem } from "@/components/aftershoot/history/UndoFeedback";
 import { tabOfLoupeRail, type LoupeRailKey } from "@/components/aftershoot/loupe/loupe-rail-config";
+import { HomeScreen } from "@/features/import/components/Home/HomeScreen";
+import { CopyScreen } from "@/features/import/components/Import/CopyScreen";
+import { CreateAlbumModal } from "@/features/import/components/Import/CreateAlbumModal";
+import { FinderDialog } from "@/features/import/components/Import/FinderDialog";
+import { IngestDialog } from "@/features/import/components/Import/IngestDialog";
+import { NewAlbumModal } from "@/features/import/components/Import/NewAlbumModal";
+import { PreviewScreen } from "@/features/import/components/Import/PreviewScreen";
+import { OneClickWorkflowModal } from "@/features/import/components/shared/OneClickWorkflowModal";
+import { ToastHost } from "@/features/import/components/shared/ToastHost";
+import { useCullStore, type AppSection } from "@/features/import/store/useCullStore";
+import { useImportStore } from "@/features/import/store/useImportStore";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -56,41 +67,108 @@ export const Route = createFileRoute("/")({
 // "stay in place + toast" variant, ux2, is still supported below.)
 const UNDO_MODE: UxMode = "ux1";
 
-// Entry: the UI - 1 / UI - 2 layout selector, then the album. Each pick starts
-// a fresh session (album Undo/Redo is session-only, per the History spec).
+// Entry: the UI - 1 / UI - 2 layout selector, then Home. From Home an album
+// opens either directly or at the end of the import flow (New Album → sources
+// → ingest → Create Album). Each time an album opens it starts a fresh
+// session (album Undo/Redo is session-only, per the History spec).
 function AftershootScreen() {
   const [layout, setLayout] = useState<Layout | null>(null);
-  const [session, setSession] = useState(0);
-  if (!layout) {
-    return (
-      <UxSelector
-        onSelect={(m) => {
-          setLayout(m);
-          setSession((n) => n + 1);
-        }}
-      />
-    );
-  }
+  const screen = useCullStore((s) => s.screen);
+  const albumSession = useCullStore((s) => s.albumSession);
+  const albumName = useCullStore((s) => s.albumName);
+  const section = useCullStore((s) => s.activeSection);
+  const isAlbumNew = useCullStore((s) => s.isAlbumNew);
+  const goHome = useCullStore((s) => s.goHome);
+  const openNewAlbum = useImportStore((s) => s.openNewAlbum);
+  const inAlbum = layout !== null && screen === "album";
+  useImportBodyStyles(layout !== null && !inAlbum);
+
+  if (!layout) return <UxSelector onSelect={setLayout} />;
+
   return (
-    <Workspace key={session} layout={layout} uxMode={UNDO_MODE} onHome={() => setLayout(null)} />
+    <>
+      {inAlbum ? (
+        <Workspace
+          key={albumSession}
+          layout={layout}
+          uxMode={UNDO_MODE}
+          albumName={albumName}
+          section={section}
+          isNew={isAlbumNew}
+          onHome={goHome}
+          onAdd={() => openNewAlbum(albumName)}
+        />
+      ) : (
+        <div className="as-import as-import-screen">
+          {screen === "home" && <HomeScreen />}
+          {screen === "copy" && <CopyScreen />}
+          {screen === "preview" && <PreviewScreen />}
+        </div>
+      )}
+      {/* The import dialogs open over whatever is showing, the album included. */}
+      <div className="as-import contents">
+        <NewAlbumModal />
+        <IngestDialog />
+        <FinderDialog />
+        <CreateAlbumModal />
+        <OneClickWorkflowModal />
+        <ToastHost />
+      </div>
+    </>
   );
 }
+
+// The Home and import screens portal their menus and tooltips onto <body>,
+// outside the .as-import wrapper, so body carries their font and colours too
+// while one of those screens (or an import dialog over the album) is showing.
+function useImportBodyStyles(onImportScreen: boolean) {
+  const dialogOpen = useImportStore(
+    (s) => s.isNewAlbumOpen || s.isIngestOpen || s.finder !== null || s.createAlbum !== null,
+  );
+  const oneClickOpen = useCullStore((s) => s.oneClick.isOpen);
+  const active = onImportScreen || dialogOpen || oneClickOpen;
+  useEffect(() => {
+    document.body.classList.toggle("as-import-body", active);
+    return () => document.body.classList.remove("as-import-body");
+  }, [active]);
+}
+
+// Where an album opens: Cull on the CULL tab, Edit and Retouch on ENHANCE
+// with their own panel (the combined panel in UI - 2).
+const sectionTab = (section: AppSection): AppTab => (section === "cull" ? "cull" : "enhance");
+const sectionRail = (layout: Layout, section: AppSection): RailKey =>
+  section === "retouch"
+    ? railForAction(layout, "retouch")
+    : TAB_DEFAULT_RAIL[layout][sectionTab(section)];
 
 function Workspace({
   layout,
   uxMode,
+  albumName,
+  section,
+  isNew,
   onHome,
+  onAdd,
 }: {
   layout: Layout;
   uxMode: UxMode;
+  albumName: string;
+  // The section the album opens on (Cull Now / Edit Now on Home, or the mode
+  // picked in Create Album).
+  section: AppSection;
+  // An album created in this session: nothing culled, rated or edited yet.
+  // Every other album opens on the seeded demo session.
+  isNew: boolean;
   onHome: () => void;
+  onAdd: () => void;
 }) {
-  // The seeded album history leaves the user in Grid on SEED_END.image.
-  const [viewMode, setViewMode] = useState<ViewMode>(SEED_END.view);
-  // CULL / ENHANCE app tab (toolbar). The seeded history ends in Loupe on an
-  // editing tool, so the album opens on ENHANCE.
-  const [appTab, setAppTab] = useState<AppTab>("enhance");
-  const [activeRail, setActiveRail] = useState<RailKey>(TAB_DEFAULT_RAIL[layout].enhance);
+  // The seeded album history leaves the user in Grid on SEED_END.image; a new
+  // album starts in Grid on its first image.
+  const startImage = isNew ? 0 : SEED_END.image;
+  const [viewMode, setViewMode] = useState<ViewMode>(isNew ? "grid" : SEED_END.view);
+  // CULL / ENHANCE app tab (toolbar).
+  const [appTab, setAppTab] = useState<AppTab>(sectionTab(section));
+  const [activeRail, setActiveRail] = useState<RailKey>(sectionRail(layout, section));
   // Grid side panel collapses when the active rail icon is clicked again
   // (same behaviour as loupe); clicking it again or another icon reopens it.
   const [gridPanelOpen, setGridPanelOpen] = useState(true);
@@ -102,19 +180,22 @@ function Workspace({
       setGridPanelOpen(true);
     }
   };
-  const [selectedGridTile, setSelectedGridTile] = useState(SEED_END.image);
+  const [selectedGridTile, setSelectedGridTile] = useState(startImage);
   const [activeModal, setActiveModal] = useState<AIAction | null>(null);
   // The history demo starts with an Automated AI cull already done, so cull
-  // ratings, filters, key faces, duplicates and Survey are all available.
+  // ratings, filters, key faces, duplicates and Survey are all available. A
+  // new album has had nothing run on it.
   const [actionStatuses, setActionStatuses] = useState<ActionStatuses>({
     ...INITIAL_ACTION_STATUSES,
-    cull: "complete",
+    cull: isNew ? "idle" : "complete",
   });
   const [activeResultsTab, setActiveResultsTab] = useState<AIAction | null>(null);
   // Which cull mode the user ran. Assisted = AI only groups duplicates / key
   // faces and the user selects (no AI ratings → no cull filters). Automated =
   // AI rates & selects (cull filters available). null until a cull is run.
-  const [cullMode, setCullMode] = useState<"assisted" | "automated" | null>("automated");
+  const [cullMode, setCullMode] = useState<"assisted" | "automated" | null>(
+    isNew ? null : "automated",
+  );
   // Bottom-bar zoom 0-100 driving the canvas grid column count.
   const [zoom, setZoom] = useState(55);
   // Active rating filter (1..5). Empty = show all. Driven by BOTH the
@@ -136,7 +217,7 @@ function Workspace({
   const baseRatings = useRatings(actionStatuses.cull === "complete");
 
   // ---- Album-level Undo/Redo (act-out prototype) ----
-  const history = useAlbumHistory();
+  const history = useAlbumHistory(!isNew);
   // Loupe's open tool survives switching to Grid/Survey and back.
   const [lastLoupeRail, setLastLoupeRail] = useState<LoupeRailKey | null>(null);
   const [railRequest, setRailRequest] = useState<{ key: LoupeRailKey; n: number } | null>(null);
@@ -148,6 +229,8 @@ function Workspace({
   const changeTab = (tab: AppTab) => {
     if (tab === appTab) return;
     setAppTab(tab);
+    // Photos added to this album later come back to the tab they were added from.
+    useCullStore.getState().setActiveSection(tab === "cull" ? "cull" : "edit");
     setActiveRail(TAB_DEFAULT_RAIL[layout][tab]);
     setGridPanelOpen(true);
     setRailRequest(null);
@@ -157,7 +240,7 @@ function Workspace({
   // Grid multi-selection (⌘-click toggles, ⇧-click selects a range).
   // Undo/Redo landing in Grid scrolls the affected images into view.
   const [gridScrollTarget, setGridScrollTarget] = useState<{ id: number; n: number } | null>(null);
-  const [gridSelection, setGridSelection] = useState<Set<number>>(() => new Set([SEED_END.image]));
+  const [gridSelection, setGridSelection] = useState<Set<number>>(() => new Set([startImage]));
   const selectInGrid = (i: number, mode: "single" | "toggle" | "range") => {
     if (mode === "single") {
       setGridSelection(new Set([i]));
@@ -289,6 +372,8 @@ function Workspace({
     const t = e.target as HTMLElement | null;
     if (t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.isContentEditable)) return;
     if (activeModal) return;
+    // An import dialog is open over the album (Add photos, One Click).
+    if (document.body.classList.contains("as-import-body")) return;
     if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "z") {
       e.preventDefault();
       const dir = e.shiftKey ? "redo" : "undo";
@@ -349,7 +434,13 @@ function Workspace({
   return (
     <AlbumHistoryContext.Provider value={history}>
       <div className="flex h-screen flex-col bg-[#1a1a1a] text-neutral-300 font-sans select-none text-[13px]">
-        <AppBar tab={appTab} onChangeTab={changeTab} onHome={onHome} />
+        <AppBar
+          tab={appTab}
+          onChangeTab={changeTab}
+          onHome={onHome}
+          albumName={albumName}
+          onAdd={onAdd}
+        />
 
         <div className="flex min-h-0 flex-1 overflow-hidden">
           {viewMode === "grid" && (

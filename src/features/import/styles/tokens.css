@@ -1,0 +1,256 @@
+/**
+ * Design tokens extracted from AfterShoot-Desktop-App's libs/ds-theme package
+ * (dark / "aftershoot" theme). Color, spacing, radius, and stroke values below
+ * are copied verbatim from source. Typography is NOT a real token layer in the
+ * source app (components there hardcode font sizes locally) — the --proto-text-*
+ * scale below is synthesized for this prototype, not extracted.
+ */
+
+:root {
+	/* ---- L0: primitive color scales (subset actually used by Cull grid) ---- */
+	--ui-color-grey-0: #ffffff;
+	--ui-color-grey-25: #f6f6f6;
+	--ui-color-grey-150: #e4e4e7;
+	--ui-color-grey-200: #e2e2e2;
+	--ui-color-grey-350: #ababab;
+	--ui-color-grey-450: #919191;
+	--ui-color-grey-500: #777777;
+	--ui-color-grey-550: #71717a;
+	--ui-color-grey-600: #5e5e5e;
+	--ui-color-grey-700: #474747;
+	--ui-color-grey-750: #3f3f46;
+	--ui-color-grey-800: #303030;
+	--ui-color-grey-825: #27272a;
+	--ui-color-grey-850: #242424;
+	--ui-color-grey-875: #1c1c1c;
+	--ui-color-grey-900: #18181b;
+	--ui-color-grey-925: #171717;
+	--ui-color-grey-950: #111111;
+	--ui-color-grey-1000: #09090b;
+
+	--ui-color-transparent-grey-0-35: rgba(255, 255, 255, 0.35);
+	--ui-color-transparent-grey-200-5: rgba(226, 226, 226, 0.05);
+	--ui-color-transparent-grey-200-10: rgba(226, 226, 226, 0.1);
+	--ui-color-transparent-grey-200-20: rgba(226, 226, 226, 0.2);
+	--ui-color-transparent-grey-500-40: rgba(119, 119, 119, 0.4);
+	--ui-color-transparent-grey-950-85: rgba(17, 17, 17, 0.85);
+
+	--ui-color-blue-350: #8aacf5;
+	--ui-color-blue-500: #3b82f6;
+	--ui-color-blue-550: #007bd5;
+	--ui-color-blue-600: #2563eb;
+	--ui-color-blue-700: #1d4ed8;
+	--ui-color-blue-975: #1e2a45;
+	--ui-color-transparent-blue-600-12: rgba(37, 99, 235, 0.12);
+	--ui-color-transparent-blue-600-40: rgba(37, 99, 235, 0.4);
+
+	--ui-color-red-500: #ef4444;
+	--ui-color-red-600: #dc2626;
+	--ui-color-red-700: #b91c1c;
+	--ui-color-red-800: #991b1b;
+	--ui-color-transparent-red-500-40: rgba(239, 68, 68, 0.4);
+
+	--ui-color-green-600: #16a34a;
+	--ui-color-green-700: #15803d;
+	--ui-color-transparent-green-700-12: rgba(21, 128, 61, 0.12);
+	--ui-color-transparent-green-700-40: rgba(21, 128, 61, 0.4);
+
+	--ui-color-yellow-500: #eab308;
+	--ui-color-yellow-600: #ca8a04;
+	--ui-color-transparent-yellow-600-40: rgba(202, 138, 4, 0.4);
+
+	--ui-color-violet-500: #8b5cf6;
+	--ui-color-transparent-violet-500-40: rgba(139, 92, 246, 0.4);
+
+	/* Color-label swatches (star-box / color dropdown) */
+	--ui-color-label-green: #15803d;
+	--ui-color-label-blue: #007bd5;
+	--ui-color-label-yellow: #ca8a04;
+	--ui-color-label-red: #ef4444;
+	--ui-color-label-purple: #8b5cf6;
+	--ui-color-label-gray: #5e5e5e;
+
+	/* ---- L0: spacing (verbatim) ---- */
+	--ui-spacing-0: 0px;
+	--ui-spacing-1: 1px;
+	--ui-spacing-2: 2px;
+	--ui-spacing-4: 4px;
+	--ui-spacing-6: 6px;
+	--ui-spacing-8: 8px;
+	--ui-spacing-10: 10px;
+	--ui-spacing-12: 12px;
+	--ui-spacing-16: 16px;
+	--ui-spacing-20: 20px;
+	--ui-spacing-24: 24px;
+	--ui-spacing-28: 28px;
+	--ui-spacing-32: 32px;
+	--ui-spacing-40: 40px;
+	--ui-spacing-48: 48px;
+	--ui-spacing-56: 56px;
+	--ui-spacing-64: 64px;
+
+	/* ---- L0: radius (verbatim) ---- */
+	--ui-rounded-none: 0px;
+	--ui-rounded-xs: 2px;
+	--ui-rounded-sm: 4px;
+	--ui-rounded-md: 6px;
+	--ui-rounded-lg: 8px;
+	--ui-rounded-xl: 12px;
+	--ui-rounded-2xl: 16px;
+	--ui-rounded-3xl: 24px;
+	--ui-rounded-full: 9999px;
+
+	/* ---- L0: stroke (verbatim) ---- */
+	--default-stroke-value: 0.25px;
+	--ui-stroke-0: calc(var(--default-stroke-value) * 2);
+	--ui-stroke-1: calc(var(--default-stroke-value) * 3);
+	--ui-stroke-2: calc(var(--default-stroke-value) * 4);
+	--ui-stroke-3: calc(var(--default-stroke-value) * 5);
+	--ui-stroke-4: calc(var(--default-stroke-value) * 6);
+
+	/* ---- L1: semantic tokens (dark / "aftershoot" theme, verbatim) ---- */
+	--ui-type-0: var(--ui-color-grey-0);
+	--ui-type-1: var(--ui-color-grey-200);
+	--ui-type-2: var(--ui-color-grey-350);
+	--ui-type-3: var(--ui-color-grey-500);
+	--ui-type-4: var(--ui-color-grey-700);
+	--ui-type-accent: var(--ui-color-blue-500);
+	--ui-type-accent--default--error: var(--ui-color-red-500);
+	--ui-type-accent--default--success: var(--ui-color-green-600);
+	--ui-type-accent--default--warning: var(--ui-color-yellow-500);
+	--ui-type-white: var(--ui-color-grey-0);
+	--ui-type-0-inverse: var(--ui-color-grey-900);
+	--ui-type-1-inverse: var(--ui-color-grey-700);
+
+	--ui-edge-0: var(--ui-color-grey-0);
+	--ui-edge-1: var(--ui-color-grey-200);
+	--ui-edge-2: var(--ui-color-grey-350);
+	--ui-edge-3: var(--ui-color-grey-500);
+	--ui-edge-4: var(--ui-color-grey-600);
+	--ui-edge-5: var(--ui-color-grey-700);
+	--ui-edge-6: var(--ui-color-grey-800);
+	--ui-edge-7: var(--ui-color-grey-850);
+	--ui-edge-transparent-1: var(--ui-color-transparent-grey-200-5);
+	--ui-edge-accent--blurred: var(--ui-color-red-500);
+	--ui-edge-accent--closedeyes: var(--ui-color-violet-500);
+	--ui-edge-accent--duplicates: var(--ui-color-yellow-500);
+	--ui-edge-accent--default--focus: var(--ui-color-blue-350);
+	--ui-edge-accent--highlights: var(--ui-color-blue-550);
+	--ui-edge-accent--selected: var(--ui-color-green-600);
+	--ui-edge-accent--unrated: var(--ui-color-grey-550);
+
+	--ui-surface-0: #181818;
+	--ui-surface-1: var(--ui-color-grey-875);
+	--ui-surface-2: var(--ui-color-grey-850);
+	--ui-surface-3: var(--ui-color-grey-800);
+	/* Dialog fill from the Figma Dialog/modal frame: darker than the app surface above. */
+	--ui-surface-dialog: var(--ui-color-grey-950);
+	--ui-surface-2-inverse: var(--ui-color-grey-25);
+
+	--ui-surface-primary: var(--ui-color-blue-600);
+	--ui-surface-primary--default--hover: var(--ui-color-blue-500);
+	--ui-surface-primary--default--active: var(--ui-color-blue-700);
+	--ui-surface-primary--default--disable: var(--ui-color-blue-975);
+
+	--ui-surface-secondary: var(--ui-color-grey-800);
+	--ui-surface-secondary--default--hover: var(--ui-color-grey-700);
+	--ui-surface-secondary--default--focus: var(--ui-color-grey-825);
+	--ui-surface-secondary--default--active: var(--ui-color-grey-925);
+
+	--ui-surface-negative: var(--ui-color-red-600);
+	--ui-surface-negative--default--hover: var(--ui-color-red-500);
+	--ui-surface-negative--default--active: var(--ui-color-red-700);
+
+	--ui-surface-selected: var(--ui-color-green-700);
+	--ui-surface-blurred: var(--ui-color-red-500);
+	--ui-surface-duplicates: var(--ui-color-yellow-600);
+	--ui-surface-closedeyes: var(--ui-color-violet-500);
+	--ui-surface-highlights: var(--ui-color-blue-550);
+	--ui-surface-unrated: var(--ui-color-grey-600);
+
+	--ui-surface-transparent--overlay0: var(--ui-color-transparent-grey-950-85);
+	--ui-surface-transparent--overlay1: var(--ui-color-transparent-grey-0-35);
+	--ui-surface-transparent--overlay2: var(--ui-color-transparent-grey-200-5);
+	--ui-surface-transparent--overlay3: var(--ui-color-transparent-grey-200-10);
+	--ui-surface-transparent--overlay4: var(--ui-color-transparent-grey-200-20);
+	--ui-surface-transparent--selected: var(--ui-color-transparent-green-700-40);
+	--ui-surface-transparent--blurred: var(--ui-color-transparent-red-500-40);
+	--ui-surface-transparent--duplicates: var(--ui-color-transparent-yellow-600-40);
+	--ui-surface-transparent--closedeyes: var(--ui-color-transparent-violet-500-40);
+	--ui-surface-transparent--highlights: var(--ui-color-transparent-blue-600-40);
+	--ui-surface-info: var(--ui-color-transparent-blue-600-12);
+	--ui-edge-info: var(--ui-color-transparent-blue-600-40);
+	--ui-surface-transparent--unrated: var(--ui-color-transparent-grey-500-40);
+
+	--ui-surface-clear: transparent;
+	--ui-surface-clear--default--hover: var(--ui-color-transparent-grey-200-5);
+	--ui-surface-clear--default--active: var(--ui-color-transparent-grey-200-10);
+
+	/* ---- Prototype-only: synthesized typography scale (not a real token layer) ---- */
+	--proto-font-family: 'Geist', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+
+	--proto-text-heading-20-size: 20px;
+	--proto-text-heading-20-weight: 600;
+	--proto-text-heading-20-line-height: 24px;
+
+	--proto-text-heading-16-size: 16px;
+	--proto-text-heading-16-weight: 600;
+	--proto-text-heading-16-line-height: 20px;
+
+	--proto-text-heading-14-size: 14px;
+	--proto-text-heading-14-weight: 600;
+	--proto-text-heading-14-line-height: 20px;
+
+	--proto-text-body-14-size: 14px;
+	--proto-text-body-14-weight: 400;
+	--proto-text-body-14-line-height: 20px;
+
+	--proto-text-body-13-size: 13px;
+	--proto-text-body-13-weight: 400;
+	--proto-text-body-13-line-height: 16px;
+
+	--proto-text-body-12-size: 12px;
+	--proto-text-body-12-weight: 400;
+	--proto-text-body-12-line-height: 16px;
+
+	--proto-text-body-11-size: 11px;
+	--proto-text-body-11-weight: 400;
+	--proto-text-body-11-line-height: 16px;
+
+	--proto-text-label-20-size: 20px;
+	--proto-text-label-20-weight: 500;
+	--proto-text-label-20-line-height: 24px;
+
+	--proto-text-label-14-size: 14px;
+	--proto-text-label-14-weight: 500;
+	--proto-text-label-14-line-height: 20px;
+
+	--proto-text-label-13-size: 13px;
+	--proto-text-label-13-weight: 500;
+	--proto-text-label-13-line-height: 20px;
+
+	--proto-text-label-12-size: 12px;
+	--proto-text-label-12-weight: 500;
+	--proto-text-label-12-line-height: 16px;
+
+	--proto-text-label-11-size: 11px;
+	--proto-text-label-11-weight: 500;
+	--proto-text-label-11-line-height: 12px;
+
+	--proto-text-label-9-size: 9px;
+	--proto-text-label-9-weight: 600;
+	--proto-text-label-9-line-height: 10px;
+
+	--proto-text-subheading-10-size: 10px;
+	--proto-text-subheading-10-weight: 600;
+	--proto-text-subheading-10-line-height: 12px;
+	--proto-text-subheading-10-tracking: 0.5px;
+
+	--proto-text-subheading-11-size: 11px;
+	--proto-text-subheading-11-weight: 600;
+	--proto-text-subheading-11-line-height: 12px;
+	--proto-text-subheading-11-tracking: 0.5px;
+
+	/* ---- Prototype-only: elevation (no real token layer upstream either) ---- */
+	--ui-shadow-elevated: 0 8px 24px rgba(0, 0, 0, 0.4);
+}

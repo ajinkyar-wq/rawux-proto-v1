@@ -1,0 +1,91 @@
+/*
+ * Global rules the Home and import screens (copied from aftershoot-web-prototype) rely on.
+ * There they sat on body and bare elements; here they are scoped so the album workspace,
+ * which is styled with Tailwind, is left as it was.
+ *
+ *   .as-import         wraps everything copied over: screens, dialogs and the toast.
+ *   .as-import-screen  a full screen (Home, copy, preview), which also needs the page background.
+ *   body.as-import-body  set while any of it is showing, for menus and tooltips that are
+ *                        portalled onto body and so sit outside the wrapper.
+ */
+@import "./tokens.css";
+
+.as-import,
+body.as-import-body {
+  color: var(--ui-type-0);
+  font-family: var(--proto-font-family);
+  -webkit-font-smoothing: antialiased;
+}
+
+.as-import-screen,
+body.as-import-body {
+  background: var(--ui-surface-0);
+}
+
+.as-import button,
+body.as-import-body > div button {
+  font-family: inherit;
+  color: inherit;
+  cursor: pointer;
+}
+
+.as-import button:disabled,
+body.as-import-body > div button:disabled {
+  cursor: default;
+}
+
+.as-import input,
+.as-import select {
+  font-family: inherit;
+}
+
+/* Tailwind's reset makes images block-level and auto-height; the copied screens size them inline. */
+.as-import img,
+.as-import svg {
+  display: inline;
+}
+
+.as-import [tabindex]:focus {
+  outline: none;
+}
+
+.as-import [tabindex]:focus-visible {
+  outline: var(--ui-stroke-2) solid var(--ui-edge-accent--default--focus);
+  outline-offset: 2px;
+}
+
+/* Shared spin keyframes for loading icons that set `animation: spin ...`. */
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.as-import * {
+  scrollbar-width: thin;
+  scrollbar-color: var(--ui-edge-5) transparent;
+}
+.as-import *::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+.as-import *::-webkit-scrollbar-track {
+  background: transparent;
+}
+.as-import *::-webkit-scrollbar-thumb {
+  background-color: var(--ui-edge-5);
+  border: 2px solid transparent;
+  background-clip: padding-box;
+  border-radius: var(--ui-rounded-full);
+}
+.as-import *::-webkit-scrollbar-thumb:hover {
+  background-color: var(--ui-edge-4);
+}
+
+/* ScrollArea draws its own always-visible thumb and hides the native one. */
+.scroll-area-content {
+  scrollbar-width: none;
+}
+.scroll-area-content::-webkit-scrollbar {
+  display: none;
+}
