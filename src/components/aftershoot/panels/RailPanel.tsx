@@ -50,6 +50,14 @@ function RailPanelBody(props: RailPanelProps) {
           onRunEdit={() => props.onAction("edit")}
         />
       );
+    case "editRetouchAll":
+      return (
+        <EditRetouchPanel
+          editStatus={props.actionStatuses.edit}
+          onRunEdit={() => props.onAction("edit")}
+          withTools
+        />
+      );
     case "aiTools":
       return <AIToolsPanel />;
     case "info":

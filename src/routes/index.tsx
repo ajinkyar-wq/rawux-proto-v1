@@ -79,7 +79,7 @@ export const Route = createFileRoute("/")({
 // "stay in place + toast" variant, ux2, is still supported below.)
 const UNDO_MODE: UxMode = "ux1";
 
-// Entry: the UI - 1 / UI - 2 layout selector, then Home. From Home an album
+// Entry: the layout selector, then Home. From Home an album
 // opens either directly or at the end of the import flow (New Album → sources
 // → ingest → Create Album). Each time an album opens it starts a fresh
 // session (album Undo/Redo is session-only, per the History spec).
@@ -146,7 +146,7 @@ function useImportBodyStyles(onImportScreen: boolean) {
 }
 
 // Where an album opens: Cull on the CULL tab, Edit and Retouch on ENHANCE
-// with their own panel (the combined panel in UI - 2).
+// with their own panel (the combined panel in the one-tab layout and UI-2).
 const sectionTab = (section: AppSection): AppTab => (section === "cull" ? "cull" : "enhance");
 const sectionRail = (layout: Layout, section: AppSection): RailKey =>
   section === "retouch"

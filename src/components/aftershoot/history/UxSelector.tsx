@@ -5,14 +5,20 @@ import type { Layout } from "../rail-config";
 // (see UNDO_MODE in routes/index.tsx) and isn't a choice here.
 const OPTIONS: { mode: Layout; label: string; heading: string; description: string }[] = [
   {
-    mode: "ui1",
+    mode: "oneTab",
     label: "UI - 1",
+    heading: "One tab",
+    description: "Editing and Retouching in one tab. AI tools stay inside Editing.",
+  },
+  {
+    mode: "ui1",
+    label: "UI - 2",
     heading: "Separate tabs",
     description: "Editing and Retouching in separate tabs.",
   },
   {
     mode: "ui2",
-    label: "UI - 2",
+    label: "UI - 3",
     heading: "Combined panel",
     description: "Editing and Retouching in one panel. AI tools get their own tab.",
   },
@@ -27,7 +33,7 @@ export function UxSelector({ onSelect }: { onSelect: (mode: Layout) => void }) {
       </h1>
       <p className="mt-3 text-[14px] text-neutral-500">Choose a layout</p>
 
-      <div className="mt-12 grid w-full max-w-[640px] grid-cols-1 gap-4 sm:grid-cols-2">
+      <div className="mt-12 grid w-full max-w-[960px] grid-cols-1 gap-4 sm:grid-cols-3">
         {OPTIONS.map((o) => (
           <button
             key={o.mode}

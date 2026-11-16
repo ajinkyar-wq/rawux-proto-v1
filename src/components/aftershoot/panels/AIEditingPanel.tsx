@@ -77,10 +77,13 @@ export function EditingSection({
   status,
   onRunEdit,
   withProfile = false,
+  withTools = false,
 }: {
   status: ActionStatus;
   onRunEdit: () => void;
   withProfile?: boolean;
+  /** One-tab layout: the AI tool toggles sit between the profile and the Edit button. */
+  withTools?: boolean;
 }) {
   const [open, setOpen] = useState(true);
   const done = status === "complete";
@@ -109,6 +112,7 @@ export function EditingSection({
         ) : withProfile ? (
           <>
             <ProfileBlock onChangeProfile={onRunEdit} />
+            {withTools && <AIToolToggles />}
             <EditRunButton status={status} onClick={onRunEdit} />
           </>
         ) : null)}

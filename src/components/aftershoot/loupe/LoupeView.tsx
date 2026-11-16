@@ -182,6 +182,7 @@ function initialRail(
   switch (entryRail) {
     case "edit":
     case "editRetouch": // UI-2 Edit & Retouch
+    case "editRetouchAll": // one-tab layout Editing & Retouching
       return "edit"; // grid AI Editing → loupe Edit sliders.
     case "aiTools": // UI-2 AI Crop, Masking & Denoise → loupe Crop
       return "crop";
