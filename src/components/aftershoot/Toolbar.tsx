@@ -7,6 +7,7 @@ import {
   Monitor,
   MoreVertical,
   Pencil,
+  Settings,
   Share,
 } from "lucide-react";
 import { FilterControls } from "./FilterBar";
@@ -31,6 +32,7 @@ export function AppBar({
   onHome,
   albumName = "Album Name",
   onAdd,
+  onOpenSettings,
 }: {
   tab: AppTab;
   onChangeTab: (tab: AppTab) => void;
@@ -39,6 +41,8 @@ export function AppBar({
   albumName?: string;
   // Add opens the import flow to bring more photos into this album.
   onAdd?: () => void;
+  // App Settings (gear). Its Shortcuts link opens the Keyboard Shortcuts modal.
+  onOpenSettings?: () => void;
 }) {
   return (
     <div className="relative flex h-11 shrink-0 items-center gap-1 border-b border-white/5 bg-[#1a1a1a] px-3">
@@ -88,6 +92,11 @@ export function AppBar({
         <Share className="h-[13px] w-[13px]" strokeWidth={1.5} />
         Export
       </button>
+      <IconTooltip label="Settings" side="bottom">
+        <ToolbarBtn onClick={onOpenSettings}>
+          <Settings className="h-[15px] w-[15px]" strokeWidth={1.5} />
+        </ToolbarBtn>
+      </IconTooltip>
       <ToolbarBtn>
         <MoreVertical className="h-[15px] w-[15px]" strokeWidth={1.5} />
       </ToolbarBtn>

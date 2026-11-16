@@ -1,5 +1,11 @@
-import { useEffect, useRef } from "react";
-import { sliderDisplay, useHistorySlider } from "../history/album-history";
+import { useContext, useEffect, useRef } from "react";
+import {
+  SliderHistoryContext,
+  SliderScopeContext,
+  sliderDisplay,
+  useHistorySlider,
+} from "../history/album-history";
+import { useSpeedEditTarget } from "../shortcuts/useSpeedEdit";
 
 // Track gradient variants used across loupe sliders.
 export type Gradient =
@@ -182,9 +188,21 @@ export function SliderRow({
       ? Math.round(((value - 50) / 50) * 100)
       : Math.round((value / 100) * max);
   const isMutedRow = disabled;
+  // Highlight the row while its speed edit key is held.
+  const speedTarget = useSpeedEditTarget();
+  const scope = useContext(SliderScopeContext);
+  const where = useContext(SliderHistoryContext);
+  const speedEditing =
+    !!speedTarget &&
+    where?.tool === "edit" &&
+    speedTarget.scope === scope &&
+    speedTarget.label === label;
   return (
     <div className={`flex items-center gap-2 ${isMutedRow ? "opacity-50" : ""}`}>
-      <span className="shrink-0 text-[11px] text-neutral-400" style={{ width: labelWidth }}>
+      <span
+        className={`shrink-0 text-[11px] ${speedEditing ? "text-white" : "text-neutral-400"}`}
+        style={{ width: labelWidth }}
+      >
         {label}
       </span>
       <div className="flex-1">

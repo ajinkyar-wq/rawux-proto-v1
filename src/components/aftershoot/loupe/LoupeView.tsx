@@ -24,6 +24,7 @@ export function LoupeView({
   railRequest,
   lastRail,
   onRailChange,
+  onOpenShortcuts,
 }: {
   // Filter row (ViewBar) — sits above the image area only.
   viewBar?: React.ReactNode;
@@ -47,6 +48,10 @@ export function LoupeView({
   // Last loupe tool, kept by the parent across view switches.
   lastRail?: LoupeRailKey | null;
   onRailChange?: (key: LoupeRailKey) => void;
+  // The rail's Keyboard icon opens the Keyboard Shortcuts modal instead of a
+  // side panel. Gets the tool that was open so the modal can start on the
+  // shortcuts that matter there (e.g. Crop / Mask → Crop & Masking).
+  onOpenShortcuts?: (from: LoupeRailKey) => void;
 }) {
   // Which rail loupe opens on is contextual to how you arrived. See initialRail.
   // Returning to loupe restores the tool the user last had open here.
@@ -77,6 +82,10 @@ export function LoupeView({
   }, [railRequest]);
 
   function handleRailSelect(key: LoupeRailKey) {
+    if (key === "keyboard") {
+      onOpenShortcuts?.(activeRail);
+      return;
+    }
     if (key === activeRail) {
       // Re-clicking the active icon toggles the panel open/closed.
       setPanelOpen((v) => !v);
