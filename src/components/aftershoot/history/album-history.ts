@@ -272,8 +272,9 @@ function buildSeed() {
   return { entries, values };
 }
 
-export function useAlbumHistory() {
-  const [seed] = useState(buildSeed);
+// `seeded: false` starts with no history at all, for an album that was only just created.
+export function useAlbumHistory(seeded = true) {
+  const [seed] = useState(() => (seeded ? buildSeed() : { entries: [], values: {} }));
   const [entries, setEntries] = useState<AlbumEntry[]>(seed.entries);
   // Entries at index >= cursor are undone (redo-able).
   const [cursor, setCursor] = useState(seed.entries.length);

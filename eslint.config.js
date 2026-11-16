@@ -37,4 +37,10 @@ export default tseslint.config(
     },
   },
   eslintPluginPrettier,
+  {
+    // Copied as is from aftershoot-web-prototype (tabs, single quotes, no semicolons). Left in
+    // that prototype's formatting so changes made there can be copied over again and compared.
+    files: ["src/features/import/**/*.{ts,tsx}"],
+    rules: { "prettier/prettier": "off" },
+  },
 );
