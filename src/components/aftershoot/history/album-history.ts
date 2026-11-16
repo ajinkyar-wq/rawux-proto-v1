@@ -107,7 +107,91 @@ export const SEED_END = { view: "grid" as ViewMode, image: 14 };
 const range = (from: number, to: number) =>
   Array.from({ length: to - from + 1 }, (_, k) => from + k);
 
-function buildSeed() {
+// Every image in the album (matches the filmstrip / bottom bar "1 / 232").
+const ALBUM_IMAGE_COUNT = 232;
+
+// Earlier edits on every image, so each one has steps in its History panel.
+// Deterministic per image (same steps every load): 4-7 changes drawn from the
+// editing, crop, mask and retouch tools.
+type PastOp =
+  | {
+      kind: "slide";
+      tool: Tool;
+      scope: string;
+      label: string;
+      max?: number;
+      lo: number;
+      hi: number;
+    }
+  | { kind: "set"; tool: Tool; op: string; key: string; values: string[] };
+const PAST_OPS: PastOp[] = [
+  { kind: "slide", tool: "edit", scope: "Light", label: "Exposure", lo: 42, hi: 64 },
+  { kind: "slide", tool: "edit", scope: "Light", label: "Contrast", lo: 44, hi: 62 },
+  { kind: "slide", tool: "edit", scope: "Light", label: "Highlights", lo: 24, hi: 48 },
+  { kind: "slide", tool: "edit", scope: "Light", label: "Shadows", lo: 70, hi: 95 },
+  { kind: "slide", tool: "edit", scope: "Light", label: "Whites", lo: 70, hi: 88 },
+  { kind: "slide", tool: "edit", scope: "Light", label: "Blacks", lo: 62, hi: 80 },
+  {
+    kind: "slide",
+    tool: "edit",
+    scope: "White Balance",
+    label: "Temperature",
+    max: 10000,
+    lo: 44,
+    hi: 60,
+  },
+  { kind: "slide", tool: "edit", scope: "White Balance", label: "Tint", lo: 46, hi: 60 },
+  { kind: "slide", tool: "edit", scope: "Presence", label: "Clarity", lo: 52, hi: 68 },
+  { kind: "slide", tool: "edit", scope: "Presence", label: "Vibrance", lo: 66, hi: 85 },
+  { kind: "slide", tool: "edit", scope: "Presence", label: "Dehaze", lo: 30, hi: 48 },
+  {
+    kind: "set",
+    tool: "edit",
+    op: "Preset",
+    key: "preset",
+    values: ["True to Life", "Soft Film", "Cinematic C1", "Warm Matte"],
+  },
+  {
+    kind: "set",
+    tool: "crop",
+    op: "Crop",
+    key: "crop",
+    values: [
+      "4 : 5 · Straighten 0.6°",
+      "3 : 2 · Straighten -1.1°",
+      "1 : 1",
+      "16 : 9 · Straighten 0.3°",
+    ],
+  },
+  {
+    kind: "set",
+    tool: "mask",
+    op: "Mask",
+    key: "mask",
+    values: ["Subject · +0.3 Exposure", "Sky · -0.4 Highlights", "Background · -12 Clarity"],
+  },
+  { kind: "slide", tool: "retouch", scope: "Face Skin", label: "Smoothen", lo: 55, hi: 72 },
+  { kind: "slide", tool: "retouch", scope: "Teeth", label: "Whiten", lo: 54, hi: 66 },
+  { kind: "slide", tool: "retouch", scope: "Eyes", label: "Brighten", lo: 54, hi: 64 },
+];
+
+// Small seeded PRNG so each image's past edits are stable across reloads.
+function rng(seed: number) {
+  let t = seed + 0x6d2b79f5;
+  return () => {
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+/**
+ * Album history to start with.
+ * - `story`: the scripted demo session (ratings, Survey, Sync, Undo targets…).
+ *   Off for a just-imported album, which has no culling yet.
+ * - Past edits on every image are always included so History is never empty.
+ */
+function buildSeed(story = true) {
   const values: Record<string, number> = {};
   const entries: AlbumEntry[] = [];
   const fx = (image: number, key: string, next?: number): Effect => {
@@ -156,6 +240,23 @@ function buildSeed() {
       to: { view: v, image: to },
     });
   const light = (l: string) => sliderKey("edit", "Light", l);
+
+  // 0. Earlier editing on every image (oldest steps on the stack).
+  for (let img = 0; img < ALBUM_IMAGE_COUNT; img++) {
+    const r = rng(img + 1);
+    const count = 4 + Math.floor(r() * 4);
+    const pool = [...PAST_OPS];
+    for (let n = 0; n < count && pool.length; n++) {
+      const op = pool.splice(Math.floor(r() * pool.length), 1)[0];
+      if (op.kind === "slide") {
+        slide(img, op.tool, op.scope, op.label, Math.round(op.lo + r() * (op.hi - op.lo)), op.max);
+      } else {
+        const v = Math.floor(r() * op.values.length);
+        change([img], "loupe", op.tool, op.op, op.values[v], [fx(img, op.key, v + 1)]);
+      }
+    }
+  }
+  if (!story) return { entries, values };
 
   // 1. Grid: multi-select 3 images, press "1".
   rate([2, 3, 4], "grid", 1);
@@ -272,9 +373,10 @@ function buildSeed() {
   return { entries, values };
 }
 
-// `seeded: false` starts with no history at all, for an album that was only just created.
+// `seeded: false` is for an album that was only just created: no scripted demo
+// session (no ratings or culling yet), but every image still has its past edits.
 export function useAlbumHistory(seeded = true) {
-  const [seed] = useState(() => (seeded ? buildSeed() : { entries: [], values: {} }));
+  const [seed] = useState(() => buildSeed(seeded));
   const [entries, setEntries] = useState<AlbumEntry[]>(seed.entries);
   // Entries at index >= cursor are undone (redo-able).
   const [cursor, setCursor] = useState(seed.entries.length);

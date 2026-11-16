@@ -9,7 +9,7 @@ import { ratingColorHex } from "../rating";
 // pill sits close to the bottom (independent values, not a shared VPAD).
 const TOP_PAD = 10;
 const BOTTOM_PAD = 10; // room for the thin horizontal scrollbar
-const DEFAULT_HEIGHT = 72;
+const DEFAULT_HEIGHT = 108;
 const MIN_HEIGHT = 40;
 const MAX_HEIGHT = 260;
 
