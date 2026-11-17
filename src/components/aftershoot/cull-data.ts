@@ -1,3 +1,5 @@
+import { imageOf } from "./duplicates";
+
 // Shared cull dataset — the single source of truth that BOTH the FilterBar
 // (star + color filters) and the side-panel Cull Filters filter against, and
 // that the CanvasGrid renders. Each image has a rating; rating maps to a color
@@ -8,12 +10,7 @@
 // sample (÷10) so we don't draw hundreds of tiles, while the filter math still
 // lines up category-by-category.
 
-export type CullCategory =
-  | "selected"
-  | "highlights"
-  | "blurred"
-  | "closed-eyes"
-  | "unrated";
+export type CullCategory = "selected" | "highlights" | "blurred" | "closed-eyes" | "unrated";
 
 // Real counts (shown as labels in the Cull Filters panel).
 export const CATEGORY_COUNT: Record<CullCategory, number> = {
@@ -49,17 +46,9 @@ export type CullImage = {
 // Build the proportional sample, interleaving categories so the grid looks
 // mixed rather than grouped.
 export const CULL_IMAGES: CullImage[] = (() => {
-  const order: CullCategory[] = [
-    "selected",
-    "highlights",
-    "blurred",
-    "closed-eyes",
-    "unrated",
-  ];
+  const order: CullCategory[] = ["selected", "highlights", "blurred", "closed-eyes", "unrated"];
   // Per-category queues of the right length.
-  const queues = order.map((c) =>
-    Array.from({ length: sampleCount(c) }, () => c),
-  );
+  const queues = order.map((c) => Array.from({ length: sampleCount(c) }, () => c));
   const interleaved: CullCategory[] = [];
   let added = true;
   while (added) {
@@ -82,4 +71,4 @@ export const CULL_IMAGES: CullImage[] = (() => {
 
 // Placeholder photo for an image: the same picture every time for the same id.
 export const photoUrl = (id: number, width = 1200) =>
-  `https://picsum.photos/seed/aftershoot-${id % CULL_IMAGES.length}/${width}/${Math.round((width * 2) / 3)}`;
+  `https://picsum.photos/seed/aftershoot-${imageOf(id) % CULL_IMAGES.length}/${width}/${Math.round((width * 2) / 3)}`;

@@ -1,5 +1,5 @@
-import { Bandage, Keyboard, Palette, Scissors, Shapes, SprayCan } from "lucide-react";
-import type { LucideIcon } from "lucide-react";
+import { Keyboard, Palette, Scissors, Shapes } from "lucide-react";
+import { OneClickIcon, RetouchIcon, SprayCanIcon, type RailIcon } from "./loupe/loupe-rail-config";
 
 export type RailKey =
   // Grid-view side panel tabs: AI Culling / AI Editing / AI Retouching.
@@ -13,13 +13,14 @@ export type RailKey =
   | "aiTools"
   | "info"
   | "history"
+  | "oneClick"
   | "cloud"
   | "spray"
   | "keyboard"
   | "settings";
 
 export type RailItem =
-  { kind: "icon"; key: RailKey; icon: LucideIcon; label: string } | { kind: "divider" };
+  { kind: "icon"; key: RailKey; icon: RailIcon; label: string } | { kind: "divider" };
 
 // Top-level app tabs (toolbar CULL / ENHANCE switch, as in the main app).
 // Culling lives in CULL; editing + retouching live in ENHANCE.
@@ -35,25 +36,38 @@ export type AppTab = "cull" | "enhance";
 //        Denoise get their own AI Tools tab.
 export type Layout = "oneTab" | "ui1" | "ui2";
 
-const CULL_RAIL: RailItem[] = [{ kind: "icon", key: "cull", icon: Scissors, label: "AI Culling" }];
+// One Click opens the import workflow modal (not a panel) — first in every tab,
+// followed by a divider, same as the loupe rail.
+const ONE_CLICK: RailItem[] = [
+  { kind: "icon", key: "oneClick", icon: OneClickIcon, label: "One Click" },
+  { kind: "divider" },
+];
+
+const CULL_RAIL: RailItem[] = [
+  ...ONE_CLICK,
+  { kind: "icon", key: "cull", icon: Scissors, label: "AI Culling" },
+];
 
 export const TAB_RAIL: Record<Layout, Record<AppTab, RailItem[]>> = {
   oneTab: {
     cull: CULL_RAIL,
     enhance: [
+      ...ONE_CLICK,
       { kind: "icon", key: "editRetouchAll", icon: Palette, label: "Editing & Retouching" },
     ],
   },
   ui1: {
     cull: CULL_RAIL,
     enhance: [
+      ...ONE_CLICK,
       { kind: "icon", key: "edit", icon: Palette, label: "AI Editing" },
-      { kind: "icon", key: "retouch", icon: Bandage, label: "AI Retouching" },
+      { kind: "icon", key: "retouch", icon: RetouchIcon, label: "AI Retouching" },
     ],
   },
   ui2: {
     cull: CULL_RAIL,
     enhance: [
+      ...ONE_CLICK,
       { kind: "icon", key: "editRetouch", icon: Palette, label: "Edit & Retouch" },
       { kind: "icon", key: "aiTools", icon: Shapes, label: "AI Crop, Masking & Denoise" },
     ],
@@ -79,6 +93,7 @@ export const railForAction = (layout: Layout, action: "cull" | "edit" | "retouch
 
 // Bottom: Spray Can (a mode toggle, not a panel) and Keyboard Shortcuts.
 export const BOTTOM_RAIL: RailItem[] = [
-  { kind: "icon", key: "spray", icon: SprayCan, label: "Spray Can" },
+  { kind: "icon", key: "spray", icon: SprayCanIcon, label: "Spray Can" },
+  { kind: "divider" },
   { kind: "icon", key: "keyboard", icon: Keyboard, label: "Keyboard shortcuts" },
 ];

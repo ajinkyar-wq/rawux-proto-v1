@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Button, Divider, IconButton, Modal, PencilSimple, SelectField, Switch, X, colors, modalWidth, spacing, textStyle } from '../../ui-kit'
+import { Button, Divider, IconButton, Modal, PencilSimple, SelectField, X, colors, modalWidth, spacing, textStyle } from '../../ui-kit'
 import { GENRES } from '../../data/genres'
 import { useCullStore } from '../../store/useCullStore'
 
@@ -43,7 +43,7 @@ function OneClickWorkflow({ initialGenre, onClose }: { initialGenre: string | nu
 		<Modal isOpen onClose={onClose} width={modalWidth.compact}>
 			<div style={{ display: 'flex', alignItems: 'center', gap: spacing[8] }}>
 				<h3 style={{ flex: 1, margin: 0, ...textStyle('heading-16'), color: colors.type.secondary }}>One Click Workflow</h3>
-				<SelectField label="Genre" value={genre} options={GENRES} onChange={setGenre} width={160} />
+				<SelectField label="Genre" value={genre} options={GENRES} onChange={setGenre} width={160} menuAlign="right" />
 				<IconButton icon={X} label="Close" hasTooltip={false} onClick={onClose} />
 			</div>
 
@@ -57,7 +57,7 @@ function OneClickWorkflow({ initialGenre, onClose }: { initialGenre: string | nu
 								<span style={{ ...textStyle('body-13'), color: colors.type.muted }}>{step.summary}</span>
 							</div>
 							<IconButton icon={PencilSimple} label={`Edit ${step.title}`} hasTooltip={false} onClick={() => showToast(`Opens ${step.title} settings`)} />
-							<Switch aria-label={step.title} checked={enabled[step.id]} onChange={(checked) => setEnabled((prev) => ({ ...prev, [step.id]: checked }))} />
+							<Toggle label={step.title} on={enabled[step.id]} onChange={(checked) => setEnabled((prev) => ({ ...prev, [step.id]: checked }))} />
 						</div>
 					</div>
 				))}
@@ -69,5 +69,33 @@ function OneClickWorkflow({ initialGenre, onClose }: { initialGenre: string | nu
 				</Button>
 			</div>
 		</Modal>
+	)
+}
+
+/** Same switch as the Tethering panel: blue track when on, white handle either way. */
+function Toggle({ label, on, onChange }: { label: string; on: boolean; onChange: (on: boolean) => void }) {
+	return (
+		<button
+			type="button"
+			role="switch"
+			aria-label={label}
+			aria-checked={on}
+			onClick={() => onChange(!on)}
+			style={{
+				display: 'flex',
+				alignItems: 'center',
+				justifyContent: on ? 'flex-end' : 'flex-start',
+				width: 32,
+				flexShrink: 0,
+				padding: 2,
+				border: 'none',
+				borderRadius: 9999,
+				background: on ? '#2563eb' : '#303030',
+				cursor: 'pointer',
+				transition: 'background-color 0.15s',
+			}}
+		>
+			<span style={{ width: 12, height: 12, borderRadius: 9999, background: '#fff' }} />
+		</button>
 	)
 }

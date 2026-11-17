@@ -1,5 +1,6 @@
 import { useCallback, useMemo, useState } from "react";
 import { CULL_IMAGES } from "./cull-data";
+import { imageOf } from "./duplicates";
 
 // Shared rating state for the whole screen so the grid tiles and the loupe
 // bottom-bar rating chip stay in sync — rating an image in one place updates
@@ -19,7 +20,7 @@ export function useRatings(rated: boolean) {
     (id: number) => {
       const override = overrides[id];
       if (override !== undefined) return override;
-      const img = CULL_IMAGES[id % CULL_IMAGES.length];
+      const img = CULL_IMAGES[imageOf(id) % CULL_IMAGES.length];
       return rated ? img.rating : 0;
     },
     [overrides, rated],

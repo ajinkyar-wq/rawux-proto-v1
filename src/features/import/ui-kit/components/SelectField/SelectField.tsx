@@ -26,6 +26,8 @@ export interface SelectFieldProps {
 	label: string
 	/** 'box' is a filled field with all four edges. 'underline' is an open field with only a bottom edge, matching `TextField`'s underline variant. */
 	variant?: 'box' | 'underline'
+	/** Which edge of the field the menu lines up with. Right, when the menu is wider than a field that sits at the end of a row. */
+	menuAlign?: 'left' | 'right'
 }
 
 /**
@@ -34,7 +36,7 @@ export interface SelectFieldProps {
  * Boxed, on the control surface, because it is an input with a value. Toolbar and header filters use
  * the borderless `DropdownSelector` instead.
  */
-export function SelectField({ value, placeholder, options, optionIcons, onChange, displayValue, icon: IconComponent = CaretDown, footerEntries, disabled, width = '100%', label, variant = 'box' }: SelectFieldProps) {
+export function SelectField({ value, placeholder, options, optionIcons, onChange, displayValue, icon: IconComponent = CaretDown, footerEntries, disabled, width = '100%', label, variant = 'box', menuAlign = 'left' }: SelectFieldProps) {
 	const [isOpen, setIsOpen] = useState(false)
 	const [isHovered, setIsHovered] = useState(false)
 	const isUnderline = variant === 'underline'
@@ -84,7 +86,7 @@ export function SelectField({ value, placeholder, options, optionIcons, onChange
 				</span>
 				<IconComponent size={16} color={typeColor.muted} style={{ flexShrink: 0 }} />
 			</button>
-			<Menu isOpen={isOpen} onClose={() => setIsOpen(false)} anchorRef={anchorRef} entries={entries} align="left" minWidth={Math.max(180, anchorRef.current?.offsetWidth ?? 0)} />
+			<Menu isOpen={isOpen} onClose={() => setIsOpen(false)} anchorRef={anchorRef} entries={entries} align={menuAlign} minWidth={Math.max(180, anchorRef.current?.offsetWidth ?? 0)} />
 		</>
 	)
 }

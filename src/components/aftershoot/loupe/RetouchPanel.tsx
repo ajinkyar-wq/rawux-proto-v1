@@ -1,8 +1,9 @@
 import { useState } from "react";
-import { ChevronDown, Eye, Plus, RotateCcw } from "lucide-react";
-import { Checkbox, Dropdown, RangeSlider } from "../primitives";
+import { ChevronRight, Plus } from "lucide-react";
+import { Checkbox, Dropdown } from "../primitives";
 import { IconTooltip } from "../IconTooltip";
-import { SliderScopeContext, sliderDisplay, useHistorySlider } from "../history/album-history";
+import { Section } from "./EditPanel";
+import { SliderRow } from "./slider-primitives";
 
 type Subject = "all" | "masculine" | "feminine" | "elderly" | "child" | "individual";
 
@@ -34,7 +35,7 @@ export function RetouchPanel() {
   const [preset, setPreset] = useState<string | null>(null);
 
   return (
-    <div className="flex flex-col gap-2.5">
+    <div className="flex flex-col gap-3">
       <SubjectChips
         active={subject}
         onChange={setSubject}
@@ -42,15 +43,19 @@ export function RetouchPanel() {
         onIndividualChange={setIndividual}
       />
 
-      <label className="flex cursor-pointer items-center gap-1.5 text-[11px] text-neutral-300">
+      <label className="flex cursor-pointer items-center gap-1.5 text-[13px] leading-4 text-[#ababab]">
         <Checkbox checked={showFaceFrame} onChange={setShowFaceFrame} />
-        Show Face frame
+        Show face frames
       </label>
 
       <PresetsSection preset={preset} onPresetChange={setPreset} />
 
       {SECTIONS.map((s) => (
-        <SliderSection key={s.title} title={s.title} rows={s.rows} />
+        <Section key={s.title} title={s.title}>
+          {s.rows.map((label) => (
+            <SliderRow key={label} label={label} />
+          ))}
+        </Section>
       ))}
     </div>
   );
@@ -70,7 +75,7 @@ function SubjectChips({
   onIndividualChange: (v: boolean) => void;
 }) {
   return (
-    <div className="flex flex-wrap items-center gap-1.5">
+    <div className="flex flex-wrap items-start gap-2">
       {SUBJECTS.map((s) => {
         if (s.id === "individual") {
           // The Individual chip behaves like an independent toggle.
@@ -103,10 +108,10 @@ function Chip({
     <button
       type="button"
       onClick={onClick}
-      className={`flex h-6 items-center rounded px-2 text-[11px] transition-colors ${
+      className={`flex h-6 items-center gap-1 overflow-clip rounded border-[0.5px] border-solid bg-[#242424] px-2 py-1 text-[13px] leading-4 transition-colors ${
         active
-          ? "bg-white/15 text-white"
-          : "bg-[#222] text-neutral-400 hover:bg-[#262626] hover:text-neutral-200"
+          ? "border-[#777] text-[#e2e2e2]"
+          : "border-transparent text-[#ababab] hover:border-[#474747]"
       }`}
     >
       {children}
@@ -125,16 +130,16 @@ function PresetsSection({
 }) {
   const [open, setOpen] = useState(true);
   return (
-    <div className="flex flex-col gap-1.5">
-      <div className="flex items-center justify-between">
+    <section className="flex flex-col gap-3 border-t border-white/5 pt-3">
+      <div className="flex h-6 items-center justify-between">
         <button
           type="button"
           onClick={() => setOpen((v) => !v)}
-          className="flex items-center gap-1 text-[11px] font-semibold text-white"
+          className="flex items-center gap-2 text-[12px] font-semibold uppercase tracking-wider text-neutral-200"
         >
-          <ChevronDown
-            className={`h-3 w-3 text-neutral-400 transition-transform ${open ? "" : "-rotate-90"}`}
-            strokeWidth={1.75}
+          <ChevronRight
+            className={`h-3.5 w-3.5 text-neutral-400 transition-transform ${open ? "rotate-90" : ""}`}
+            strokeWidth={2}
           />
           Presets
         </button>
@@ -156,87 +161,6 @@ function PresetsSection({
           size="sm"
         />
       )}
-    </div>
-  );
-}
-
-/* ---------------- Slider section (Face Blemish, etc.) ---------------- */
-
-function SliderSection({ title, rows }: { title: string; rows: string[] }) {
-  const [open, setOpen] = useState(true);
-  return (
-    <div className="flex flex-col gap-1.5">
-      <SectionHeader title={title} open={open} onToggle={() => setOpen((v) => !v)} />
-      {open && (
-        <div className="flex flex-col gap-1.5">
-          <SliderScopeContext.Provider value={title}>
-            {rows.map((label) => (
-              <SliderRow key={label} label={label} />
-            ))}
-          </SliderScopeContext.Provider>
-        </div>
-      )}
-    </div>
-  );
-}
-
-function SectionHeader({
-  title,
-  open,
-  onToggle,
-}: {
-  title: string;
-  open: boolean;
-  onToggle: () => void;
-}) {
-  return (
-    <div className="flex items-center justify-between">
-      <button
-        type="button"
-        onClick={onToggle}
-        className="flex items-center gap-1 text-[11px] font-semibold text-white"
-      >
-        <ChevronDown
-          className={`h-3 w-3 text-neutral-400 transition-transform ${open ? "" : "-rotate-90"}`}
-          strokeWidth={1.75}
-        />
-        {title}
-      </button>
-      <div className="flex items-center gap-1">
-        <IconTooltip label="Toggle visibility">
-          <button
-            type="button"
-            className="rounded p-0.5 text-neutral-500 hover:bg-white/5 hover:text-white"
-          >
-            <Eye className="h-3 w-3" strokeWidth={1.5} />
-          </button>
-        </IconTooltip>
-        <IconTooltip label="Reset section">
-          <button
-            type="button"
-            className="rounded p-0.5 text-neutral-500 hover:bg-white/5 hover:text-white"
-          >
-            <RotateCcw className="h-3 w-3" strokeWidth={1.5} />
-          </button>
-        </IconTooltip>
-      </div>
-    </div>
-  );
-}
-
-function SliderRow({ label }: { label: string }) {
-  // midpoint (50) = 0. Value is per image and recorded in history.
-  const { value, onChange, onCommit } = useHistorySlider(label, 50, (p) => sliderDisplay(p));
-  const display = Math.round(((value - 50) / 50) * 100);
-  return (
-    <div className="flex items-center gap-2">
-      <span className="w-[88px] shrink-0 text-[11px] text-neutral-400">{label}</span>
-      <div className="flex-1">
-        <RangeSlider value={value} onChange={onChange} onCommit={onCommit} />
-      </div>
-      <span className="w-7 shrink-0 text-right text-[11px] tabular-nums text-neutral-400">
-        {display > 0 ? `+${display}` : display}
-      </span>
-    </div>
+    </section>
   );
 }

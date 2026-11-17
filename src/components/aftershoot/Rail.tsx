@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { IconTooltip } from "./IconTooltip";
+import { useCullStore } from "@/features/import/store/useCullStore";
+import { RailIconButton, RailTooltipProvider } from "./loupe/LoupeRail";
 import {
   BOTTOM_RAIL,
   TAB_RAIL,
@@ -9,6 +10,8 @@ import {
   type RailKey,
 } from "./rail-config";
 
+// Same rail design/layout as the loupe rail (shared RailTooltipProvider +
+// RailIconButton); only the options differ.
 export function Rail({
   layout,
   tab,
@@ -23,13 +26,18 @@ export function Rail({
 }) {
   // Spray Can is a mode toggle, not a panel — it keeps its own on/off state.
   const [sprayOn, setSprayOn] = useState(false);
-  const select = (key: RailKey) => (key === "spray" ? setSprayOn((v) => !v) : onSelect(key));
+  const openOneClick = useCullStore((s) => s.openOneClick);
+  const select = (key: RailKey) => {
+    if (key === "spray") setSprayOn((v) => !v);
+    else if (key === "oneClick") openOneClick();
+    else onSelect(key);
+  };
   const isActive = (key: RailKey) => (key === "spray" ? sprayOn : activeRail === key);
   return (
-    <div className="flex w-10 shrink-0 flex-col items-center justify-between border-l border-white/5 bg-[#141414] py-2">
+    <RailTooltipProvider>
       <RailGroup items={TAB_RAIL[layout][tab]} isActive={isActive} onSelect={select} />
       <RailGroup items={BOTTOM_RAIL} isActive={isActive} onSelect={select} />
-    </div>
+    </RailTooltipProvider>
   );
 }
 
@@ -43,48 +51,21 @@ function RailGroup({
   onSelect: (key: RailKey) => void;
 }) {
   return (
-    <div className="flex flex-col items-center gap-1.5">
+    <div className="flex w-full flex-col items-center gap-2">
       {items.map((item, i) =>
         item.kind === "divider" ? (
-          <div key={`divider-${i}`} className="my-1 h-px w-5 bg-white/[0.06]" role="separator" />
+          <div key={`divider-${i}`} className="h-px w-full bg-white/[0.08]" role="separator" />
         ) : (
-          <RailIcon
+          <RailIconButton
             key={item.key}
             label={item.label}
             active={isActive(item.key)}
             onClick={() => onSelect(item.key)}
-            icon={<item.icon className="h-[15px] w-[15px]" strokeWidth={1.5} />}
+            icon={<item.icon className="h-5 w-5" />}
+            accent={item.key === "oneClick"}
           />
         ),
       )}
     </div>
-  );
-}
-
-function RailIcon({
-  icon,
-  label,
-  active,
-  onClick,
-}: {
-  icon: React.ReactNode;
-  label: string;
-  active?: boolean;
-  onClick?: () => void;
-}) {
-  return (
-    // Rail sits on the right edge, so tooltips open to the left.
-    <IconTooltip label={label} side="left">
-      <button
-        onClick={onClick}
-        className={`rounded p-1.5 ${
-          active
-            ? "bg-white/10 text-white"
-            : "text-neutral-500 hover:bg-white/5 hover:text-neutral-300"
-        }`}
-      >
-        {icon}
-      </button>
-    </IconTooltip>
   );
 }

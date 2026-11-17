@@ -1,6 +1,6 @@
 import { SliderScopeContext } from "../history/album-history";
 import { useEffect, useRef, useState } from "react";
-import { ChevronDown, ChevronRight, Eye, RotateCcw } from "lucide-react";
+import { ArrowCounterClockwise, CaretDown, Eye } from "@phosphor-icons/react";
 import { GradientSlider, SliderRow, type Gradient } from "./slider-primitives";
 
 const PRESETS = [
@@ -182,11 +182,10 @@ function InlineSelectRow({
         >
           {value}
           {variant === "select" && (
-            <ChevronDown
-              className={`h-3 w-3 text-neutral-400 transition-transform ${
-                open ? "rotate-180" : ""
-              }`}
-              strokeWidth={2}
+            <CaretDown
+              size={12}
+              weight="light"
+              className={`text-neutral-400 transition-transform ${open ? "rotate-180" : ""}`}
             />
           )}
         </button>
@@ -221,29 +220,30 @@ function WBProfileRow() {
 
 /* ----------------- Section / Subsection ----------------- */
 
-function Section({
+export function Section({
   title,
   children,
   comingSoon = false,
+  first = false,
 }: {
   title: string;
   children: React.ReactNode;
   comingSoon?: boolean;
+  first?: boolean;
 }) {
   const [open, setOpen] = useState(true);
   return (
-    <section className="flex flex-col gap-3 border-t border-white/5 pt-3">
-      <div className="flex items-center justify-between">
+    <section className={`flex flex-col gap-3 ${first ? "" : "border-t border-white/5 pt-3"}`}>
+      <div className="flex h-6 items-center justify-between">
         <button
           type="button"
           onClick={() => setOpen((v) => !v)}
           className="flex items-center gap-2 text-[12px] font-semibold uppercase tracking-wider text-neutral-200"
         >
-          <ChevronRight
-            className={`h-3.5 w-3.5 text-neutral-400 transition-transform ${
-              open ? "rotate-90" : ""
-            }`}
-            strokeWidth={2}
+          <CaretDown
+            size={12}
+            weight="fill"
+            className={`text-neutral-400 transition-transform ${open ? "" : "-rotate-90"}`}
           />
           {title}
         </button>
@@ -258,21 +258,21 @@ function Section({
               title="Toggle visibility"
               className="rounded p-0.5 text-neutral-500 hover:bg-white/5 hover:text-white"
             >
-              <Eye className="h-4 w-4" strokeWidth={1.5} />
+              <Eye size={16} weight="light" />
             </button>
             <button
               type="button"
               title="Reset section"
               className="rounded p-0.5 text-neutral-500 hover:bg-white/5 hover:text-white"
             >
-              <RotateCcw className="h-4 w-4" strokeWidth={1.5} />
+              <ArrowCounterClockwise size={16} weight="light" />
             </button>
           </div>
         )}
       </div>
       {open && !comingSoon && (
         <SliderScopeContext.Provider value={title}>
-          <div className="flex flex-col gap-2">{children}</div>
+          <div className="flex flex-col gap-3">{children}</div>
         </SliderScopeContext.Provider>
       )}
     </section>
@@ -281,10 +281,10 @@ function Section({
 
 function Subsection({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <div className="flex flex-col gap-1.5">
+    <div className="flex flex-col gap-3">
       <span className="text-[10px] font-semibold tracking-wider text-neutral-500">{title}</span>
       <SliderScopeContext.Provider value={title.charAt(0) + title.slice(1).toLowerCase()}>
-        <div className="flex flex-col gap-1.5">{children}</div>
+        <div className="flex flex-col gap-3">{children}</div>
       </SliderScopeContext.Provider>
     </div>
   );
@@ -405,7 +405,7 @@ const MIXER_COLORS: { label: string; gradient: Gradient }[] = [
 function ColorMixer() {
   const [tab, setTab] = useState<MixerTab>("HUE");
   return (
-    <div className="flex flex-col gap-1.5">
+    <div className="flex flex-col gap-3">
       <div className="flex items-center gap-3 text-[10px] font-semibold tracking-wider">
         {(["HUE", "SATURATION", "LUMINANCE", "ALL"] as MixerTab[]).map((t) => {
           const active = tab === t;
@@ -425,7 +425,7 @@ function ColorMixer() {
           );
         })}
       </div>
-      <div className="flex flex-col gap-1">
+      <div className="flex flex-col gap-3">
         {MIXER_COLORS.map((c) => (
           <MixerRow key={c.label} label={c.label} gradient={c.gradient} />
         ))}
@@ -438,12 +438,12 @@ function MixerRow({ label, gradient }: { label: string; gradient: Gradient }) {
   const [value, setValue] = useState(50);
   const display = Math.round(((value - 50) / 50) * 100);
   return (
-    <div className="flex items-center gap-2">
-      <span className="w-[64px] shrink-0 text-[11px] text-neutral-400">{label}</span>
+    <div className="flex items-center">
+      <span className="w-[106px] shrink-0 truncate text-[12px] text-[#777]">{label}</span>
       <div className="flex-1">
         <GradientSlider value={value} onChange={setValue} gradient={gradient} />
       </div>
-      <span className="w-7 shrink-0 text-right text-[11px] tabular-nums text-neutral-400">
+      <span className="w-9 shrink-0 text-right text-[12px] font-medium tabular-nums text-[#777]">
         {display > 0 ? `+${display}` : display}
       </span>
     </div>
@@ -467,7 +467,7 @@ function ColorGrading() {
   const [showWheel, setShowWheel] = useState(true);
 
   return (
-    <div className="flex flex-col gap-2">
+    <div className="flex flex-col gap-3">
       <RangePicker active={range} onChange={setRange} />
 
       <div className="flex items-center justify-between">
@@ -479,7 +479,7 @@ function ColorGrading() {
           title="Toggle visibility"
           className="rounded p-0.5 text-neutral-500 hover:bg-white/5 hover:text-white"
         >
-          <Eye className="h-3 w-3" strokeWidth={1.5} />
+          <Eye size={12} weight="light" />
         </button>
       </div>
 
@@ -492,9 +492,10 @@ function ColorGrading() {
         onClick={() => setShowWheel((v) => !v)}
         className="flex items-center gap-1.5 text-[11px] text-neutral-400 hover:text-white"
       >
-        <ChevronDown
-          className={`h-3 w-3 transition-transform ${showWheel ? "" : "-rotate-90"}`}
-          strokeWidth={1.75}
+        <CaretDown
+          size={12}
+          weight="light"
+          className={`transition-transform ${showWheel ? "" : "-rotate-90"}`}
         />
         <span className="h-3 w-3 rounded-sm bg-neutral-500" />
       </button>
