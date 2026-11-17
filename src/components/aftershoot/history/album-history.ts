@@ -191,6 +191,12 @@ function rng(seed: number) {
  *   Off for a just-imported album, which has no culling yet.
  * - Past edits on every image are always included so History is never empty.
  */
+// Switching into / out of Survey (a Cull-only view) isn't a history step:
+// stepping through history must never take you to Cull. Ratings and flags
+// ARE steps; undoing them just doesn't change tab (see actOut in index.tsx).
+export const isSurveyNav = (e: AlbumEntry): boolean =>
+  e.kind === "nav" && (e.from.view === "survey" || e.to.view === "survey");
+
 function buildSeed(story = true) {
   const values: Record<string, number> = {};
   const entries: AlbumEntry[] = [];
@@ -256,7 +262,7 @@ function buildSeed(story = true) {
       }
     }
   }
-  if (!story) return { entries, values };
+  if (!story) return { entries: entries.filter((e) => !isSurveyNav(e)), values };
 
   // 1. Grid: multi-select 3 images, press "1".
   rate([2, 3, 4], "grid", 1);
@@ -370,7 +376,7 @@ function buildSeed(story = true) {
   // 12. Back to Grid — the album opens here (SEED_END).
   view(E, "loupe", "grid");
 
-  return { entries, values };
+  return { entries: entries.filter((e) => !isSurveyNav(e)), values };
 }
 
 // `seeded: false` is for an album that was only just created: no scripted demo
@@ -412,6 +418,7 @@ export function useAlbumHistory(seeded = true) {
   const record = useCallback(
     (entry: NewEntry) => {
       const withId = { ...entry, id: nextId() } as AlbumEntry;
+      if (isSurveyNav(withId)) return;
       setEntries((prev) => [...prev.slice(0, cursor), withId]);
       setCursor(cursor + 1);
       if (withId.kind === "change") {
@@ -538,5 +545,101 @@ export function useHistorySlider(label: string, initial: number, readout: (pos: 
     });
   };
 
+  return { value, onChange, onCommit };
+}
+
+// ---- Non-slider controls (dropdowns, toggles, swatches) ----
+//
+// Like useHistorySlider, but every change is ONE history step straight away.
+// The chosen option is stored as its index in `options`, so it's per image and
+// reverts on Undo. Outside a loupe panel it falls back to local state.
+export function useHistoryChoice<T extends string>(
+  label: string,
+  options: readonly T[],
+  initial: T,
+): [T, (next: T) => void] {
+  const history = useAlbumHistoryContext();
+  const where = useContext(SliderHistoryContext);
+  const scope = useContext(SliderScopeContext);
+  const [local, setLocal] = useState<T>(initial);
+
+  const live = !!history && !!where;
+  const key = where ? sliderKey(where.tool, scope, label) : "";
+  const stored = live ? history.getValue(where.image, key) : undefined;
+  const value = live ? (stored === undefined ? initial : (options[stored] ?? initial)) : local;
+
+  const set = (next: T) => {
+    if (next === value) return;
+    if (!live) return setLocal(next);
+    const idx = options.indexOf(next);
+    history.record({
+      kind: "change",
+      op: sliderOp(scope, label),
+      value: next,
+      view: "loupe",
+      tool: where.tool,
+      images: [where.image],
+      effects: [{ image: where.image, key, prev: stored, next: idx < 0 ? undefined : idx }],
+    });
+  };
+  return [value, set];
+}
+
+const ON_OFF = ["Off", "On"] as const;
+export function useHistoryToggle(label: string, initial: boolean): [boolean, (v: boolean) => void] {
+  const [v, set] = useHistoryChoice(label, ON_OFF, initial ? "On" : "Off");
+  return [v === "On", (next: boolean) => set(next ? "On" : "Off")];
+}
+
+// Several numbers changed together in one gesture (e.g. dragging the crop
+// box: x / y / w / h) → ONE step on commit.
+export function useHistoryValues<K extends string>(
+  label: string,
+  initial: Record<K, number>,
+  readout: (v: Record<K, number>) => string,
+) {
+  const history = useAlbumHistoryContext();
+  const where = useContext(SliderHistoryContext);
+  const scope = useContext(SliderScopeContext);
+  const [local, setLocal] = useState(initial);
+  const start = useRef<Record<K, number | undefined> | null>(null);
+  const live = !!history && !!where;
+  const fields = Object.keys(initial) as K[];
+  const keyOf = (f: K) => (where ? sliderKey(where.tool, scope, `${label}.${f}`) : "");
+  const storedOf = (f: K) => (live ? history.getValue(where.image, keyOf(f)) : undefined);
+  const value = live
+    ? (Object.fromEntries(fields.map((f) => [f, storedOf(f) ?? initial[f]])) as Record<K, number>)
+    : local;
+  const latest = useRef(value);
+  latest.current = value;
+
+  const onChange = (next: Record<K, number>) => {
+    latest.current = next;
+    if (!live) return setLocal(next);
+    if (!start.current)
+      start.current = Object.fromEntries(fields.map((f) => [f, storedOf(f)])) as Record<
+        K,
+        number | undefined
+      >;
+    fields.forEach((f) => history.setLive(where.image, keyOf(f), next[f]));
+  };
+
+  const onCommit = () => {
+    const s = start.current;
+    start.current = null;
+    if (!live || !s) return;
+    const end = latest.current;
+    if (fields.every((f) => Math.round((s[f] ?? initial[f]) * 10) === Math.round(end[f] * 10)))
+      return;
+    history.record({
+      kind: "change",
+      op: sliderOp(scope, label),
+      value: readout(end),
+      view: "loupe",
+      tool: where.tool,
+      images: [where.image],
+      effects: fields.map((f) => ({ image: where.image, key: keyOf(f), prev: s[f], next: end[f] })),
+    });
+  };
   return { value, onChange, onCommit };
 }

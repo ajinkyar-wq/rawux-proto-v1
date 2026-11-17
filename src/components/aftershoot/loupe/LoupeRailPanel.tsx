@@ -17,6 +17,12 @@ import { RetouchPanel } from "./RetouchPanel";
 import { TetheringPanel } from "./TetheringPanel";
 import type { LoupeRailKey } from "./loupe-rail-config";
 import { IconTooltip } from "../IconTooltip";
+import { FlyoutHost } from "./Flyout";
+import {
+  DEFAULT_SYNC_SETTINGS,
+  SyncSettingsModal,
+  type SyncSettings,
+} from "../modals/SyncSettingsModal";
 
 // Rails that share the standard editing footer ([Sync ⚙] · Reset).
 const EDITING_RAILS: LoupeRailKey[] = ["edit", "crop", "mask", "retouch", "patch", "background"];
@@ -57,32 +63,41 @@ export function LoupeRailPanel({
   // Tethering has its own full-height 344px panel (Figma 81:33862).
   if (activeRail === "camera") return <TetheringPanel />;
   return (
-    <div className="flex h-full w-[344px] shrink-0 flex-col border-l border-white/5 bg-[#1a1a1a]">
-      <ScrollFade
-        enabled={!isAI}
-        className={`flex min-h-0 flex-1 flex-col ${isAI ? "gap-3 p-4" : "overflow-y-auto p-3"}`}
-      >
-        {/* Sliders inside read/write the current image's values in the album
+    <FlyoutHost resetKey={activeRail}>
+      {(slotRef) => (
+        <div className="flex h-full shrink-0">
+          {/* Browse panels (AI Profiles / Presets) open here, left of the panel.
+              In the layout flow, so the photo canvas shrinks to make room. */}
+          <div ref={slotRef} className="flex h-full shrink-0" />
+          <div className="flex h-full w-[344px] shrink-0 flex-col border-l border-white/5 bg-[#1a1a1a]">
+            <ScrollFade
+              enabled={!isAI}
+              className={`flex min-h-0 flex-1 flex-col ${isAI ? "gap-3 p-4" : "overflow-y-auto p-3"}`}
+            >
+              {/* Sliders inside read/write the current image's values in the album
             history store and record a step per drag. */}
-        <SliderHistoryContext.Provider
-          value={
-            HISTORY_TOOLS.includes(activeRail as Tool)
-              ? { image: selectedIndex, tool: activeRail as Tool }
-              : null
-          }
-        >
-          <LoupeRailPanelBody
-            activeRail={activeRail}
-            selectedIndex={selectedIndex}
-            ai={ai}
-            faces={faces}
-          />
-        </SliderHistoryContext.Provider>
-      </ScrollFade>
-      {/* Footer is OUTSIDE the scroll area, so Sync/Reset stay pinned to the
+              <SliderHistoryContext.Provider
+                value={
+                  HISTORY_TOOLS.includes(activeRail as Tool)
+                    ? { image: selectedIndex, tool: activeRail as Tool }
+                    : null
+                }
+              >
+                <LoupeRailPanelBody
+                  activeRail={activeRail}
+                  selectedIndex={selectedIndex}
+                  ai={ai}
+                  faces={faces}
+                />
+              </SliderHistoryContext.Provider>
+            </ScrollFade>
+            {/* Footer is OUTSIDE the scroll area, so Sync/Reset stay pinned to the
           bottom of the panel regardless of how long the content scrolls. */}
-      {EDITING_RAILS.includes(activeRail) && <EditingPanelFooter />}
-    </div>
+            {EDITING_RAILS.includes(activeRail) && <EditingPanelFooter />}
+          </div>
+        </div>
+      )}
+    </FlyoutHost>
   );
 }
 
@@ -133,39 +148,42 @@ function LoupeRailPanelBody({
 }
 
 /* ---------------- Shared footer: Bottom CTA (Figma 4011:28100) ----------------
- * Two split buttons side by side: [Sync | ⚙] [Reset | ⚙]. Each is a full-pill
- * label button joined (1px gap) to a 32px round icon button. */
+ * [Sync | ⚙] [Reset]. Sync is a full-pill label button joined (1px gap) to a
+ * 32px round gear that opens Sync and Copy Settings; Reset has no settings. */
 
 function EditingPanelFooter() {
+  const [syncOpen, setSyncOpen] = useState(false);
+  const [syncSettings, setSyncSettings] = useState<SyncSettings>(DEFAULT_SYNC_SETTINGS);
+  const closeSync = useCallback(() => setSyncOpen(false), []);
   return (
     <div className="flex items-start gap-3 px-4 py-3">
-      <SplitButton label="Sync" settingsLabel="Sync settings" />
-      <SplitButton label="Reset" settingsLabel="Reset settings" />
+      <div className="flex min-w-px flex-1 items-center gap-px">
+        <button type="button" className={`${PILL} rounded-l-full`}>
+          Sync
+        </button>
+        <IconTooltip label="Sync settings">
+          <button
+            type="button"
+            aria-label="Sync settings"
+            onClick={() => setSyncOpen(true)}
+            className="flex size-8 shrink-0 items-center justify-center rounded-r-full bg-[#303030] p-2 text-[#e2e2e2] hover:bg-[#3a3a3a]"
+          >
+            <SettingsIcon className="size-4" strokeWidth={1.5} />
+          </button>
+        </IconTooltip>
+      </div>
+      <button type="button" className={`${PILL} rounded-full`}>
+        Reset
+      </button>
+      {syncOpen && (
+        <SyncSettingsModal initial={syncSettings} onClose={closeSync} onSave={setSyncSettings} />
+      )}
     </div>
   );
 }
 
-function SplitButton({ label, settingsLabel }: { label: string; settingsLabel: string }) {
-  return (
-    <div className="flex min-w-px flex-1 items-center gap-px">
-      <button
-        type="button"
-        className="flex h-8 min-w-[52px] flex-1 items-center justify-center rounded-l-full bg-[#303030] px-3 text-[12px] font-medium leading-4 text-[#e2e2e2] hover:bg-[#3a3a3a]"
-      >
-        {label}
-      </button>
-      <IconTooltip label={settingsLabel}>
-        <button
-          type="button"
-          aria-label={settingsLabel}
-          className="flex size-8 shrink-0 items-center justify-center rounded-r-full bg-[#303030] p-2 text-[#e2e2e2] hover:bg-[#3a3a3a]"
-        >
-          <SettingsIcon className="size-4" strokeWidth={1.5} />
-        </button>
-      </IconTooltip>
-    </div>
-  );
-}
+const PILL =
+  "flex h-8 min-w-[52px] flex-1 items-center justify-center bg-[#303030] px-3 text-[12px] font-medium leading-4 text-[#e2e2e2] hover:bg-[#3a3a3a]";
 
 /**
  * Scroll container with a bottom fade overlay (Figma 4011:28099) that shows

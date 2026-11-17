@@ -19,7 +19,10 @@ import { AIRetouchingPanel } from "./AIRetouchingPanel";
 
 type RailPanelProps = {
   railKey: RailKey;
+  // Opens the action's settings modal.
   onAction: (action: AIAction) => void;
+  // Runs the action immediately, skipping the modal.
+  onStartAction: (action: AIAction) => void;
   actionStatuses: ActionStatuses;
   selectedGridTile: number;
   ratingFilter: Set<number>;
@@ -49,14 +52,16 @@ function RailPanelBody(props: RailPanelProps) {
       return (
         <EditRetouchPanel
           editStatus={props.actionStatuses.edit}
-          onRunEdit={() => props.onAction("edit")}
+          onRunEdit={() => props.onStartAction("edit")}
+          onBrowseProfiles={() => props.onAction("edit")}
         />
       );
     case "editRetouchAll":
       return (
         <EditRetouchPanel
           editStatus={props.actionStatuses.edit}
-          onRunEdit={() => props.onAction("edit")}
+          onRunEdit={() => props.onStartAction("edit")}
+          onBrowseProfiles={() => props.onAction("edit")}
           withTools
         />
       );
@@ -125,8 +130,14 @@ function CullTab({
 
 /* ------------------------------ AI Editing ------------------------------ */
 
-function EditTab({ onAction, actionStatuses }: RailPanelProps) {
-  return <AIEditingPanel status={actionStatuses.edit} onRunEdit={() => onAction("edit")} />;
+function EditTab({ onAction, onStartAction, actionStatuses }: RailPanelProps) {
+  return (
+    <AIEditingPanel
+      status={actionStatuses.edit}
+      onRunEdit={() => onStartAction("edit")}
+      onBrowseProfiles={() => onAction("edit")}
+    />
+  );
 }
 
 /* ----------------------------- AI Retouching ---------------------------- */

@@ -1,24 +1,33 @@
-import { SliderScopeContext } from "../history/album-history";
+import { SliderScopeContext, useHistoryChoice, useHistorySlider } from "../history/album-history";
 import { useEffect, useRef, useState } from "react";
 import { ArrowCounterClockwise, CaretDown, Eye } from "@phosphor-icons/react";
 import { GradientSlider, SliderRow, type Gradient } from "./slider-primitives";
+import { ToneCurve } from "./ToneCurve";
+import { FlyoutPanel, useFlyout } from "./Flyout";
+import { useFlag } from "../feature-flags";
+import {
+  AIProfilesBrowser,
+  AI_PROFILE_NAMES,
+  PRESETS_BROWSER_ID,
+  PresetsBrowser,
+  PRESET_NAMES,
+} from "./BrowsePanels";
 
-const PRESETS = [
-  "Cinematic C1",
-  "Soft Skin",
-  "Moody",
-  "Bright & Airy",
-  "Vintage Film",
-  "B&W Classic",
-];
-const AI_PROFILES = ["True to Life", "Lemon Zest", "Bold Punch", "Cinematic"];
 const COLOR_PROFILES = ["Adobe Portrait", "Adobe Standard", "Adobe Vivid", "Camera Standard"];
 const WB_PROFILES = ["As Shot", "Auto", "Daylight", "Cloudy", "Shade", "Tungsten"];
 
 export function EditPanel() {
-  const [preset, setPreset] = useState("Cinematic C1");
-  const [aiProfile, setAiProfile] = useState("True to Life");
-  const [colorProfile, setColorProfile] = useState("Adobe Portrait");
+  const [preset, setPreset] = useHistoryChoice("Preset", PRESET_NAMES, "Cinematic C1");
+  const [aiProfile, setAiProfile] = useHistoryChoice(
+    "AI Profile",
+    AI_PROFILE_NAMES,
+    "True to Life",
+  );
+  const [colorProfile, setColorProfile] = useHistoryChoice(
+    "Color Profile",
+    COLOR_PROFILES,
+    "Adobe Portrait",
+  );
 
   return (
     <div className="flex flex-col gap-3">
@@ -37,16 +46,26 @@ export function EditPanel() {
         <InlineSelectRow
           label="AI Profiles"
           value={aiProfile}
-          options={AI_PROFILES}
+          options={AI_PROFILE_NAMES}
           onChange={setAiProfile}
           variant="link"
+          browse={{
+            id: "aiProfiles",
+            title: "AI Profiles",
+            render: (v, pick) => <AIProfilesBrowser value={v} onPick={pick} />,
+          }}
         />
         <InlineSelectRow
           label="Presets"
           value={preset}
-          options={PRESETS}
+          options={PRESET_NAMES}
           onChange={setPreset}
           variant="link"
+          browse={{
+            id: PRESETS_BROWSER_ID,
+            title: "Presets",
+            render: (v, pick) => <PresetsBrowser value={v} onPick={pick} />,
+          }}
         />
       </section>
 
@@ -73,8 +92,8 @@ export function EditPanel() {
         <SliderRow label="Saturation" gradient="rainbow" initial={0} />
       </Section>
 
-      <Section title="Curves" comingSoon>
-        <CurvesEditor />
+      <Section title="Curves">
+        <ToneCurve />
       </Section>
 
       <Section title="Color Mixer">
@@ -126,13 +145,20 @@ export function EditPanel() {
 // A row with a muted label on the left and a borderless dropdown (bold white
 // value + chevron) right-aligned. Matches the PRESET / Color Profile rows in
 // the reference — the value opens a real options menu on click.
-function InlineSelectRow({
+type BrowseSpec = {
+  id: string;
+  title: string;
+  render: (value: string, onPick: (v: string) => void) => React.ReactNode;
+};
+
+export function InlineSelectRow({
   label,
   value,
   options,
   onChange,
   labelUppercase = false,
   variant = "select",
+  browse,
 }: {
   label: string;
   value: string;
@@ -141,8 +167,15 @@ function InlineSelectRow({
   labelUppercase?: boolean;
   // "link": underlined value, no chevron (applied AI Profile / Preset).
   variant?: "select" | "link";
+  // Instead of a dropdown, open a browse panel left of the side panel.
+  browse?: BrowseSpec;
 }) {
   const [open, setOpen] = useState(false);
+  const flyout = useFlyout(browse?.id ?? "");
+  const browseOn = useFlag("browsePanels");
+  const useBrowse = !!browse && flyout.available && browseOn;
+  // A browse row with the flag off does nothing on click.
+  const inert = !!browse && !useBrowse;
   const ref = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -173,10 +206,19 @@ function InlineSelectRow({
       <div ref={ref} className="relative">
         <button
           type="button"
-          onClick={() => setOpen((v) => !v)}
+          onClick={() => {
+            if (inert) return;
+            if (useBrowse) flyout.toggle();
+            else setOpen((v) => !v);
+          }}
+          aria-expanded={useBrowse ? flyout.open : open}
           className={
             variant === "link"
-              ? "text-[12px] text-neutral-200 underline decoration-neutral-400 underline-offset-[3px] hover:text-white"
+              ? `text-[12px] underline underline-offset-[3px] hover:text-white ${
+                  useBrowse && flyout.open
+                    ? "text-white decoration-white"
+                    : "text-neutral-200 decoration-neutral-400"
+                }`
               : "flex items-center gap-1 text-[12px] text-neutral-200 hover:text-white"
           }
         >
@@ -189,7 +231,12 @@ function InlineSelectRow({
             />
           )}
         </button>
-        {open && (
+        {useBrowse && flyout.open && browse && (
+          <FlyoutPanel slot={flyout.slot} title={browse.title} onClose={flyout.close}>
+            {browse.render(value, onChange)}
+          </FlyoutPanel>
+        )}
+        {open && !useBrowse && !inert && (
           <div className="absolute right-0 top-full z-20 mt-1 min-w-[160px] overflow-hidden rounded border border-white/10 bg-[#1c1c1c] shadow-xl">
             {options.map((opt) => (
               <button
@@ -214,7 +261,7 @@ function InlineSelectRow({
 }
 
 function WBProfileRow() {
-  const [wb, setWb] = useState("As Shot");
+  const [wb, setWb] = useHistoryChoice("WB Profile", WB_PROFILES, "As Shot");
   return <InlineSelectRow label="WB Profile" value={wb} options={WB_PROFILES} onChange={setWb} />;
 }
 
@@ -290,103 +337,6 @@ function Subsection({ title, children }: { title: string; children: React.ReactN
   );
 }
 
-/* ----------------- Curves editor ----------------- */
-
-type CurveChannel = "master" | "red" | "green" | "blue";
-const CHANNEL_COLOR: Record<CurveChannel, string> = {
-  master: "#ffffff",
-  red: "#ff5151",
-  green: "#3acf5b",
-  blue: "#3b8bff",
-};
-
-function CurvesEditor() {
-  const [channel, setChannel] = useState<CurveChannel>("master");
-  return (
-    <div className="flex flex-col gap-1.5">
-      <div className="flex items-center gap-2">
-        {(["master", "red", "green", "blue"] as CurveChannel[]).map((c) => {
-          const active = c === channel;
-          const color = CHANNEL_COLOR[c];
-          return (
-            <button
-              key={c}
-              type="button"
-              onClick={() => setChannel(c)}
-              className="flex h-3.5 w-3.5 items-center justify-center rounded-full"
-              style={
-                c === "master"
-                  ? {
-                      background: active ? "white" : "transparent",
-                      border: active ? "none" : "1px solid white",
-                    }
-                  : {
-                      borderColor: color,
-                      borderWidth: 1,
-                      background: active ? color : "transparent",
-                    }
-              }
-              title={c}
-            >
-              {c === "master" && active && <span className="block h-1 w-1 rounded-full bg-black" />}
-            </button>
-          );
-        })}
-      </div>
-
-      <div className="relative aspect-square w-full overflow-hidden rounded border border-white/5 bg-[#141414]">
-        {/* 4x4 grid lines */}
-        {[1, 2, 3].map((i) => (
-          <div
-            key={`v${i}`}
-            className="absolute top-0 bottom-0 w-px bg-white/[0.06]"
-            style={{ left: `${(i * 100) / 4}%` }}
-          />
-        ))}
-        {[1, 2, 3].map((i) => (
-          <div
-            key={`h${i}`}
-            className="absolute left-0 right-0 h-px bg-white/[0.06]"
-            style={{ top: `${(i * 100) / 4}%` }}
-          />
-        ))}
-        {/* Histogram (placeholder mountainous shape) */}
-        <svg
-          viewBox="0 0 100 100"
-          preserveAspectRatio="none"
-          className="absolute inset-0 h-full w-full"
-        >
-          <path
-            d="M0,100 L4,86 L9,72 L13,62 L16,68 L20,58 L24,46 L28,40 L33,55 L38,46 L43,40 L48,50 L52,46 L58,52 L62,46 L66,52 L70,46 L74,52 L78,60 L82,70 L86,84 L90,90 L94,94 L100,100 Z"
-            fill="rgba(255,255,255,0.18)"
-          />
-        </svg>
-        {/* Diagonal curve line */}
-        <svg
-          viewBox="0 0 100 100"
-          preserveAspectRatio="none"
-          className="absolute inset-0 h-full w-full"
-        >
-          <line
-            x1="0"
-            y1="100"
-            x2="100"
-            y2="0"
-            stroke="white"
-            strokeWidth="0.8"
-            vectorEffect="non-scaling-stroke"
-          />
-        </svg>
-        {/* Endpoint readouts */}
-        <div className="absolute right-1 bottom-1 flex gap-1 text-[10px] tabular-nums text-neutral-400">
-          <span>16.5</span>
-          <span>32.0</span>
-        </div>
-      </div>
-    </div>
-  );
-}
-
 /* ----------------- Color Mixer ----------------- */
 
 type MixerTab = "HUE" | "SATURATION" | "LUMINANCE" | "ALL";
@@ -425,23 +375,31 @@ function ColorMixer() {
           );
         })}
       </div>
-      <div className="flex flex-col gap-3">
-        {MIXER_COLORS.map((c) => (
-          <MixerRow key={c.label} label={c.label} gradient={c.gradient} />
-        ))}
-      </div>
+      <SliderScopeContext.Provider
+        value={`Color Mixer · ${tab.charAt(0)}${tab.slice(1).toLowerCase()}`}
+      >
+        <div className="flex flex-col gap-3">
+          {MIXER_COLORS.map((c) => (
+            <MixerRow key={c.label} label={c.label} gradient={c.gradient} />
+          ))}
+        </div>
+      </SliderScopeContext.Provider>
     </div>
   );
 }
 
 function MixerRow({ label, gradient }: { label: string; gradient: Gradient }) {
-  const [value, setValue] = useState(50);
+  const fmt = (v: number) => {
+    const d = Math.round(((v - 50) / 50) * 100);
+    return d > 0 ? `+${d}` : String(d);
+  };
+  const { value, onChange, onCommit } = useHistorySlider(label, 50, fmt);
   const display = Math.round(((value - 50) / 50) * 100);
   return (
     <div className="flex items-center">
       <span className="w-[106px] shrink-0 truncate text-[12px] text-[#777]">{label}</span>
       <div className="flex-1">
-        <GradientSlider value={value} onChange={setValue} gradient={gradient} />
+        <GradientSlider value={value} onChange={onChange} onCommit={onCommit} gradient={gradient} />
       </div>
       <span className="w-9 shrink-0 text-right text-[12px] font-medium tabular-nums text-[#777]">
         {display > 0 ? `+${display}` : display}

@@ -37,7 +37,6 @@ import {
   type AlbumEntry,
   type UxMode,
 } from "@/components/aftershoot/history/album-history";
-import { UxSelector } from "@/components/aftershoot/history/UxSelector";
 import { dupId, dupOf, imageOf } from "@/components/aftershoot/duplicates";
 import { UndoToast, type UndoFeedbackItem } from "@/components/aftershoot/history/UndoFeedback";
 import { tabOfLoupeRail, type LoupeRailKey } from "@/components/aftershoot/loupe/loupe-rail-config";
@@ -75,18 +74,20 @@ export const Route = createFileRoute("/")({
   component: AftershootScreen,
 });
 
-// Undo/Redo behaviour is fixed to "Undo takes you there": Undo/Redo
-// navigates to the image, view and tool where the change was made. (The
-// "stay in place + toast" variant, ux2, is still supported below.)
+// Undo/Redo behaviour is fixed to UX-2: Undo/Redo goes to the image and view
+// of the change but stays in the current tool, and a toast says what was
+// undone and where. (UX-1, which also switches to the change's tool, is
+// still supported below.)
 const ALBUM_IMAGE_COUNT = 232;
-const UNDO_MODE: UxMode = "ux1";
+const UNDO_MODE: UxMode = "ux2";
 
-// Entry: the layout selector, then Home. From Home an album
+// Entry: Home (the layout selector is off; UI-2 "Separate tabs" is the only
+// layout in use). From Home an album
 // opens either directly or at the end of the import flow (New Album → sources
 // → ingest → Create Album). Each time an album opens it starts a fresh
 // session (album Undo/Redo is session-only, per the History spec).
 function AftershootScreen() {
-  const [layout, setLayout] = useState<Layout | null>(null);
+  const layout: Layout = "ui1"; // "UI - 2 · Separate tabs"
   const screen = useCullStore((s) => s.screen);
   const albumSession = useCullStore((s) => s.albumSession);
   const albumName = useCullStore((s) => s.albumName);
@@ -94,10 +95,8 @@ function AftershootScreen() {
   const isAlbumNew = useCullStore((s) => s.isAlbumNew);
   const goHome = useCullStore((s) => s.goHome);
   const openNewAlbum = useImportStore((s) => s.openNewAlbum);
-  const inAlbum = layout !== null && screen === "album";
-  useImportBodyStyles(layout !== null && !inAlbum);
-
-  if (!layout) return <UxSelector onSelect={setLayout} />;
+  const inAlbum = screen === "album";
+  useImportBodyStyles(!inAlbum);
 
   return (
     <>
@@ -371,9 +370,25 @@ function Workspace({
     setRating: (id: number, value: number) => rateImages([id], value),
   };
 
+  // Loupe → Grid is contextual: land on the grid panel matching the loupe tool
+  // you were in (Retouch / Background / Object Removal → Retouching; Edit /
+  // Crop / Masking → Editing). Other tools (Info, History…) keep the panel.
+  const syncGridRailFromLoupe = () => {
+    if (appTab !== "enhance" || !lastLoupeRail) return;
+    const action = ["retouch", "background", "patch"].includes(lastLoupeRail)
+      ? "retouch"
+      : ["edit", "crop", "mask"].includes(lastLoupeRail)
+        ? "edit"
+        : null;
+    if (!action) return;
+    setActiveRail(railForAction(layout, action));
+    setGridPanelOpen(true);
+  };
+
   // View switches are recorded as album navigation.
   const changeView = (mode: ViewMode) => {
     if (mode === viewMode) return;
+    if (mode === "grid" && viewMode === "loupe") syncGridRailFromLoupe();
     history.record({
       kind: "nav",
       op: "View",
@@ -407,7 +422,9 @@ function Workspace({
     const goTo = (view: ViewMode, images: number[]) => {
       // A pending tool request must not replay when loupe remounts later.
       if (view !== "loupe") setRailRequest(null);
-      if (view === "survey" && appTab !== "cull") changeTab("cull");
+      // History never takes you to Cull (Survey is a culling view).
+      if (view === "survey") view = "grid";
+      if (view === "grid" && viewMode === "loupe") syncGridRailFromLoupe();
       setViewMode(view);
       const albumImages = images.map(imageOf);
       setSelectedGridTile(albumImages[0]);
@@ -434,7 +451,7 @@ function Workspace({
     if (uxMode === "ux1") {
       if (entry.view === "loupe") {
         const tab = tabOfLoupeRail(entry.tool);
-        if (tab && tab !== appTab) changeTab(tab);
+        if (tab && tab !== "cull" && tab !== appTab) changeTab(tab);
         setRailRequest({ key: entry.tool, n: Date.now() });
       }
       return;
@@ -574,6 +591,7 @@ function Workspace({
                 zoom={zoom}
                 setZoom={setZoom}
                 onAction={setActiveModal}
+                onStartAction={startAction}
                 onOpenInLoupe={openInLoupe}
                 ratingFilter={ratingFilter}
                 onToggleRating={toggleRatingFilter}
@@ -710,6 +728,7 @@ function GridView({
   zoom,
   setZoom,
   onAction,
+  onStartAction,
   onOpenInLoupe,
   ratingFilter,
   onToggleRating,
@@ -730,6 +749,7 @@ function GridView({
   zoom: number;
   setZoom: (v: number) => void;
   onAction: (a: AIAction) => void;
+  onStartAction: (a: AIAction) => void;
   onOpenInLoupe: (i: number) => void;
   ratingFilter: Set<number>;
   onToggleRating: (rating: number) => void;
@@ -769,6 +789,7 @@ function GridView({
         <RailPanel
           railKey={activeRail}
           onAction={onAction}
+          onStartAction={onStartAction}
           actionStatuses={actionStatuses}
           selectedGridTile={selectedGridTile}
           ratingFilter={ratingFilter}

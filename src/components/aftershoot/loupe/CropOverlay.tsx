@@ -1,4 +1,5 @@
-import { useRef, useState } from "react";
+import { useRef } from "react";
+import { useHistoryValues } from "../history/album-history";
 
 // Adjustable crop frame rendered over the loupe image.
 //
@@ -24,7 +25,14 @@ const MIN_SIZE = 10; // percent
 
 export function CropOverlay() {
   const containerRef = useRef<HTMLDivElement>(null);
-  const [rect, setRect] = useState<Rect>({ x: 18, y: 18, w: 64, h: 64 });
+  // Crop box lives in the album history: one step per move / resize.
+  const crop = useHistoryValues<keyof Rect>(
+    "Crop Box",
+    { x: 18, y: 18, w: 64, h: 64 },
+    (r) => `${Math.round(r.w)}% × ${Math.round(r.h)}%`,
+  );
+  const rect: Rect = crop.value;
+  const setRect = crop.onChange;
   const dragRef = useRef<DragMode | null>(null);
 
   // Convert mouse delta (px) to delta in percent of container size.
@@ -95,6 +103,7 @@ export function CropOverlay() {
   };
 
   const onPointerUp = (e: React.PointerEvent) => {
+    if (dragRef.current) crop.onCommit();
     dragRef.current = null;
     try {
       (e.currentTarget as Element).releasePointerCapture(e.pointerId);
@@ -147,23 +156,11 @@ function ThirdsGrid() {
   return (
     <>
       {/* Two vertical lines at 1/3 and 2/3 */}
-      <div
-        className="absolute top-0 bottom-0 w-px bg-white/40"
-        style={{ left: "33.333%" }}
-      />
-      <div
-        className="absolute top-0 bottom-0 w-px bg-white/40"
-        style={{ left: "66.666%" }}
-      />
+      <div className="absolute top-0 bottom-0 w-px bg-white/40" style={{ left: "33.333%" }} />
+      <div className="absolute top-0 bottom-0 w-px bg-white/40" style={{ left: "66.666%" }} />
       {/* Two horizontal lines at 1/3 and 2/3 */}
-      <div
-        className="absolute left-0 right-0 h-px bg-white/40"
-        style={{ top: "33.333%" }}
-      />
-      <div
-        className="absolute left-0 right-0 h-px bg-white/40"
-        style={{ top: "66.666%" }}
-      />
+      <div className="absolute left-0 right-0 h-px bg-white/40" style={{ top: "33.333%" }} />
+      <div className="absolute left-0 right-0 h-px bg-white/40" style={{ top: "66.666%" }} />
     </>
   );
 }
@@ -177,17 +174,41 @@ function CornerBrackets() {
   return (
     <>
       {/* NW */}
-      <div className="pointer-events-none absolute -left-[2px] -top-[2px]" style={{ width: arm, height: thick, background: "white" }} />
-      <div className="pointer-events-none absolute -left-[2px] -top-[2px]" style={{ width: thick, height: arm, background: "white" }} />
+      <div
+        className="pointer-events-none absolute -left-[2px] -top-[2px]"
+        style={{ width: arm, height: thick, background: "white" }}
+      />
+      <div
+        className="pointer-events-none absolute -left-[2px] -top-[2px]"
+        style={{ width: thick, height: arm, background: "white" }}
+      />
       {/* NE */}
-      <div className="pointer-events-none absolute -right-[2px] -top-[2px]" style={{ width: arm, height: thick, background: "white" }} />
-      <div className="pointer-events-none absolute -right-[2px] -top-[2px]" style={{ width: thick, height: arm, background: "white" }} />
+      <div
+        className="pointer-events-none absolute -right-[2px] -top-[2px]"
+        style={{ width: arm, height: thick, background: "white" }}
+      />
+      <div
+        className="pointer-events-none absolute -right-[2px] -top-[2px]"
+        style={{ width: thick, height: arm, background: "white" }}
+      />
       {/* SW */}
-      <div className="pointer-events-none absolute -left-[2px] -bottom-[2px]" style={{ width: arm, height: thick, background: "white" }} />
-      <div className="pointer-events-none absolute -left-[2px] -bottom-[2px]" style={{ width: thick, height: arm, background: "white" }} />
+      <div
+        className="pointer-events-none absolute -left-[2px] -bottom-[2px]"
+        style={{ width: arm, height: thick, background: "white" }}
+      />
+      <div
+        className="pointer-events-none absolute -left-[2px] -bottom-[2px]"
+        style={{ width: thick, height: arm, background: "white" }}
+      />
       {/* SE */}
-      <div className="pointer-events-none absolute -right-[2px] -bottom-[2px]" style={{ width: arm, height: thick, background: "white" }} />
-      <div className="pointer-events-none absolute -right-[2px] -bottom-[2px]" style={{ width: thick, height: arm, background: "white" }} />
+      <div
+        className="pointer-events-none absolute -right-[2px] -bottom-[2px]"
+        style={{ width: arm, height: thick, background: "white" }}
+      />
+      <div
+        className="pointer-events-none absolute -right-[2px] -bottom-[2px]"
+        style={{ width: thick, height: arm, background: "white" }}
+      />
     </>
   );
 }
@@ -227,8 +248,7 @@ function ResizeHandles({
 }: {
   onPointerDownHandle: (h: HandleId) => (e: React.PointerEvent) => void;
 }) {
-  const base =
-    "absolute h-3 w-3 rounded-full"; // invisible hit areas
+  const base = "absolute h-3 w-3 rounded-full"; // invisible hit areas
   // Each handle gets a fat hit region for easier dragging.
   return (
     <>

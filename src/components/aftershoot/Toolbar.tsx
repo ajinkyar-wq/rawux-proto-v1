@@ -6,12 +6,12 @@ import {
   LayoutGrid,
   MessageCircle,
   Monitor,
-  MoreVertical,
   Pencil,
   Settings,
   Share,
 } from "lucide-react";
 import { FilterControls } from "./FilterBar";
+import { FlagsMenu } from "./FlagsMenu";
 import { IconTooltip } from "./IconTooltip";
 import { Divider, ToolbarBtn } from "./primitives";
 import type { AppTab } from "./rail-config";
@@ -20,7 +20,7 @@ export type ViewMode = "grid" | "loupe" | "survey";
 
 const TABS: { key: AppTab; label: string }[] = [
   { key: "cull", label: "CULL" },
-  { key: "enhance", label: "ENHANCE" },
+  { key: "enhance", label: "Edit & Retouch" },
 ];
 
 // Two rows, like the main app:
@@ -72,13 +72,13 @@ export function AppBar({
         </button>
       </div>
 
-      {/* CULL / ENHANCE feature switcher */}
+      {/* CULL / EDIT & RETOUCH feature switcher */}
       <div className="flex items-center rounded bg-[#111] p-0.5">
         {TABS.map((t) => (
           <button
             key={t.key}
             onClick={() => onChangeTab(t.key)}
-            className={`flex w-20 items-center justify-center rounded px-3 py-1.5 text-[11px] font-semibold uppercase leading-3 tracking-[0.5px] ${
+            className={`flex min-w-20 items-center justify-center whitespace-nowrap rounded px-3 py-1.5 text-[11px] font-semibold uppercase leading-3 tracking-[0.5px] ${
               tab === t.key ? "bg-[#303030] text-[#e2e2e2]" : "text-[#777] hover:text-[#ababab]"
             }`}
           >
@@ -106,9 +106,7 @@ export function AppBar({
             <Settings className="size-4" strokeWidth={1.5} />
           </button>
         </IconTooltip> */}
-        <button className="flex size-6 shrink-0 items-center justify-center rounded text-[#ababab] hover:bg-white/5 hover:text-white">
-          <MoreVertical className="size-4" strokeWidth={1.5} />
-        </button>
+        <FlagsMenu />
       </div>
     </div>
   );

@@ -4,6 +4,7 @@ import { dupId, duplicateCount, photoName } from "../duplicates";
 import { DuplicatesStrip } from "../DuplicatesStrip";
 import { AlbumFilmstrip } from "./AlbumFilmstrip";
 import { CropOverlay } from "./CropOverlay";
+import { SliderHistoryContext, SliderScopeContext } from "../history/album-history";
 import { BrushToolbar } from "./BrushToolbar";
 import { LoupeImage } from "./LoupeImage";
 import { useCullStore } from "@/features/import/store/useCullStore";
@@ -84,7 +85,9 @@ export function LoupeView({
   // Which rail loupe opens on is contextual to how you arrived. See initialRail.
   // Returning to loupe restores the tool the user last had open here.
   const [activeRail, setActiveRail] = useState<LoupeRailKey>(() => {
-    const preferred = lastRail ?? initialRail(ai.actionStatuses, entryRail);
+    // Coming from a grid Editing / Retouching tab always lands on that tool.
+    const preferred =
+      gridToolRail(entryRail) ?? lastRail ?? initialRail(ai.actionStatuses, entryRail);
     if (loupeRailInTab(preferred, tab)) return preferred;
     return tab === "cull" ? "ai" : "edit";
   });
@@ -147,9 +150,7 @@ export function LoupeView({
                 dupIndex > 0
                   ? onSelectDup(dupIndex - 1)
                   : selectedIndex > 0 &&
-                    onSelectPhoto(
-                      dupId(selectedIndex - 1, duplicateCount(selectedIndex - 1) - 1),
-                    ),
+                    onSelectPhoto(dupId(selectedIndex - 1, duplicateCount(selectedIndex - 1) - 1)),
             },
             {
               id: "loupe.set.next",
@@ -244,7 +245,15 @@ export function LoupeView({
               )}
             </>
           }
-          overlay={activeRail === "crop" ? <CropOverlay /> : null}
+          overlay={
+            activeRail === "crop" ? (
+              <SliderHistoryContext.Provider value={{ image: selectedIndex, tool: "crop" }}>
+                <SliderScopeContext.Provider value="Crop">
+                  <CropOverlay />
+                </SliderScopeContext.Provider>
+              </SliderHistoryContext.Provider>
+            ) : null
+          }
           canvasOverlay={activeRail === "patch" ? <BrushToolbar /> : null}
         />
 
@@ -343,6 +352,23 @@ function initialRail(
       return "retouch";
     default:
       return "ai"; // AI Culling (also the default for Info/History/etc.).
+  }
+}
+
+// Grid Edit / Retouch tabs are contextual: opening an image from one always
+// lands on the matching loupe tool, whatever was open last time.
+function gridToolRail(entryRail: GridRailKey): LoupeRailKey | null {
+  switch (entryRail) {
+    case "edit":
+    case "editRetouch":
+    case "editRetouchAll":
+      return "edit";
+    case "retouch":
+      return "retouch";
+    case "aiTools":
+      return "crop";
+    default:
+      return null;
   }
 }
 

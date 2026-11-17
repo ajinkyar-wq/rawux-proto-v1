@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { ExternalLink, X } from 'lucide-react';
+import { FLAGS, setFlag, useFlag, type FlagId } from '../feature-flags';
 
 /**
  * App Settings (title-bar gear). Keyboard shortcuts replaces the old five
@@ -114,10 +115,43 @@ export function SettingsDialog({
           </nav>
 
           <div className="flex min-h-0 min-w-0 flex-1 flex-col border-l border-[#2a2a2a] px-7 pb-5">
-            <div className="text-[13px] text-[#6f6f6f]">Not part of this prototype.</div>
+            {pane === 'Advanced' ? (
+              <div className="flex flex-col gap-4">
+                <div className="text-[15px] font-semibold">Prototype flags</div>
+                {FLAGS.map((f) => (
+                  <FlagRow key={f.id} id={f.id} label={f.label} description={f.description} />
+                ))}
+              </div>
+            ) : (
+              <div className="text-[13px] text-[#6f6f6f]">Not part of this prototype.</div>
+            )}
           </div>
         </div>
       </div>
+    </div>
+  );
+}
+
+function FlagRow({ id, label, description }: { id: FlagId; label: string; description: string }) {
+  const on = useFlag(id);
+  return (
+    <div className="flex items-start justify-between gap-6 rounded-[6px] border border-[#2a2a2a] p-4">
+      <div className="flex flex-col gap-1">
+        <span className="text-[14px] text-[#e2e2e2]">{label}</span>
+        <span className="text-[12.5px] leading-relaxed text-[#8a8a8a]">{description}</span>
+      </div>
+      <button
+        type="button"
+        role="switch"
+        aria-checked={on}
+        aria-label={label}
+        onClick={() => setFlag(id, !on)}
+        className={`relative mt-0.5 h-5 w-9 shrink-0 rounded-full transition-colors ${on ? 'bg-[#3b5bff]' : 'bg-white/15'}`}
+      >
+        <span
+          className={`absolute top-0.5 h-4 w-4 rounded-full bg-white transition-all ${on ? 'left-[18px]' : 'left-0.5'}`}
+        />
+      </button>
     </div>
   );
 }

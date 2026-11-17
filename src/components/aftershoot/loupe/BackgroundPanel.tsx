@@ -12,8 +12,10 @@ import {
   RotateCcw,
   RotateCw,
 } from "lucide-react";
-import { Dropdown, RangeSlider } from "../primitives";
+import { Dropdown } from "../primitives";
 import { IconTooltip } from "../IconTooltip";
+import { SliderRow } from "./slider-primitives";
+import { useHistoryChoice } from "../history/album-history";
 
 const BG_FILLS = ["Center Fill", "Stretch", "Tile", "Fit"];
 const BLEND_MODES = ["Normal", "Multiply", "Screen", "Overlay", "Soft Light"];
@@ -29,8 +31,7 @@ const PRESETS: Preset[] = [
   {
     id: "transparent",
     label: "Transparent",
-    swatch:
-      "repeating-conic-gradient(#cfcfcf 0% 25%, #ffffff 0% 50%) 50% / 12px 12px",
+    swatch: "repeating-conic-gradient(#cfcfcf 0% 25%, #ffffff 0% 50%) 50% / 12px 12px",
   },
   { id: "white", label: "White 01", swatch: "#ffffff" },
   { id: "black", label: "Black 01", swatch: "#0a0a0a" },
@@ -47,22 +48,29 @@ const PRESETS: Preset[] = [
   },
 ];
 
+const PRESET_LABELS = PRESETS.map((p) => p.label);
+const SHADOW_MODES = ["None", "Drop Shadow"];
+
 export function BackgroundPanel() {
-  const [fill, setFill] = useState<string>("Center Fill");
-  const [selectedPreset, setSelectedPreset] = useState("blue");
-  const [shadowMode, setShadowMode] = useState<"none" | "drop">("none");
+  const [fill, setFill] = useHistoryChoice("Fill", BG_FILLS, "Center Fill");
+  // Stored by label so history reads "Background : Blue 01".
+  const [presetLabel, setPresetLabel] = useHistoryChoice("Background", PRESET_LABELS, "Blue 01");
+  const selectedPreset = PRESETS.find((p) => p.label === presetLabel)?.id ?? "blue";
+  const setSelectedPreset = (id: string) =>
+    setPresetLabel(PRESETS.find((p) => p.id === id)?.label ?? "Blue 01");
+  const [shadowLabel, setShadowLabel] = useHistoryChoice("Shadow", SHADOW_MODES, "None");
+  const shadowMode = shadowLabel === "None" ? "none" : "drop";
+  const setShadowMode = (m: "none" | "drop") =>
+    setShadowLabel(m === "none" ? "None" : "Drop Shadow");
   const [opacity, setOpacity] = useState(0);
   const [shadowBlur, setShadowBlur] = useState(0);
   const [blurRange, setBlurRange] = useState(0);
   const [gradient, setGradient] = useState(0);
-  const [blendMode, setBlendMode] = useState("Normal");
+  const [blendMode, setBlendMode] = useHistoryChoice("Blend Mode", BLEND_MODES, "Normal");
 
   return (
     <div className="flex flex-col gap-3">
-      <ChangeBackground
-        fill={fill}
-        onFillChange={setFill}
-      />
+      <ChangeBackground fill={fill} onFillChange={setFill} />
       <Presets selected={selectedPreset} onSelect={setSelectedPreset} />
 
       <div className="h-px bg-white/5" />
@@ -140,23 +148,14 @@ function BackgroundPreview() {
 
 /* --------------- Aftershoot Backgrounds (with inline upload tile) --------------- */
 
-function Presets({
-  selected,
-  onSelect,
-}: {
-  selected: string;
-  onSelect: (id: string) => void;
-}) {
+function Presets({ selected, onSelect }: { selected: string; onSelect: (id: string) => void }) {
   return (
     <section className="flex flex-col gap-2">
       <SectionLabel label="AFTERSHOOT BACKGROUNDS" />
       <div className="grid grid-cols-5 gap-2">
         {/* Upload tile sits inline as the first cell — no separate section. */}
         <IconTooltip label="Upload background">
-          <button
-            type="button"
-            className="flex flex-col items-center gap-1"
-          >
+          <button type="button" className="flex flex-col items-center gap-1">
             <span className="flex aspect-[4/3] w-full items-center justify-center rounded border border-dashed border-white/15 text-neutral-400 hover:border-white/25 hover:bg-white/[0.04] hover:text-white">
               <Plus className="h-4 w-4" strokeWidth={1.75} />
             </span>
@@ -183,9 +182,7 @@ function Presets({
                 }}
               />
               <span
-                className={`truncate text-[10px] ${
-                  active ? "text-white" : "text-neutral-400"
-                }`}
+                className={`truncate text-[10px] ${active ? "text-white" : "text-neutral-400"}`}
               >
                 {p.label}
               </span>
@@ -263,7 +260,7 @@ function Shadows({
       <ShadowRow label="Gradient" value={gradient} onChange={onGradientChange} />
 
       <div className="mt-1 flex items-center justify-between">
-        <span className="text-[11px] text-neutral-400">Blend Mode</span>
+        <span className="text-[12px] text-[#777]">Blend Mode</span>
         <div className="w-[140px]">
           <Dropdown
             value={blendMode}
@@ -291,11 +288,7 @@ function ShadowMode({
   children: React.ReactNode;
 }) {
   return (
-    <button
-      type="button"
-      onClick={onClick}
-      className="flex flex-col items-center gap-1"
-    >
+    <button type="button" onClick={onClick} className="flex flex-col items-center gap-1">
       <span
         className={`aspect-[4/3] w-full overflow-hidden rounded border ${
           active ? "border-white" : "border-white/10"
@@ -303,17 +296,14 @@ function ShadowMode({
       >
         {children}
       </span>
-      <span
-        className={`truncate text-[10px] ${
-          active ? "text-white" : "text-neutral-400"
-        }`}
-      >
+      <span className={`truncate text-[10px] ${active ? "text-white" : "text-neutral-400"}`}>
         {label}
       </span>
     </button>
   );
 }
 
+// Same slider row as Edit / Retouch (0–100, starts at 0).
 function ShadowRow({
   label,
   value,
@@ -323,33 +313,15 @@ function ShadowRow({
   value: number;
   onChange: (v: number) => void;
 }) {
-  return (
-    <div className="flex items-center gap-2">
-      <span className="w-[80px] shrink-0 text-[11px] text-neutral-400">{label}</span>
-      <div className="flex-1">
-        <RangeSlider value={value} onChange={onChange} />
-      </div>
-      <span className="w-6 shrink-0 text-right text-[11px] tabular-nums text-neutral-400">
-        {Math.round(value)}
-      </span>
-    </div>
-  );
+  return <SliderRow label={label} initial={value} signed={false} onChange={onChange} />;
 }
 
 /* --------------- Shared bits --------------- */
 
-function SectionLabel({
-  label,
-  trailing,
-}: {
-  label: string;
-  trailing?: React.ReactNode;
-}) {
+function SectionLabel({ label, trailing }: { label: string; trailing?: React.ReactNode }) {
   return (
     <div className="flex items-center justify-between">
-      <span className="text-[10px] font-semibold tracking-wider text-neutral-400">
-        {label}
-      </span>
+      <span className="text-[10px] font-semibold tracking-wider text-neutral-400">{label}</span>
       {trailing}
     </div>
   );
@@ -365,13 +337,7 @@ function ResetIconButton() {
   );
 }
 
-function MetricChip({
-  icon,
-  value,
-}: {
-  icon: React.ReactNode;
-  value: string;
-}) {
+function MetricChip({ icon, value }: { icon: React.ReactNode; value: string }) {
   return (
     <div className="flex h-6 items-center gap-1 rounded border border-white/10 bg-[#222] px-1.5 text-[10.5px] text-white">
       <span className="text-neutral-400">{icon}</span>
@@ -380,13 +346,7 @@ function MetricChip({
   );
 }
 
-function TinyIconButton({
-  children,
-  title,
-}: {
-  children: React.ReactNode;
-  title?: string;
-}) {
+function TinyIconButton({ children, title }: { children: React.ReactNode; title?: string }) {
   const btn = (
     <button
       type="button"

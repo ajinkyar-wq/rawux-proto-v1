@@ -10,24 +10,25 @@ import {
 import { IconTooltip } from "../IconTooltip";
 import { Section } from "./EditPanel";
 import { GradientSlider } from "./slider-primitives";
+import { useHistoryChoice, useHistorySlider } from "../history/album-history";
+
+const ASPECTS = ["Original", "Free", "1:1", "3:2", "4:3", "16:9"];
+const toDegrees = (pos: number) => ((pos - 50) / 50) * 45;
 
 export function CropPanel() {
-  const [aspect, setAspect] = useState("Original");
+  const [aspect, setAspect] = useHistoryChoice("Aspect Ratio", ASPECTS, "Original");
   const [overlay, setOverlay] = useState("Thirds");
-  const [straightening, setStraightening] = useState(50); // 0-100; midpoint = 0 deg
+  // 0-100; midpoint = 0 deg. One history step per drag.
+  const straighten = useHistorySlider("Straightening", 50, (p) => `${toDegrees(p).toFixed(2)}°`);
 
   // Map slider 0-100 to -45..+45 degrees for the readout.
-  const degrees = ((straightening - 50) / 50) * 45;
+  const degrees = toDegrees(straighten.value);
 
   return (
     <div className="flex flex-col gap-3">
       <Section title="Crop" first>
         <Row label="Aspect Ratio">
-          <InlineDropdown
-            value={aspect}
-            onSelect={setAspect}
-            options={["Original", "Free", "1:1", "3:2", "4:3", "16:9"]}
-          />
+          <InlineDropdown value={aspect} onSelect={setAspect} options={ASPECTS} />
           <IconTooltip label="Switch orientation">
             <button
               type="button"
@@ -41,7 +42,11 @@ export function CropPanel() {
         <div className="flex items-center">
           <span className="w-[106px] shrink-0 truncate text-[12px] text-[#777]">Straightening</span>
           <div className="flex-1">
-            <GradientSlider value={straightening} onChange={setStraightening} />
+            <GradientSlider
+              value={straighten.value}
+              onChange={straighten.onChange}
+              onCommit={straighten.onCommit}
+            />
           </div>
           <span className="w-9 shrink-0 text-right text-[12px] font-medium tabular-nums text-[#777]">
             {degrees.toFixed(2)}

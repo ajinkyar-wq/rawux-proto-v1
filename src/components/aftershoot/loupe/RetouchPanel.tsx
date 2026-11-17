@@ -1,8 +1,8 @@
 import { useState } from "react";
-import { ChevronRight, Plus } from "lucide-react";
-import { Checkbox, Dropdown } from "../primitives";
-import { IconTooltip } from "../IconTooltip";
-import { Section } from "./EditPanel";
+import { Checkbox } from "../primitives";
+import { InlineSelectRow, Section } from "./EditPanel";
+import { RETOUCH_PRESET_NAMES, RETOUCH_PRESET_NONE, RetouchPresetsBrowser } from "./BrowsePanels";
+import { useHistoryChoice } from "../history/album-history";
 import { SliderRow } from "./slider-primitives";
 
 type Subject = "all" | "masculine" | "feminine" | "elderly" | "child" | "individual";
@@ -15,8 +15,6 @@ const SUBJECTS: { id: Subject; label: string }[] = [
   { id: "child", label: "Child" },
   { id: "individual", label: "Individual" },
 ];
-
-const PRESETS = ["Natural Retouch", "Soft Glow", "Bold Contrast", "Matte Film"];
 
 const SECTIONS: { title: string; rows: string[] }[] = [
   { title: "Face Blemish", rows: ["Acne", "Freckle", "Spots"] },
@@ -32,7 +30,7 @@ export function RetouchPanel() {
   const [subject, setSubject] = useState<Subject>("all");
   const [individual, setIndividual] = useState(true);
   const [showFaceFrame, setShowFaceFrame] = useState(false);
-  const [preset, setPreset] = useState<string | null>(null);
+  const [preset, setPreset] = useHistoryChoice("Preset", RETOUCH_PRESET_NAMES, RETOUCH_PRESET_NONE);
 
   return (
     <div className="flex flex-col gap-3">
@@ -48,7 +46,19 @@ export function RetouchPanel() {
         Show face frames
       </label>
 
-      <PresetsSection preset={preset} onPresetChange={setPreset} />
+      {/* "Presets ........ Retouch Preset" — underlined link that opens the list. */}
+      <InlineSelectRow
+        label="Presets"
+        value={preset}
+        options={RETOUCH_PRESET_NAMES}
+        onChange={setPreset}
+        variant="link"
+        browse={{
+          id: "retouchPresets",
+          title: "Retouching Presets",
+          render: (v, pick) => <RetouchPresetsBrowser value={v} onPick={pick} />,
+        }}
+      />
 
       {SECTIONS.map((s) => (
         <Section key={s.title} title={s.title}>
@@ -116,51 +126,5 @@ function Chip({
     >
       {children}
     </button>
-  );
-}
-
-/* ---------------- Presets ---------------- */
-
-function PresetsSection({
-  preset,
-  onPresetChange,
-}: {
-  preset: string | null;
-  onPresetChange: (v: string) => void;
-}) {
-  const [open, setOpen] = useState(true);
-  return (
-    <section className="flex flex-col gap-3 border-t border-white/5 pt-3">
-      <div className="flex h-6 items-center justify-between">
-        <button
-          type="button"
-          onClick={() => setOpen((v) => !v)}
-          className="flex items-center gap-2 text-[12px] font-semibold uppercase tracking-wider text-neutral-200"
-        >
-          <ChevronRight
-            className={`h-3.5 w-3.5 text-neutral-400 transition-transform ${open ? "rotate-90" : ""}`}
-            strokeWidth={2}
-          />
-          Presets
-        </button>
-        <IconTooltip label="Add preset">
-          <button
-            type="button"
-            className="rounded p-0.5 text-neutral-500 hover:bg-white/5 hover:text-white"
-          >
-            <Plus className="h-3.5 w-3.5" strokeWidth={1.75} />
-          </button>
-        </IconTooltip>
-      </div>
-      {open && (
-        <Dropdown
-          value={preset}
-          options={PRESETS}
-          onChange={onPresetChange}
-          placeholder="Select a preset..."
-          size="sm"
-        />
-      )}
-    </section>
   );
 }
