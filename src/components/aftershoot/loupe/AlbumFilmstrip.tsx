@@ -58,11 +58,33 @@ export function AlbumFilmstrip({
   const tileHeight = stripHeight - TOP_PAD - BOTTOM_PAD - PILL_H - PILL_GAP;
   const tileWidth = Math.round(tileHeight * 1.6);
 
-  useEffect(() => {
+  // Keep the current image centred in the strip: smoothly when it changes,
+  // instantly on first show and whenever the strip resizes (panel opens,
+  // strip height drag, window resize).
+  const centerSelected = (behavior: ScrollBehavior) => {
+    const scroller = scrollerRef.current;
     const tile = selectedRef.current;
-    if (!tile) return;
-    tile.scrollIntoView({ behavior: "smooth", inline: "nearest", block: "nearest" });
+    if (!scroller || !tile) return;
+    const s = scroller.getBoundingClientRect();
+    const t = tile.getBoundingClientRect();
+    const left = scroller.scrollLeft + (t.left - s.left) + t.width / 2 - scroller.clientWidth / 2;
+    scroller.scrollTo({ left: Math.max(0, left), behavior });
+  };
+  const firstCenter = useRef(true);
+  useEffect(() => {
+    centerSelected(firstCenter.current ? "auto" : "smooth");
+    firstCenter.current = false;
   }, [selectedIndex]);
+  useEffect(() => {
+    const scroller = scrollerRef.current;
+    if (!scroller) return;
+    const ro = new ResizeObserver(() => centerSelected("auto"));
+    ro.observe(scroller);
+    return () => ro.disconnect();
+  }, []);
+  useEffect(() => {
+    centerSelected("auto");
+  }, [tileWidth]);
 
   // Drag the top edge to grow the strip upward / shrink it downward.
   function startResize(e: React.PointerEvent) {
