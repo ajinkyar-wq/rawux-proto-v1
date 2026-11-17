@@ -154,3 +154,451 @@
     transform: translateY(0);
   }
 }
+
+/* Rail scissors: each half pivots on the screw, closing then reopening like a
+   cut. Plays on hover of the parent `.group` button (two snips). */
+.scissors-half {
+  transform-box: view-box;
+  transform-origin: 17px 16px;
+}
+@keyframes scissors-snip-top {
+  0%, 100% { transform: rotate(0deg); }
+  25% { transform: rotate(-17deg); }
+  50% { transform: rotate(0deg); }
+  75% { transform: rotate(-17deg); }
+}
+@keyframes scissors-snip-bottom {
+  0%, 100% { transform: rotate(0deg); }
+  25% { transform: rotate(17deg); }
+  50% { transform: rotate(0deg); }
+  75% { transform: rotate(17deg); }
+}
+.group:hover .scissors-top {
+  animation: scissors-snip-top 0.7s ease-in-out;
+}
+.group:hover .scissors-bottom {
+  animation: scissors-snip-bottom 0.7s ease-in-out;
+}
+@media (prefers-reduced-motion: reduce) {
+  .group:hover .scissors-top,
+  .group:hover .scissors-bottom {
+    animation: none;
+  }
+}
+
+/* Rail One Click: the star snaps a quarter-turn (a 4-point star looks identical
+   every 90deg, so it lands clean) with a pop, then the two sparks fire off in
+   quick succession. Plays on hover of the parent `.group` button. */
+.oneclick-star {
+  transform-box: view-box;
+  transform-origin: 14px 18px;
+}
+.oneclick-spark {
+  transform-box: fill-box;
+  transform-origin: center;
+}
+@keyframes oneclick-star-zip {
+  0% { transform: rotate(0deg) scale(1); }
+  40% { transform: rotate(60deg) scale(1.18); }
+  100% { transform: rotate(90deg) scale(1); }
+}
+@keyframes oneclick-spark-pop {
+  0% { transform: scale(1); opacity: 1; }
+  25% { transform: scale(0); opacity: 0; }
+  65% { transform: scale(1.35); opacity: 1; }
+  100% { transform: scale(1); opacity: 1; }
+}
+.group:hover .oneclick-star {
+  animation: oneclick-star-zip 0.55s cubic-bezier(0.3, 0, 0.2, 1);
+}
+.group:hover .oneclick-spark {
+  animation: oneclick-spark-pop 0.5s ease-out backwards;
+}
+.group:hover .oneclick-spark-2 {
+  animation-delay: 0.12s;
+}
+@media (prefers-reduced-motion: reduce) {
+  .group:hover .oneclick-star,
+  .group:hover .oneclick-spark {
+    animation: none;
+  }
+}
+
+/* Rail Spray Can: the nozzle presses down (shrinks from its base) while the two
+   spray lines retract, then extend back out.
+   Plays on hover of the parent `.group` button. */
+.spray-all {
+  transform-box: view-box;
+  transform-origin: 16px 28px;
+}
+.spray-nozzle {
+  transform-box: fill-box;
+  transform-origin: 50% 100%;
+}
+.spray-line {
+  stroke-dasharray: 1 2;
+}
+@keyframes spray-nozzle-press {
+  0%, 100% { transform: scaleY(1); }
+  15%, 55% { transform: scaleY(0.75); }
+}
+/* The lines retract into the nozzle, then extend back out to full length
+   (stroke-dashoffset on a pathLength=1 line; start = nozzle end). */
+@keyframes spray-line-burst {
+  0%, 5% { stroke-dashoffset: 0; opacity: 1; }
+  25% { stroke-dashoffset: 1; opacity: 0; }
+  30% { stroke-dashoffset: 0.95; opacity: 1; }
+  75%, 100% { stroke-dashoffset: 0; opacity: 1; }
+}
+@keyframes spray-tilt {
+  0%, 100% { transform: translate(0, 0) rotate(0deg); }
+  /* icon is drawn on a 32 grid but shown at 20px, so 3.2 units = 2px on screen */
+  15%, 60% { transform: translate(1.6px, 0) rotate(-9deg); }
+}
+.group:hover .spray-all {
+  animation: spray-tilt 0.8s ease-in-out;
+}
+.group:hover .spray-nozzle {
+  animation: spray-nozzle-press 0.8s ease-in-out;
+}
+.group:hover .spray-line {
+  animation: spray-line-burst 0.8s ease-out;
+}
+@media (prefers-reduced-motion: reduce) {
+  .group:hover .spray-all,
+  .group:hover .spray-nozzle,
+  .group:hover .spray-line {
+    animation: none;
+  }
+}
+
+/* Rail Palette: the outline zooms in from 120%, then the four dots zoom down
+   into place with a stagger. Plays on hover of the parent `.group` button. */
+.palette-outline,
+.palette-dot {
+  transform-box: fill-box;
+  transform-origin: center;
+}
+@keyframes palette-outline-zoom {
+  0% { transform: scale(1.2); }
+  100% { transform: scale(1); }
+}
+@keyframes palette-dot-zoom {
+  0% { transform: scale(2); opacity: 0; }
+  100% { transform: scale(1); opacity: 1; }
+}
+.group:hover .palette-outline {
+  animation: palette-outline-zoom 0.45s cubic-bezier(0.2, 0.8, 0.3, 1);
+}
+.group:hover .palette-dot {
+  animation: palette-dot-zoom 0.4s cubic-bezier(0.2, 0.8, 0.3, 1) backwards;
+}
+.group:hover .palette-dot-1 { animation-delay: 0s; }
+.group:hover .palette-dot-2 { animation-delay: 0.06s; }
+.group:hover .palette-dot-3 { animation-delay: 0.12s; }
+.group:hover .palette-dot-4 { animation-delay: 0.18s; }
+@media (prefers-reduced-motion: reduce) {
+  .group:hover .palette-outline,
+  .group:hover .palette-dot {
+    animation: none;
+  }
+}
+
+/* Rail Faders (Manual Editing): the top knob slides left and the bottom knob
+   slides right (then both return) while the track pieces either side grow /
+   shrink with them. Each track piece is a full-width line trimmed with
+   stroke-dasharray (left pieces draw from x=5, right pieces from x=27), so the
+   round ends stay round at any length. Per-element vars: --move = knob travel,
+   --d0 / --d1 = visible piece length at rest / at full travel (32 grid).
+   Plays on hover of the parent `.group` button. */
+.faders-left,
+.faders-right {
+  stroke-dasharray: var(--d0) 100;
+}
+.faders-left-1 { --d0: 14; --d1: 4; }
+.faders-right-1 { --d0: 4; --d1: 14; }
+.faders-knob-1 { --move: -10px; }
+.faders-left-2 { --d0: 6; --d1: 16; }
+.faders-right-2 { --d0: 12; --d1: 2; }
+.faders-knob-2 { --move: 10px; }
+@keyframes faders-knob-slide {
+  0%, 100% { transform: translateX(0); }
+  35%, 45% { transform: translateX(var(--move)); }
+}
+@keyframes faders-piece-stretch {
+  0%, 100% { stroke-dasharray: var(--d0) 100; }
+  35%, 45% { stroke-dasharray: var(--d1) 100; }
+}
+.group:hover .faders-knob {
+  animation: faders-knob-slide 0.8s ease-in-out;
+}
+.group:hover .faders-left,
+.group:hover .faders-right {
+  animation: faders-piece-stretch 0.8s ease-in-out;
+}
+@media (prefers-reduced-motion: reduce) {
+  .group:hover .faders-knob,
+  .group:hover .faders-left,
+  .group:hover .faders-right {
+    animation: none;
+  }
+}
+
+/* Rail Camera (Tethering): the lens shrinks fast like a shutter closing, then
+   springs back past its size and settles. Plays on hover of the parent `.group`. */
+.camera-lens {
+  transform-box: fill-box;
+  transform-origin: center;
+}
+@keyframes camera-shutter {
+  0% { transform: scale(1); }
+  22% { transform: scale(0.5); }
+  50% { transform: scale(1.1); }
+  100% { transform: scale(1); }
+}
+.group:hover .camera-lens {
+  animation: camera-shutter 0.5s ease-in-out;
+}
+@media (prefers-reduced-motion: reduce) {
+  .group:hover .camera-lens {
+    animation: none;
+  }
+}
+
+/* Rail Info: the "i" wiggles inside its circle, swinging wide then settling
+   (damped). Plays on hover of the parent `.group` button. */
+.info-i {
+  transform-box: view-box;
+  transform-origin: 16px 16px;
+}
+@keyframes info-wiggle {
+  0%, 100% { transform: rotate(0deg); }
+  15% { transform: rotate(-16deg); }
+  35% { transform: rotate(13deg); }
+  55% { transform: rotate(-8deg); }
+  75% { transform: rotate(4deg); }
+}
+.group:hover .info-i {
+  animation: info-wiggle 0.6s ease-in-out;
+}
+@media (prefers-reduced-motion: reduce) {
+  .group:hover .info-i {
+    animation: none;
+  }
+}
+
+/* Rail Crop & Rotate: the two arrows spin a half turn together about the icon
+   centre (they're 180deg-symmetric, so it lands identical) while the crop mark
+   squeezes in and settles, like adjusting the crop. Plays on hover of `.group`. */
+.crop-arrows,
+.crop-frame {
+  transform-box: view-box;
+  transform-origin: 16px 16px;
+}
+@keyframes crop-arrows-spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(-180deg); }
+}
+@keyframes crop-frame-adjust {
+  0%, 100% { transform: scale(1); }
+  35% { transform: scale(0.86); }
+  70% { transform: scale(1.04); }
+}
+.group:hover .crop-arrows {
+  animation: crop-arrows-spin 0.7s cubic-bezier(0.6, 0, 0.2, 1);
+}
+.group:hover .crop-frame {
+  animation: crop-frame-adjust 0.7s ease-in-out;
+}
+@media (prefers-reduced-motion: reduce) {
+  .group:hover .crop-arrows,
+  .group:hover .crop-frame {
+    animation: none;
+  }
+}
+
+/* Rail Eraser (Object Removal): the eraser slides 6 units right and scrubs with
+   a small shake (a few degrees of wobble) while the baseline is wiped out. The
+   line stays hidden until the eraser is back home, then draws in again. The
+   baseline is a line drawn right-to-left, trimmed with stroke-dasharray (13 =
+   full 14..27). Plays on hover of the `.group` button. */
+.eraser-line {
+  stroke-dasharray: 13 100;
+}
+.eraser-body {
+  transform-box: view-box;
+  transform-origin: 16px 16px;
+}
+@keyframes eraser-scrub {
+  0%, 100% { transform: translateX(0) rotate(0deg); }
+  18% { transform: translateX(6px) rotate(0deg); }
+  26% { transform: translateX(5.4px) rotate(-3deg); }
+  34% { transform: translateX(6.4px) rotate(3deg); }
+  42% { transform: translateX(5.4px) rotate(-3deg); }
+  50% { transform: translateX(6.2px) rotate(0deg); }
+  75% { transform: translateX(0) rotate(0deg); }
+}
+/* Wiped out by 18%, hidden (opacity 0: a zero-length round-capped dash would
+   still draw a dot) until the eraser is home at 75%, then drawn back in. */
+@keyframes eraser-line-erase {
+  0% { stroke-dasharray: 13 100; opacity: 1; }
+  18%, 75% { stroke-dasharray: 0 100; opacity: 0; }
+  100% { stroke-dasharray: 13 100; opacity: 1; }
+}
+.group:hover .eraser-body {
+  animation: eraser-scrub 1s ease-in-out;
+}
+.group:hover .eraser-line {
+  animation: eraser-line-erase 1s ease-in-out;
+}
+@media (prefers-reduced-motion: reduce) {
+  .group:hover .eraser-body,
+  .group:hover .eraser-line {
+    animation: none;
+  }
+}
+
+/* Rail Keyboard: the key rows press down one after another (top row, second
+   row, bottom keys, spacebar last) like typing. Plays on hover of the `.group`. */
+@keyframes kb-press {
+  0%, 100% { transform: translateY(0); }
+  40% { transform: translateY(1.2px); }
+}
+.group:hover .kb-key {
+  animation: kb-press 0.25s ease-in-out;
+}
+.group:hover .kb-row-2 { animation-delay: 0.08s; }
+.group:hover .kb-bottom { animation-delay: 0.16s; }
+.group:hover .kb-space { animation-delay: 0.24s; }
+@media (prefers-reduced-motion: reduce) {
+  .group:hover .kb-key {
+    animation: none;
+  }
+}
+
+/* Rail History: the circular arrow spins a full counter-clockwise turn (like
+   rewinding) while the clock hands swing -10deg, then 8deg, and settle at 0.
+   Plays on hover of the `.group`. */
+.history-arrow,
+.history-hands {
+  transform-box: view-box;
+  transform-origin: 16px 16px;
+}
+@keyframes history-rewind {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(-360deg); }
+}
+@keyframes history-hands-swing {
+  0%, 100% { transform: rotate(0deg); }
+  35% { transform: rotate(-10deg); }
+  70% { transform: rotate(8deg); }
+}
+.group:hover .history-arrow {
+  animation: history-rewind 0.8s cubic-bezier(0.6, 0, 0.2, 1);
+}
+.group:hover .history-hands {
+  animation: history-hands-swing 0.8s ease-in-out;
+}
+@media (prefers-reduced-motion: reduce) {
+  .group:hover .history-arrow,
+  .group:hover .history-hands {
+    animation: none;
+  }
+}
+
+/* Rail Masking: the hatch sweeps out to its Figma "before" pose (tilted -45deg,
+   parked below the square: centre moves from (16,16) to (11.14,26.14)), then
+   slides back up into the square while straightening. Plays on hover of `.group`. */
+.mask-hatch {
+  /* hatch bbox is 6..26 on both axes, so its centre is (16,16) */
+  transform-box: fill-box;
+  transform-origin: center;
+}
+@keyframes mask-hatch-sweep {
+  0%, 100% { transform: translate(0, 0) rotate(0deg); }
+  25% { transform: translate(-4.858px, 10.142px) rotate(-45deg); }
+  35% { transform: translate(-4.858px, 10.142px) rotate(-45deg); }
+}
+.group:hover .mask-hatch {
+  animation: mask-hatch-sweep 0.8s ease-in-out;
+}
+@media (prefers-reduced-motion: reduce) {
+  .group:hover .mask-hatch {
+    animation: none;
+  }
+}
+
+/* Rail Retouch: the sparkle pops and turns a quarter (a 4-point star looks the
+   same every 90deg, so it lands clean), the eyes blink once, and the smile
+   widens. Plays on hover of the `.group` button. */
+.retouch-star,
+.retouch-eye,
+.retouch-smile {
+  transform-box: fill-box;
+  transform-origin: center;
+}
+@keyframes retouch-star-glint {
+  0% { transform: rotate(0deg) scale(1); }
+  40% { transform: rotate(90deg) scale(1.5); }
+  100% { transform: rotate(90deg) scale(1); }
+}
+@keyframes retouch-eye-blink {
+  0%, 30%, 55%, 100% { transform: scaleY(1); }
+  42% { transform: scaleY(0.1); }
+}
+@keyframes retouch-smile-grin {
+  0%, 100% { transform: scale(1, 1); }
+  40%, 65% { transform: scale(1.12, 1.4); }
+}
+.group:hover .retouch-star {
+  animation: retouch-star-glint 0.7s ease-in-out;
+}
+.group:hover .retouch-eye {
+  animation: retouch-eye-blink 0.7s ease-in-out;
+}
+.group:hover .retouch-smile {
+  animation: retouch-smile-grin 0.7s ease-in-out;
+}
+@media (prefers-reduced-motion: reduce) {
+  .group:hover .retouch-star,
+  .group:hover .retouch-eye,
+  .group:hover .retouch-smile {
+    animation: none;
+  }
+}
+
+/* Rail Background Changer: the frame outline erases itself and draws back in
+   (a "new background") while the subject pops up and settles. The frame is a
+   pathLength=1 line trimmed with stroke-dasharray; opacity 0 while hidden so the
+   round caps don't leave a dot. Plays on hover of the `.group` button. */
+.bgswap-frame {
+  stroke-dasharray: 1 2;
+}
+.bgswap-subject {
+  transform-box: view-box;
+  transform-origin: 16px 27px;
+}
+@keyframes bgswap-frame-redraw {
+  0% { stroke-dashoffset: 0; opacity: 1; }
+  30% { stroke-dashoffset: -1; opacity: 0; }
+  36% { stroke-dashoffset: 1; opacity: 0; }
+  40% { stroke-dashoffset: 0.98; opacity: 1; }
+  85%, 100% { stroke-dashoffset: 0; opacity: 1; }
+}
+@keyframes bgswap-subject-pop {
+  0%, 100% { transform: scale(1); }
+  45% { transform: scale(1.12); }
+  70% { transform: scale(0.97); }
+}
+.group:hover .bgswap-frame {
+  animation: bgswap-frame-redraw 1s ease-in-out;
+}
+.group:hover .bgswap-subject {
+  animation: bgswap-subject-pop 1s ease-in-out;
+}
+@media (prefers-reduced-motion: reduce) {
+  .group:hover .bgswap-frame,
+  .group:hover .bgswap-subject {
+    animation: none;
+  }
+}

@@ -3,6 +3,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import type { AppTab } from "../rail-config";
 import {
   loupeBottomRail,
+  RAIL_ICON_ANIM_MS,
   SprayCanIcon,
   LOUPE_TAB_RAIL,
   type LoupeRailKey,
@@ -96,6 +97,7 @@ function RailGroup({
             onClick={() => onSelect(item.key)}
             icon={<item.icon className="h-5 w-5" />}
             accent={item.key === "oneClick"}
+            animationMs={RAIL_ICON_ANIM_MS.get(item.icon)}
           />
         ),
       )}
@@ -124,6 +126,7 @@ export function RailIconButton({
   shortcut,
   active,
   accent,
+  animationMs = 0,
   onClick,
 }: {
   icon: React.ReactNode;
@@ -132,6 +135,8 @@ export function RailIconButton({
   active?: boolean;
   /** Long-hover turns the button and its label pill blue, with white icon + text. */
   accent?: boolean;
+  /** Hover animation length; the long-hover delay starts after it ends. */
+  animationMs?: number;
   onClick?: () => void;
 }) {
   const { instant, arm } = useContext(RailTooltipMode);
@@ -139,7 +144,7 @@ export function RailIconButton({
     // Rail sits on the right edge, so the label slides out to the left, flush
     // against the button (Figma "Long Hover"): #262626 pill, label + key badge.
     <Tooltip
-      delayDuration={instant ? 0 : RAIL_TOOLTIP_DELAY_MS}
+      delayDuration={instant ? 0 : animationMs + RAIL_TOOLTIP_DELAY_MS}
       onOpenChange={(open) => open && arm()}
     >
       <TooltipTrigger asChild>
