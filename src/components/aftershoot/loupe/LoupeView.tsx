@@ -152,6 +152,26 @@ export function LoupeView({
                   : selectedIndex > 0 &&
                     onSelectPhoto(dupId(selectedIndex - 1, duplicateCount(selectedIndex - 1) - 1)),
             },
+            // Duplicates filmstrip open on a stack: ↑ / ↓ cycle through it
+            // (wrapping), staying on this image's stack.
+            ...(showDuplicatesStrip && dupTotal > 1
+              ? [
+                  {
+                    id: "loupe.dup.cycleDown",
+                    combo: { key: "arrowdown" },
+                    label: "Next photo in duplicate stack",
+                    section: "Cull",
+                    run: () => onSelectDup((dupIndex + 1) % dupTotal),
+                  },
+                  {
+                    id: "loupe.dup.cycleUp",
+                    combo: { key: "arrowup" },
+                    label: "Previous photo in duplicate stack",
+                    section: "Cull",
+                    run: () => onSelectDup((dupIndex - 1 + dupTotal) % dupTotal),
+                  },
+                ]
+              : []),
             {
               id: "loupe.set.next",
               combo: { key: "'" },
@@ -168,7 +188,16 @@ export function LoupeView({
             },
           ]
         : [],
-    [cullDone, dupIndex, dupTotal, selectedIndex, onSelectDup, onSelectIndex, onSelectPhoto],
+    [
+      cullDone,
+      showDuplicatesStrip,
+      dupIndex,
+      dupTotal,
+      selectedIndex,
+      onSelectDup,
+      onSelectIndex,
+      onSelectPhoto,
+    ],
   );
 
   const openOneClick = useCullStore((s) => s.openOneClick);

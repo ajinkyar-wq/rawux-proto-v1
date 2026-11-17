@@ -336,7 +336,9 @@ function Workspace({
     history,
     image: selectedGridTile,
     view: viewMode,
-    enabled: !activeModal && !shortcutsOpen && !settingsOpen && !importDialogOpen,
+    // Quick edits (hold-key slider editing) are an editing tool: off in Cull.
+    enabled:
+      appTab !== "cull" && !activeModal && !shortcutsOpen && !settingsOpen && !importDialogOpen,
     shortcutMode,
     lookupSliderForKey,
   });
@@ -487,10 +489,16 @@ function Workspace({
     // its own handler, which also supports ⇧ to add to the comparison).
     if (
       (e.key === "ArrowLeft" || e.key === "ArrowRight") &&
-      !e.metaKey && !e.ctrlKey && !e.altKey && !e.shiftKey &&
+      !e.metaKey &&
+      !e.ctrlKey &&
+      !e.altKey &&
+      !e.shiftKey &&
       viewMode !== "survey"
     ) {
-      const n = Math.min(ALBUM_IMAGE_COUNT - 1, Math.max(0, selectedGridTile + (e.key === "ArrowRight" ? 1 : -1)));
+      const n = Math.min(
+        ALBUM_IMAGE_COUNT - 1,
+        Math.max(0, selectedGridTile + (e.key === "ArrowRight" ? 1 : -1)),
+      );
       if (n !== selectedGridTile) {
         e.preventDefault();
         if (viewMode === "grid") {
@@ -573,7 +581,7 @@ function Workspace({
             {/* Speed edit HUD anchor: floats above the bottom bar, any view. */}
             <div
               data-quick-edit-hud-host
-              className="pointer-events-none absolute inset-x-0 bottom-[52px] z-30 h-10"
+              className="pointer-events-none absolute inset-x-0 bottom-13 z-30 h-10"
             />
             {viewMode === "grid" && (
               <GridView
