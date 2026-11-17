@@ -65,50 +65,56 @@ export function CanvasGrid({
   const filterActive = !!ratingFilter && ratingFilter.size > 0;
 
   return (
-    <div
-      ref={scrollerRef}
-      className="grid min-h-0 flex-1 gap-px overflow-auto bg-white/[0.04] p-px"
-      style={{ gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))` }}
-    >
-      {CULL_IMAGES.map((img) => {
-        const isPrimary = selected === img.id;
-        const isSelected = selection ? selection.has(img.id) : isPrimary;
-        const rating = ratingOf(img.id);
-        // When a rating filter is active, hide tiles that don't match.
-        if (filterActive && !ratingFilter!.has(rating)) return null;
-        return (
-          <div
-            key={img.id}
-            data-tile-id={img.id}
-            onClick={(e) =>
-              onSelect(img.id, e.shiftKey ? "range" : e.metaKey || e.ctrlKey ? "toggle" : "single")
-            }
-            onDoubleClick={() => onOpenInLoupe?.(img.id)}
-            className={`flex cursor-pointer flex-col gap-1.5 bg-[#1a1a1a] p-2 text-left transition-colors hover:bg-white/[0.02] ${
-              isSelected
-                ? isPrimary
-                  ? "bg-white/[0.05] ring-1 ring-inset ring-white/60"
-                  : "bg-white/[0.04] ring-1 ring-inset ring-white/30"
-                : ""
-            }`}
-          >
-            {/* Filename */}
-            <span className="truncate text-[11px] text-neutral-400">{img.name}</span>
-
-            {/* Image placeholder */}
+    // Scroller fills the canvas; the grid inside only takes the height its
+    // rows need (a filtered, short list must not stretch rows to fill).
+    <div ref={scrollerRef} className="min-h-0 flex-1 overflow-auto bg-[#1a1a1a]">
+      <div
+        className="grid content-start"
+        style={{ gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))` }}
+      >
+        {CULL_IMAGES.map((img) => {
+          const isPrimary = selected === img.id;
+          const isSelected = selection ? selection.has(img.id) : isPrimary;
+          const rating = ratingOf(img.id);
+          // When a rating filter is active, hide tiles that don't match.
+          if (filterActive && !ratingFilter!.has(rating)) return null;
+          return (
             <div
-              className="aspect-[3/2] w-full rounded-sm bg-[#2a2a2a] bg-cover bg-center"
-              style={{ backgroundImage: `url(${photoUrl(img.id, 480)})` }}
-            />
+              key={img.id}
+              data-tile-id={img.id}
+              onClick={(e) =>
+                onSelect(
+                  img.id,
+                  e.shiftKey ? "range" : e.metaKey || e.ctrlKey ? "toggle" : "single",
+                )
+              }
+              onDoubleClick={() => onOpenInLoupe?.(img.id)}
+              className={`flex cursor-pointer flex-col gap-1.5 border-b border-r border-white/[0.06] bg-[#1a1a1a] p-2 text-left transition-colors hover:bg-white/[0.02] ${
+                isSelected
+                  ? isPrimary
+                    ? "bg-white/[0.05] ring-1 ring-inset ring-white/60"
+                    : "bg-white/[0.04] ring-1 ring-inset ring-white/30"
+                  : ""
+              }`}
+            >
+              {/* Filename */}
+              <span className="truncate text-[11px] text-neutral-400">{img.name}</span>
 
-            {/* Status footer: rating chip (clickable stars) + flag */}
-            <div className="flex items-center justify-center gap-2 pt-0.5">
-              <RatingChip rating={rating} onRate={(v) => setRating(img.id, v)} />
-              <Flag className="h-3.5 w-3.5 shrink-0 text-neutral-500" strokeWidth={1.75} />
+              {/* Image placeholder */}
+              <div
+                className="aspect-[3/2] w-full rounded-sm bg-[#2a2a2a] bg-cover bg-center"
+                style={{ backgroundImage: `url(${photoUrl(img.id, 480)})` }}
+              />
+
+              {/* Status footer: rating chip (clickable stars) + flag */}
+              <div className="flex items-center justify-center gap-2 pt-0.5">
+                <RatingChip rating={rating} onRate={(v) => setRating(img.id, v)} />
+                <Flag className="h-3.5 w-3.5 shrink-0 text-neutral-500" strokeWidth={1.75} />
+              </div>
             </div>
-          </div>
-        );
-      })}
+          );
+        })}
+      </div>
     </div>
   );
 }
