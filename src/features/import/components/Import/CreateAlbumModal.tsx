@@ -47,8 +47,8 @@ const GENRE_ICONS: Record<string, Icon> = {
 
 /** Halfway between the resting and the selected fill, so hovering reads as a step towards selecting without looking selected. */
 /** The card at rest: a faint wash over the dialog. */
-const REST_BACKGROUND = colors.surface.overlayFaint;
-const HOVER_BACKGROUND = `color-mix(in srgb, ${REST_BACKGROUND} 50%, ${colors.surface.control})`;
+const REST_BACKGROUND = "linear-gradient(222deg, rgb(28, 28, 28) 14.8%, rgb(17, 17, 17) 121.7%)";
+const HOVER_BACKGROUND = `linear-gradient(222deg, rgb(36, 36, 36) 14.8%, rgb(24, 24, 24) 121.7%)`;
 const ICON_SIZE = 32;
 
 /** Each mode has either an icon from the set or its own artwork from the design. */
@@ -193,15 +193,16 @@ function ModeOption({
         flexDirection: "column",
         alignItems: "center",
         justifyContent: "center",
-        gap: spacing[12],
-        padding: `${spacing[16]} ${spacing[12]}`,
+        gap: spacing[2],
+        height: 92,
+        padding: 0,
         // Selected is a lighter fill and an accent icon, never a different border, so the cards stay the same size.
         background: isSelected
           ? colors.surface.control
           : isHovered
             ? HOVER_BACKGROUND
             : REST_BACKGROUND,
-        border: "none",
+        border: `0.5px solid ${colors.edge.dialog}`,
         // An inset ring marks the chosen card. A shadow rather than a border, so choosing never changes the card's size.
         boxShadow: isSelected
           ? `inset 0 0 0 ${stroke[2]} ${colors.edge.emphasis}`
@@ -256,6 +257,14 @@ function ModeOption({
             LABEL_COLOR_OVERRIDE[mode] ??
             (isSelected || isHovered ? colors.type.primary : colors.type.muted),
           transition: hoverTransition,
+          ...(mode === "One Click"
+            ? {
+                background: "linear-gradient(to bottom, #ff796e, #ffb650)",
+                WebkitBackgroundClip: "text",
+                backgroundClip: "text",
+                WebkitTextFillColor: "transparent",
+              }
+            : {}),
         }}
       >
         {mode}
@@ -337,16 +346,9 @@ function CreateAlbumDialog({ photoCount }: { photoCount: number }) {
         style={{ height: stroke[1], background: colors.edge.transparent1 }}
       />
 
-      {isOption3 ? (
-        <span style={{ ...textStyle("body-14"), color: colors.type.muted }}>
-          What do you want to do first?
-        </span>
-      ) : (
-        <div
-          role="separator"
-          style={{ height: stroke[1], background: colors.edge.transparent1 }}
-        />
-      )}
+      <span style={{ ...textStyle("body-14"), color: colors.type.disabled }}>
+        What do you want to do
+      </span>
 
       <div
         role="radiogroup"
@@ -426,14 +428,14 @@ function CreateAlbumDialog({ photoCount }: { photoCount: number }) {
           Auto Flag photos that are:
         </span>
         <Checkbox
-          label="Locked"
-          checked={isFlaggingLocked}
-          onChange={setFlaggingLocked}
-        />
-        <Checkbox
           label="Rated"
           checked={isFlaggingRated}
           onChange={setFlaggingRated}
+        />
+        <Checkbox
+          label="Locked"
+          checked={isFlaggingLocked}
+          onChange={setFlaggingLocked}
         />
       </div>
 

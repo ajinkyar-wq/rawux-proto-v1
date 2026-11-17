@@ -38,6 +38,7 @@ import {
   type UxMode,
 } from "@/components/aftershoot/history/album-history";
 import { UxSelector } from "@/components/aftershoot/history/UxSelector";
+import { dupId, dupOf, imageOf } from "@/components/aftershoot/duplicates";
 import { UndoToast, type UndoFeedbackItem } from "@/components/aftershoot/history/UndoFeedback";
 import { tabOfLoupeRail, type LoupeRailKey } from "@/components/aftershoot/loupe/loupe-rail-config";
 import { HomeScreen } from "@/features/import/components/Home/HomeScreen";
@@ -77,6 +78,7 @@ export const Route = createFileRoute("/")({
 // Undo/Redo behaviour is fixed to "Undo takes you there": Undo/Redo
 // navigates to the image, view and tool where the change was made. (The
 // "stay in place + toast" variant, ux2, is still supported below.)
+const ALBUM_IMAGE_COUNT = 232;
 const UNDO_MODE: UxMode = "ux1";
 
 // Entry: the layout selector, then Home. From Home an album
@@ -198,6 +200,12 @@ function Workspace({
     }
   };
   const [selectedGridTile, setSelectedGridTile] = useState(startImage);
+  // Which photo of the selected image's duplicate set Loupe / Survey show
+  // (0 = the image itself). Tied to the image: moving to another image drops
+  // back to its first photo.
+  const [dupState, setDupState] = useState({ image: startImage, dup: 0 });
+  const dupIndex = dupState.image === selectedGridTile ? dupState.dup : 0;
+  const activePhoto = dupId(selectedGridTile, dupIndex);
   const [activeModal, setActiveModal] = useState<AIAction | null>(null);
 
   // ---- Keyboard Shortcuts modal + App Settings ----
@@ -401,10 +409,12 @@ function Workspace({
       if (view !== "loupe") setRailRequest(null);
       if (view === "survey" && appTab !== "cull") changeTab("cull");
       setViewMode(view);
-      setSelectedGridTile(images[0]);
+      const albumImages = images.map(imageOf);
+      setSelectedGridTile(albumImages[0]);
+      setDupState({ image: albumImages[0], dup: dupOf(images[0]) });
       if (view === "grid") {
-        setGridSelection(new Set(images));
-        setGridScrollTarget({ id: Math.min(...images), n: Date.now() });
+        setGridSelection(new Set(albumImages));
+        setGridScrollTarget({ id: Math.min(...albumImages), n: Date.now() });
       }
     };
 
@@ -456,9 +466,25 @@ function Workspace({
       if (entry) actOut(entry, dir);
       return;
     }
+    // ← / → step to the previous / next image in Grid and Loupe (Survey has
+    // its own handler, which also supports ⇧ to add to the comparison).
+    if (
+      (e.key === "ArrowLeft" || e.key === "ArrowRight") &&
+      !e.metaKey && !e.ctrlKey && !e.altKey && !e.shiftKey &&
+      viewMode !== "survey"
+    ) {
+      const n = Math.min(ALBUM_IMAGE_COUNT - 1, Math.max(0, selectedGridTile + (e.key === "ArrowRight" ? 1 : -1)));
+      if (n !== selectedGridTile) {
+        e.preventDefault();
+        if (viewMode === "grid") {
+          selectInGrid(n, "single");
+          setGridScrollTarget({ id: n, n: Date.now() });
+        } else changeImage(n);
+      }
+      return;
+    }
     if (!e.metaKey && !e.ctrlKey && !e.altKey && /^[0-5]$/.test(e.key)) {
-      const ids =
-        viewMode === "grid" ? [...gridSelection].sort((x, y) => x - y) : [selectedGridTile];
+      const ids = viewMode === "grid" ? [...gridSelection].sort((x, y) => x - y) : [activePhoto];
       rateImages(ids, Number(e.key));
     }
   };
@@ -479,6 +505,13 @@ function Workspace({
       setActiveRail(railForAction(layout, action));
       setGridPanelOpen(true);
     }, ACTION_RUN_DURATION_MS);
+  };
+
+  // Survey / Loupe: show a specific photo of a duplicate set. Moving to another
+  // image is recorded as album navigation, like changeImage.
+  const selectPhoto = (id: number) => {
+    changeImage(imageOf(id));
+    setDupState({ image: imageOf(id), dup: dupOf(id) });
   };
 
   const openInLoupe = (i: number) => {
@@ -555,10 +588,14 @@ function Workspace({
                 tab={appTab}
                 selectedIndex={selectedGridTile}
                 onSelectIndex={changeImage}
+                dupIndex={dupIndex}
+                onSelectDup={(k) => setDupState({ image: selectedGridTile, dup: k })}
+                onSelectPhoto={selectPhoto}
                 railRequest={railRequest}
                 lastRail={lastLoupeRail}
                 onRailChange={setLastLoupeRail}
                 onOpenShortcuts={openShortcutsFromLoupe}
+                onOpenSurvey={() => changeView("survey")}
                 cullFiltersVisible={actionStatuses.cull === "complete" && cullMode === "automated"}
                 ai={{
                   actionStatuses,
@@ -578,12 +615,25 @@ function Workspace({
               <SurveyView
                 viewBar={viewBar}
                 selectedIndex={selectedGridTile}
-                onSelectIndex={changeImage}
+                dupIndex={dupIndex}
+                onSelectPhoto={selectPhoto}
                 onOpenInLoupe={openInLoupe}
                 zoom={zoom}
                 onZoomChange={setZoom}
                 cullComplete={actionStatuses.cull === "complete"}
                 cullFiltersVisible={actionStatuses.cull === "complete" && cullMode === "automated"}
+                ratings={ratings}
+                onOpenShortcuts={openShortcutsFromLoupe}
+                ai={{
+                  actionStatuses,
+                  activeResultsTab,
+                  onSelectResultsTab: setActiveResultsTab,
+                  onAction: setActiveModal,
+                  ratingFilter,
+                  onToggleRating: toggleRatingFilter,
+                  cullFiltersVisible:
+                    actionStatuses.cull === "complete" && cullMode === "automated",
+                }}
               />
             )}
           </div>
@@ -724,6 +774,7 @@ function GridView({
           ratingFilter={ratingFilter}
           onToggleRating={onToggleRating}
           cullFiltersVisible={cullFiltersVisible}
+          ratings={ratings}
         />
       )}
       <Rail

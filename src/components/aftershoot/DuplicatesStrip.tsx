@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { ChevronDown } from "lucide-react";
 import { photoUrl } from "./cull-data";
 import { IconTooltip } from "./IconTooltip";
+import { duplicateCount } from "./duplicates";
 
 // Strip is contextual: each grid tile has its own duplicate set.
 // Toggle tab is anchored on the bottom edge in BOTH expanded and collapsed states.
@@ -21,24 +22,25 @@ type Size = keyof typeof SIZE_TOKENS;
 const MIN_HEIGHT = 64;
 const MAX_HEIGHT = 320;
 
-// Placeholder per-tile duplicate counts — real data would come from the
-// selected image's duplicate group on the backend.
-const DUPLICATE_COUNTS = [12, 5, 8, 3, 20, 7, 15, 4, 11];
-
 export function DuplicatesStrip({
   expanded,
   onToggle,
   selectedGridTile,
+  activeDup = 0,
+  onSelectDup,
   size = "default",
 }: {
   expanded: boolean;
   onToggle: () => void;
   selectedGridTile: number;
+  // Which photo of the set is showing (0 = the image itself), and a handler
+  // to switch to another one. Without a handler the tiles are display-only.
+  activeDup?: number;
+  onSelectDup?: (k: number) => void;
   size?: Size;
 }) {
-  const count = DUPLICATE_COUNTS[selectedGridTile % DUPLICATE_COUNTS.length];
-  // The selected duplicate is the leftmost (first) tile.
-  const selectedIndex = 0;
+  const count = duplicateCount(selectedGridTile);
+  const selectedIndex = activeDup;
   const { strip, vpad } = SIZE_TOKENS[size];
 
   // The grid-view ("default") strip is drag-resizable; the compact loupe strip
@@ -83,6 +85,7 @@ export function DuplicatesStrip({
             tileCount={count}
             image={selectedGridTile}
             selectedIndex={selectedIndex}
+            onSelect={onSelectDup}
             stripHeight={resizable ? stripHeight : strip}
             tileHeight={resizable ? tileH : strip - vpad * 2}
             tileWidth={resizable ? tileW : Math.round(((strip - vpad * 2) * 3) / 2)}
@@ -93,13 +96,7 @@ export function DuplicatesStrip({
   );
 }
 
-function CollapseTab({
-  expanded,
-  onToggle,
-}: {
-  expanded: boolean;
-  onToggle: () => void;
-}) {
+function CollapseTab({ expanded, onToggle }: { expanded: boolean; onToggle: () => void }) {
   return (
     <IconTooltip label={expanded ? "Hide duplicates" : "Show duplicates"} side="top">
       <button
@@ -119,6 +116,7 @@ function FilmstripRow({
   tileCount,
   image,
   selectedIndex,
+  onSelect,
   stripHeight,
   tileHeight,
   tileWidth,
@@ -126,12 +124,13 @@ function FilmstripRow({
   tileCount: number;
   image: number;
   selectedIndex: number;
+  onSelect?: (k: number) => void;
   stripHeight: number;
   tileHeight: number;
   tileWidth: number;
 }) {
   const scrollerRef = useRef<HTMLDivElement>(null);
-  const selectedRef = useRef<HTMLDivElement>(null);
+  const selectedRef = useRef<HTMLButtonElement>(null);
 
   // Scroll the selected tile into view (left-aligned, not center-padded).
   useEffect(() => {
@@ -150,8 +149,12 @@ function FilmstripRow({
           the strip; once they overflow it scrolls horizontally. */}
       <div className="mx-auto flex items-center gap-2 px-2">
         {Array.from({ length: tileCount }).map((_, i) => (
-          <div
+          <button
+            type="button"
             key={i}
+            aria-label={`Duplicate ${i + 1} of ${tileCount}`}
+            aria-pressed={i === selectedIndex}
+            onClick={() => onSelect?.(i)}
             ref={i === selectedIndex ? selectedRef : undefined}
             style={{
               height: tileHeight,
@@ -159,9 +162,11 @@ function FilmstripRow({
               backgroundImage: `url(${photoUrl(image, 240)})`,
             }}
             className={`shrink-0 rounded-[3px] bg-[#242424] bg-cover bg-center ${
+              onSelect ? "cursor-pointer" : ""
+            } ${
               i === selectedIndex
                 ? "outline outline-[1.5px] outline-white"
-                : "outline outline-1 -outline-offset-1 outline-[#303030]"
+                : "outline outline-1 -outline-offset-1 outline-[#303030] hover:outline-white/40"
             }`}
           />
         ))}

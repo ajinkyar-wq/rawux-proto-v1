@@ -29,12 +29,16 @@ export function AlbumFilmstrip({
   selectedIndex,
   onSelect,
   cullComplete = false,
+  highlight,
 }: {
   selectedIndex: number;
-  onSelect: (i: number) => void;
+  onSelect: (i: number, e?: React.MouseEvent) => void;
   // Ratings (pill colors) only appear after AI cull; before that they're grey.
   cullComplete?: boolean;
+  // Survey: images currently in the comparison set get a soft outline.
+  highlight?: number[];
 }) {
+  const inSet = highlight ? new Set(highlight) : null;
   const scrollerRef = useRef<HTMLDivElement>(null);
   const selectedRef = useRef<HTMLButtonElement>(null);
   const [stripHeight, setStripHeightState] = useState(() => savedHeight);
@@ -119,7 +123,7 @@ export function AlbumFilmstrip({
           <button
             key={i}
             ref={i === selectedIndex ? selectedRef : undefined}
-            onClick={() => onSelect(i)}
+            onClick={(e) => onSelect(i, e)}
             style={{ width: tileWidth }}
             className="flex shrink-0 flex-col items-center gap-1"
           >
@@ -133,7 +137,9 @@ export function AlbumFilmstrip({
               className={`rounded-[3px] bg-[#242424] bg-cover bg-center ${
                 i === selectedIndex
                   ? "outline outline-[1.5px] outline-white"
-                  : "outline outline-1 -outline-offset-1 outline-[#303030]"
+                  : inSet?.has(i)
+                    ? "outline outline-[1.5px] -outline-offset-1 outline-white/50"
+                    : "outline outline-1 -outline-offset-1 outline-[#303030]"
               }`}
             />
             {/* Status pill below the image — the image's rating color once

@@ -1,9 +1,5 @@
 import type { ReactNode } from "react";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
+import { Tooltip, TooltipContent, TooltipKeys, TooltipTrigger } from "@/components/ui/tooltip";
 
 /**
  * Thin wrapper to replace native `title=` on icon buttons with an instant
@@ -15,21 +11,22 @@ import {
  */
 export function IconTooltip({
   label,
+  shortcut,
   side = "top",
   children,
 }: {
   label: string;
+  /** Key(s) shown as keycaps, e.g. ["⌘", "Shift", "C"]. */
+  shortcut?: string | string[];
   side?: "top" | "right" | "bottom" | "left";
   children: ReactNode;
 }) {
   return (
     <Tooltip>
       <TooltipTrigger asChild>{children}</TooltipTrigger>
-      <TooltipContent
-        side={side}
-        className="border border-white/10 bg-[#222] text-[11px] font-medium text-white"
-      >
+      <TooltipContent side={side}>
         {label}
+        {shortcut && <TooltipKeys keys={shortcut} />}
       </TooltipContent>
     </Tooltip>
   );

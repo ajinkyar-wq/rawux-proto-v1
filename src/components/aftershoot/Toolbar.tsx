@@ -4,6 +4,7 @@ import {
   Home,
   ImagePlus,
   LayoutGrid,
+  MessageCircle,
   Monitor,
   MoreVertical,
   Pencil,
@@ -45,40 +46,40 @@ export function AppBar({
   onOpenSettings?: () => void;
 }) {
   return (
-    <div className="relative flex h-11 shrink-0 items-center gap-1 border-b border-white/5 bg-[#1a1a1a] px-3">
-      <IconTooltip label="Home" side="bottom">
-        <ToolbarBtn onClick={onHome}>
-          <Home className="h-[15px] w-[15px]" strokeWidth={1.5} />
-        </ToolbarBtn>
-      </IconTooltip>
-      <Divider />
-      {/* Album name (rename via pencil) */}
-      <button className="group ml-1 flex items-center gap-1.5 rounded px-1 py-1 text-[12px] text-neutral-200 hover:text-white">
-        <span className="max-w-[220px] truncate">{albumName}</span>
-        <Pencil
-          className="h-3 w-3 text-neutral-500 group-hover:text-neutral-300"
-          strokeWidth={1.5}
-        />
-      </button>
-      <Divider />
-      <button
-        onClick={onAdd}
-        className="flex items-center gap-1.5 rounded px-1.5 py-1 text-[12px] text-neutral-300 hover:text-white"
-      >
-        <ImagePlus className="h-[14px] w-[14px]" strokeWidth={1.5} />
-        Add
-      </button>
+    <div className="relative flex h-10 shrink-0 items-center justify-between bg-[#1c1c1c] py-1.5 pl-2 pr-3">
+      {/* Left controls */}
+      <div className="flex w-[400px] shrink-0 items-center gap-2">
+        <IconTooltip label="Home" side="bottom">
+          <button
+            onClick={onHome}
+            className="flex size-6 shrink-0 items-center justify-center rounded text-[#ababab] hover:bg-white/5 hover:text-white"
+          >
+            <Home className="size-4" strokeWidth={1.5} />
+          </button>
+        </IconTooltip>
+        <span className="h-4 w-px shrink-0 bg-white/10" />
+        <button className="group flex h-7 items-center gap-1 rounded-md px-2 text-[12px] font-medium text-[#e2e2e2]">
+          <span className="max-w-[220px] truncate">{albumName}</span>
+          <Pencil className="size-4 text-[#777] group-hover:text-[#ababab]" strokeWidth={1.5} />
+        </button>
+        <span className="h-4 w-px shrink-0 bg-white/10" />
+        <button
+          onClick={onAdd}
+          className="flex items-center gap-1 rounded text-[12px] font-medium text-[#ababab] hover:text-white"
+        >
+          <ImagePlus className="size-4" strokeWidth={1.5} />
+          Add
+        </button>
+      </div>
 
-      {/* CULL / ENHANCE — centered in the window, like the main app. */}
-      <div className="absolute left-1/2 top-1/2 flex -translate-x-1/2 -translate-y-1/2 items-center rounded-md bg-[#111] p-0.5">
+      {/* CULL / ENHANCE feature switcher */}
+      <div className="flex items-center rounded bg-[#111] p-0.5">
         {TABS.map((t) => (
           <button
             key={t.key}
             onClick={() => onChangeTab(t.key)}
-            className={`h-6 rounded px-3 text-[11px] font-medium tracking-[0.08em] ${
-              tab === t.key
-                ? "bg-[#2a2a2a] text-neutral-100"
-                : "text-neutral-500 hover:text-neutral-300"
+            className={`flex w-20 items-center justify-center rounded px-3 py-1.5 text-[11px] font-semibold uppercase leading-3 tracking-[0.5px] ${
+              tab === t.key ? "bg-[#303030] text-[#e2e2e2]" : "text-[#777] hover:text-[#ababab]"
             }`}
           >
             {t.label}
@@ -86,20 +87,29 @@ export function AppBar({
         ))}
       </div>
 
-      <div className="flex-1" />
-
-      <button className="flex h-7 items-center gap-1.5 rounded-md border border-white/10 bg-[#222] px-2.5 text-[12px] text-neutral-100 hover:bg-[#2a2a2a]">
-        <Share className="h-[13px] w-[13px]" strokeWidth={1.5} />
-        Export
-      </button>
-      <IconTooltip label="Settings" side="bottom">
-        <ToolbarBtn onClick={onOpenSettings}>
-          <Settings className="h-[15px] w-[15px]" strokeWidth={1.5} />
-        </ToolbarBtn>
-      </IconTooltip>
-      <ToolbarBtn>
-        <MoreVertical className="h-[15px] w-[15px]" strokeWidth={1.5} />
-      </ToolbarBtn>
+      {/* Right controls */}
+      <div className="flex w-[400px] shrink-0 items-center justify-end gap-2">
+        <button className="flex h-7 items-center justify-center gap-1 rounded bg-[#303030] pl-2 pr-3 text-[12px] font-medium text-[#e2e2e2] hover:bg-[#383838]">
+          <Share className="size-4" strokeWidth={1.5} />
+          Export
+        </button>
+        <span className="h-4 w-px shrink-0 bg-white/10" />
+        <button className="relative flex size-6 shrink-0 items-center justify-center rounded text-[#ababab] hover:bg-white/5 hover:text-white">
+          <MessageCircle className="size-4" strokeWidth={1.5} />
+          <span className="absolute right-0 top-[3px] size-2 rounded-full bg-[#2ecc71]" />
+        </button>
+        {/* <IconTooltip label="Settings" side="bottom">
+          <button
+            onClick={onOpenSettings}
+            className="flex size-6 shrink-0 items-center justify-center rounded text-[#ababab] hover:bg-white/5 hover:text-white"
+          >
+            <Settings className="size-4" strokeWidth={1.5} />
+          </button>
+        </IconTooltip> */}
+        <button className="flex size-6 shrink-0 items-center justify-center rounded text-[#ababab] hover:bg-white/5 hover:text-white">
+          <MoreVertical className="size-4" strokeWidth={1.5} />
+        </button>
+      </div>
     </div>
   );
 }

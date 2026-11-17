@@ -1,3 +1,4 @@
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Settings as SettingsIcon } from "lucide-react";
 import type { ActionStatuses } from "../action-status";
 import { ImageHistoryPanel } from "../history/ImageHistoryPanel";
@@ -5,7 +6,7 @@ import { SliderHistoryContext, type Tool } from "../history/album-history";
 
 const HISTORY_TOOLS: Tool[] = ["edit", "crop", "mask", "retouch", "background", "patch"];
 import type { AIAction } from "../panels/ImagePanel";
-import { KeyFacesGrid } from "../panels/KeyFacesGrid";
+import { KeyFacesGrid, type FaceControls } from "../panels/KeyFacesGrid";
 import { InfoPanel } from "../panels/InfoPanel";
 import { BackgroundPanel } from "./BackgroundPanel";
 import { CropPanel } from "./CropPanel";
@@ -13,6 +14,7 @@ import { EditPanel } from "./EditPanel";
 import { MaskingPanel } from "./MaskingPanel";
 import { PatchPanel } from "./PatchPanel";
 import { RetouchPanel } from "./RetouchPanel";
+import { TetheringPanel } from "./TetheringPanel";
 import type { LoupeRailKey } from "./loupe-rail-config";
 import { IconTooltip } from "../IconTooltip";
 
@@ -36,12 +38,15 @@ export function LoupeRailPanel({
   activeRail,
   selectedIndex = 0,
   ai,
+  faces,
 }: {
   activeRail: LoupeRailKey;
   // Drives the Key Faces grid / AI Actions panel inside this slot.
   selectedIndex?: number;
   // AI Actions panel state, lifted from the screen so grid and loupe share it.
   ai: LoupeAIState;
+  // Survey: Key Faces become clickable (zoom every photo to that face).
+  faces?: FaceControls;
 }) {
   // The AI Actions panel manages its own inner scroll (the results tabs stay
   // pinned while the Key Faces / Duplicates list scrolls below them), so its
@@ -49,9 +54,14 @@ export function LoupeRailPanel({
   // the list disappears. Editing rails keep the simple scroll-the-whole-panel
   // behavior.
   const isAI = activeRail === "ai";
+  // Tethering has its own full-height 344px panel (Figma 81:33862).
+  if (activeRail === "camera") return <TetheringPanel />;
   return (
-    <div className="flex h-full w-[280px] shrink-0 flex-col border-l border-white/5 bg-[#1a1a1a]">
-      <div className={`flex min-h-0 flex-1 flex-col ${isAI ? "gap-3 p-4" : "overflow-y-auto p-3"}`}>
+    <div className="flex h-full w-[344px] shrink-0 flex-col border-l border-white/5 bg-[#1a1a1a]">
+      <ScrollFade
+        enabled={!isAI}
+        className={`flex min-h-0 flex-1 flex-col ${isAI ? "gap-3 p-4" : "overflow-y-auto p-3"}`}
+      >
         {/* Sliders inside read/write the current image's values in the album
             history store and record a step per drag. */}
         <SliderHistoryContext.Provider
@@ -61,9 +71,14 @@ export function LoupeRailPanel({
               : null
           }
         >
-          <LoupeRailPanelBody activeRail={activeRail} selectedIndex={selectedIndex} ai={ai} />
+          <LoupeRailPanelBody
+            activeRail={activeRail}
+            selectedIndex={selectedIndex}
+            ai={ai}
+            faces={faces}
+          />
         </SliderHistoryContext.Provider>
-      </div>
+      </ScrollFade>
       {/* Footer is OUTSIDE the scroll area, so Sync/Reset stay pinned to the
           bottom of the panel regardless of how long the content scrolls. */}
       {EDITING_RAILS.includes(activeRail) && <EditingPanelFooter />}
@@ -75,10 +90,12 @@ function LoupeRailPanelBody({
   activeRail,
   selectedIndex,
   ai,
+  faces,
 }: {
   activeRail: LoupeRailKey;
   selectedIndex: number;
   ai: LoupeAIState;
+  faces?: FaceControls;
 }) {
   switch (activeRail) {
     case "ai":
@@ -86,7 +103,7 @@ function LoupeRailPanelBody({
       // above the album filmstrip; AI actions/filters live in grid view.
       return (
         <div className="min-h-0 flex-1 overflow-y-auto">
-          <KeyFacesGrid selectedGridTile={selectedIndex} cols={4} />
+          <KeyFacesGrid selectedGridTile={selectedIndex} controls={faces} />
         </div>
       );
     case "edit":
@@ -115,50 +132,87 @@ function LoupeRailPanelBody({
   }
 }
 
-/* ---------------- Shared footer ([Sync ⚙] · Reset) ---------------- */
+/* ---------------- Shared footer: Bottom CTA (Figma 4011:28100) ----------------
+ * Two split buttons side by side: [Sync | ⚙] [Reset | ⚙]. Each is a full-pill
+ * label button joined (1px gap) to a 32px round icon button. */
 
 function EditingPanelFooter() {
   return (
-    <div className="flex items-center gap-2 border-t border-white/5 px-3 py-2">
-      <SyncSplitButton />
-      <FooterPillButton>Reset</FooterPillButton>
+    <div className="flex items-start gap-3 px-4 py-3">
+      <SplitButton label="Sync" settingsLabel="Sync settings" />
+      <SplitButton label="Reset" settingsLabel="Reset settings" />
     </div>
   );
 }
 
-/**
- * The Sync action is always a split button: the "Sync" pill on one side and
- * the settings cog attached to it on the other side, sharing a border.
- */
-function SyncSplitButton() {
+function SplitButton({ label, settingsLabel }: { label: string; settingsLabel: string }) {
   return (
-    <div className="flex h-7 flex-1 overflow-hidden rounded border border-white/10 bg-[#222]">
+    <div className="flex min-w-px flex-1 items-center gap-px">
       <button
         type="button"
-        className="flex flex-1 items-center justify-center text-[11px] text-white hover:bg-white/[0.04]"
+        className="flex h-8 min-w-[52px] flex-1 items-center justify-center rounded-l-full bg-[#303030] px-3 text-[12px] font-medium leading-4 text-[#e2e2e2] hover:bg-[#3a3a3a]"
       >
-        Sync
+        {label}
       </button>
-      <span className="my-1 w-px bg-white/10" aria-hidden />
-      <IconTooltip label="Sync settings">
+      <IconTooltip label={settingsLabel}>
         <button
           type="button"
-          className="flex w-7 items-center justify-center text-neutral-300 hover:bg-white/[0.04] hover:text-white"
+          aria-label={settingsLabel}
+          className="flex size-8 shrink-0 items-center justify-center rounded-r-full bg-[#303030] p-2 text-[#e2e2e2] hover:bg-[#3a3a3a]"
         >
-          <SettingsIcon className="h-3.5 w-3.5" strokeWidth={1.5} />
+          <SettingsIcon className="size-4" strokeWidth={1.5} />
         </button>
       </IconTooltip>
     </div>
   );
 }
 
-function FooterPillButton({ children }: { children: React.ReactNode }) {
+/**
+ * Scroll container with a bottom fade overlay (Figma 4011:28099) that shows
+ * only while more content is scrolled out of view below, sitting just above
+ * the footer CTA.
+ */
+function ScrollFade({
+  enabled,
+  className,
+  children,
+}: {
+  enabled: boolean;
+  className: string;
+  children: React.ReactNode;
+}) {
+  const ref = useRef<HTMLDivElement>(null);
+  const [more, setMore] = useState(false);
+  const update = useCallback(() => {
+    const el = ref.current;
+    if (!el) return;
+    setMore(el.scrollHeight - el.scrollTop - el.clientHeight > 1);
+  }, []);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    update();
+    const ro = new ResizeObserver(update);
+    ro.observe(el);
+    if (el.firstElementChild) ro.observe(el.firstElementChild);
+    const mo = new MutationObserver(update);
+    mo.observe(el, { childList: true, subtree: true });
+    return () => {
+      ro.disconnect();
+      mo.disconnect();
+    };
+  }, [update]);
   return (
-    <button
-      type="button"
-      className="flex h-7 flex-1 items-center justify-center rounded border border-white/10 bg-[#222] text-[11px] text-white hover:bg-[#262626]"
-    >
-      {children}
-    </button>
+    <div className="relative flex min-h-0 flex-1 flex-col">
+      <div ref={ref} onScroll={update} className={className}>
+        {children}
+      </div>
+      {enabled && (
+        <div
+          aria-hidden
+          className={`pointer-events-none absolute inset-x-0 bottom-0 h-10 bg-gradient-to-b from-transparent to-[#1a1a1a] transition-opacity ${more ? "opacity-100" : "opacity-0"}`}
+        />
+      )}
+    </div>
   );
 }

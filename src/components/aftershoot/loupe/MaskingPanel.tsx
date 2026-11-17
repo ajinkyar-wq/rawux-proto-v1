@@ -1,8 +1,9 @@
 import { useState } from "react";
-import { ChevronDown, Eye, Maximize2, Plus, RotateCcw } from "lucide-react";
+import { ArrowsOutSimple, Eye, PlusCircle } from "@phosphor-icons/react";
 import { Checkbox } from "../primitives";
 import { IconTooltip } from "../IconTooltip";
 import { SliderRow } from "./slider-primitives";
+import { Section } from "./EditPanel";
 
 const MASKS = [
   { id: "subject", label: "Subject Mask" },
@@ -16,21 +17,17 @@ export function MaskingPanel() {
     <div className="flex flex-col gap-3">
       <MasksList />
 
-      <label className="flex cursor-pointer items-center gap-1.5 text-[11px] text-neutral-300">
+      <label className="flex cursor-pointer items-center gap-2 pb-1 text-[12px] text-neutral-200">
         <Checkbox checked={showOverlay} onChange={setShowOverlay} />
         Show Overlay
       </label>
 
-      <div className="h-px bg-white/5" />
-
-      <Section title="WHITE BALANCE">
+      <Section title="White Balance">
         <SliderRow label="Temperature" gradient="temperature" initial={70} max={10000} />
         <SliderRow label="Tint" gradient="tint" />
       </Section>
 
-      <div className="h-px bg-white/5" />
-
-      <Section title="LIGHT">
+      <Section title="Light">
         <SliderRow label="Exposure" />
         <SliderRow label="Contrast" />
         <SliderRow label="Highlights" />
@@ -39,9 +36,7 @@ export function MaskingPanel() {
         <SliderRow label="Blacks" />
       </Section>
 
-      <div className="h-px bg-white/5" />
-
-      <Section title="PRESENCE">
+      <Section title="Presence">
         <SliderRow label="Texture" />
         <SliderRow label="Clarity" />
         <SliderRow label="Dehaze" />
@@ -56,22 +51,22 @@ export function MaskingPanel() {
 
 function MasksList() {
   return (
-    <section className="flex flex-col gap-1.5">
-      <div className="flex items-center justify-between">
-        <span className="text-[10px] font-semibold tracking-wider text-neutral-400">
-          MASKS
+    <section className="flex flex-col gap-3">
+      <div className="flex h-6 items-center justify-between">
+        <span className="text-[12px] font-semibold uppercase tracking-wider text-neutral-300">
+          Masks
         </span>
         <IconTooltip label="Add mask">
           <button
             type="button"
-            className="rounded p-0.5 text-neutral-500 hover:bg-white/5 hover:text-white"
+            className="rounded p-0.5 text-neutral-400 hover:bg-white/5 hover:text-white"
           >
-            <Plus className="h-3.5 w-3.5" strokeWidth={1.75} />
+            <PlusCircle size={16} weight="light" />
           </button>
         </IconTooltip>
       </div>
 
-      <div className="flex flex-col gap-1.5">
+      <div className="flex flex-col gap-2">
         {MASKS.map((m) => (
           <MaskRow key={m.id} label={m.label} />
         ))}
@@ -82,17 +77,17 @@ function MasksList() {
 
 function MaskRow({ label }: { label: string }) {
   return (
-    <div className="flex items-center gap-2">
-      <div className="flex h-7 w-9 shrink-0 items-center justify-center overflow-hidden rounded bg-black">
-        <div className="h-3 w-4 rounded-t-full bg-white/70" />
+    <div className="flex items-center gap-3">
+      <div className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded bg-black">
+        <div className="h-4 w-5 rounded-t-full bg-white/70" />
       </div>
-      <span className="flex-1 text-[11px] text-white">{label}</span>
+      <span className="flex-1 text-[12px] text-white">{label}</span>
       <IconTooltip label="Isolate mask">
         <button
           type="button"
           className="rounded p-0.5 text-neutral-500 hover:bg-white/5 hover:text-white"
         >
-          <Maximize2 className="h-3 w-3" strokeWidth={1.5} />
+          <ArrowsOutSimple size={16} weight="light" />
         </button>
       </IconTooltip>
       <IconTooltip label="Toggle visibility">
@@ -100,59 +95,9 @@ function MaskRow({ label }: { label: string }) {
           type="button"
           className="rounded p-0.5 text-neutral-500 hover:bg-white/5 hover:text-white"
         >
-          <Eye className="h-3 w-3" strokeWidth={1.5} />
+          <Eye size={16} weight="light" />
         </button>
       </IconTooltip>
     </div>
-  );
-}
-
-/* ---------------- Section ---------------- */
-
-function Section({
-  title,
-  children,
-}: {
-  title: string;
-  children: React.ReactNode;
-}) {
-  const [open, setOpen] = useState(true);
-  return (
-    <section className="flex flex-col gap-1.5">
-      <div className="flex items-center justify-between">
-        <button
-          type="button"
-          onClick={() => setOpen((v) => !v)}
-          className="flex items-center gap-1 text-[10px] font-semibold tracking-wider text-neutral-300"
-        >
-          <ChevronDown
-            className={`h-3 w-3 text-neutral-400 transition-transform ${
-              open ? "" : "-rotate-90"
-            }`}
-            strokeWidth={1.75}
-          />
-          {title}
-        </button>
-        <div className="flex items-center gap-1">
-          <IconTooltip label="Toggle visibility">
-            <button
-              type="button"
-              className="rounded p-0.5 text-neutral-500 hover:bg-white/5 hover:text-white"
-            >
-              <Eye className="h-3 w-3" strokeWidth={1.5} />
-            </button>
-          </IconTooltip>
-          <IconTooltip label="Reset section">
-            <button
-              type="button"
-              className="rounded p-0.5 text-neutral-500 hover:bg-white/5 hover:text-white"
-            >
-              <RotateCcw className="h-3 w-3" strokeWidth={1.5} />
-            </button>
-          </IconTooltip>
-        </div>
-      </div>
-      {open && <div className="flex flex-col gap-1.5">{children}</div>}
-    </section>
   );
 }

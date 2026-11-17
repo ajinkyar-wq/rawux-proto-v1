@@ -1,92 +1,148 @@
 import { useState } from "react";
-import { Brush, CircleMinus, CirclePlus, MousePointer2, SquareDashed } from "lucide-react";
+import { FlaskIcon, Warning } from "@phosphor-icons/react";
+import { Checkbox } from "../primitives";
+import { IconTooltip } from "../IconTooltip";
 
-type PatchMode = "object" | "rectangle" | "brush";
+// Static mock of scan results — real detection is wired up later.
+const MOCK_RESULTS = [
+  { label: "Exit Signs", count: 2 },
+  { label: "Fire Alarms", count: 1 },
+  { label: "Fire Extinguishers", count: 0 },
+  { label: "Thermostats", count: 1 },
+];
 
 export function PatchPanel() {
-  const [mode, setMode] = useState<PatchMode>("object");
+  const [scanned, setScanned] = useState(false);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+
+  const toggle = (label: string) =>
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(label)) next.delete(label);
+      else next.add(label);
+      return next;
+    });
+
+  const selectedCount = MOCK_RESULTS.filter((r) => selected.has(r.label)).reduce(
+    (sum, r) => sum + r.count,
+    0,
+  );
+  const canRemove = selectedCount > 0;
+  const removeLabel = selectedCount > 1 ? `Remove ${selectedCount} Objects` : "Remove Object";
 
   return (
-    <div className="flex flex-col gap-3">
-      <div className="grid grid-cols-3 gap-1.5">
-        <ModeCard
-          active={mode === "object"}
-          onClick={() => setMode("object")}
-          icon={<MousePointer2 className="h-3.5 w-3.5" strokeWidth={1.5} />}
-          label="Object Select"
-        />
-        <ModeCard
-          active={mode === "rectangle"}
-          onClick={() => setMode("rectangle")}
-          icon={<SquareDashed className="h-3.5 w-3.5" strokeWidth={1.5} />}
-          label="Rectangle"
-        />
-        <ModeCard
-          active={mode === "brush"}
-          onClick={() => setMode("brush")}
-          icon={<Brush className="h-3.5 w-3.5" strokeWidth={1.5} />}
-          label="Brush"
-        />
-      </div>
+    <div className="flex flex-col gap-4">
+      <div className="flex flex-col gap-2">
+        {/* Title row */}
+        <div className="flex h-6 items-center gap-1.5">
+          <span className="text-[14px] leading-5 text-[#e2e2e2]">AI Distraction Removal</span>
+          <IconTooltip label="Beta">
+            <span className="inline-flex">
+              <FlaskIcon size={16} weight="fill" color="#EAB308" />
+            </span>
+          </IconTooltip>
+        </div>
 
-      <div className="flex items-center gap-1.5">
-        <PillButton variant="filled">
-          <CirclePlus className="h-3 w-3" strokeWidth={1.75} />
-          Add Mask
-        </PillButton>
-        <PillButton variant="ghost">
-          <CircleMinus className="h-3 w-3" strokeWidth={1.75} />
-          Subtract Mask
-        </PillButton>
+        {!scanned ? (
+          <>
+            <img
+              src="/patch/graphic.png"
+              alt=""
+              draggable={false}
+              className="w-full rounded object-cover"
+            />
+            <p className="text-[12px] leading-4 text-[#ababab]">
+              Scan for distracting objects like exit signs, fire alarms, fire extinguishers, and
+              thermostats to remove.
+            </p>
+            <div className="mt-1 flex flex-col gap-2">
+              <PrimaryButton onClick={() => setScanned(true)}>Auto Remove from Image</PrimaryButton>
+              <OutlineButton>Auto Remove from Album</OutlineButton>
+            </div>
+          </>
+        ) : MOCK_RESULTS.every((r) => r.count === 0) ? (
+          <div className="mt-1 flex w-full flex-col items-center gap-4 rounded bg-[#242424] p-5">
+            <Warning size={32} className="text-[#e2e2e2]" />
+            <div className="flex flex-col gap-1 text-center">
+              <p className="text-[16px] font-semibold leading-5 text-[#e2e2e2]">
+                No distractions detected
+              </p>
+              <p className="text-[13px] leading-4 text-[#ababab]">Think we missed something?</p>
+            </div>
+          </div>
+        ) : (
+          <>
+            <div className="mt-2 grid grid-cols-2 gap-4">
+              {[...MOCK_RESULTS]
+                .sort((a, b) => Number(b.count > 0) - Number(a.count > 0))
+                .map((r) => (
+                  <label
+                    key={r.label}
+                    className="flex h-4 min-w-0 cursor-pointer items-center gap-2"
+                  >
+                    <Checkbox checked={selected.has(r.label)} onChange={() => toggle(r.label)} />
+                    <span className="flex min-w-0 items-center gap-1">
+                      <span className="truncate text-[11px] leading-4 text-[#e2e2e2]">
+                        {r.label}
+                      </span>
+                      <span className="shrink-0 text-[10px] font-medium leading-3 text-[#777]">
+                        {r.count}
+                      </span>
+                    </span>
+                  </label>
+                ))}
+            </div>
+            <div className="mt-2 flex flex-col gap-2">
+              <PrimaryButton disabled={!canRemove}>{removeLabel}</PrimaryButton>
+              <OutlineButton>Auto Remove from Album</OutlineButton>
+              <button
+                type="button"
+                onClick={() => {
+                  setScanned(false);
+                  setSelected(new Set());
+                }}
+                className="text-[11px] text-[#777] hover:text-[#ababab]"
+              >
+                Reset preview
+              </button>
+            </div>
+          </>
+        )}
       </div>
     </div>
   );
 }
 
-function ModeCard({
-  icon,
-  label,
-  active,
+function PrimaryButton({
+  children,
+  disabled,
   onClick,
 }: {
-  icon: React.ReactNode;
-  label: string;
-  active: boolean;
-  onClick: () => void;
+  children: React.ReactNode;
+  disabled?: boolean;
+  onClick?: () => void;
 }) {
   return (
     <button
       type="button"
+      disabled={disabled}
       onClick={onClick}
-      className={`flex flex-col items-center justify-center gap-1 rounded border bg-[#222] py-1.5 transition-colors ${
-        active
-          ? "border-white text-white"
-          : "border-white/10 text-neutral-300 hover:bg-[#262626]"
+      className={`flex h-9 w-full items-center justify-center rounded px-3 text-[12px] font-medium transition-colors ${
+        disabled
+          ? "cursor-not-allowed bg-[#1e2a45] text-[#474747]"
+          : "cursor-pointer bg-[#2563eb] text-white hover:bg-[#1d56d1]"
       }`}
     >
-      <span>{icon}</span>
-      <span className="text-[10px] text-neutral-300">{label}</span>
+      {children}
     </button>
   );
 }
 
-function PillButton({
-  children,
-  variant,
-}: {
-  children: React.ReactNode;
-  variant: "filled" | "ghost";
-}) {
-  const base =
-    "flex h-6 flex-1 items-center justify-center gap-1 rounded-full text-[11px] font-medium";
+function OutlineButton({ children }: { children: React.ReactNode }) {
   return (
     <button
       type="button"
-      className={
-        variant === "filled"
-          ? `${base} bg-white text-black hover:bg-neutral-200`
-          : `${base} border border-white/15 text-white hover:bg-white/[0.04]`
-      }
+      className="flex h-9 w-full items-center justify-center rounded border border-[#303030] px-3 text-[12px] font-medium text-[#e2e2e2] transition-colors hover:border-[#3a3a3a]"
     >
       {children}
     </button>

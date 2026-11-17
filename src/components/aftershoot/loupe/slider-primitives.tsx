@@ -1,4 +1,4 @@
-import { useContext, useEffect, useRef } from "react";
+import { useContext, useEffect, useRef, useState } from "react";
 import {
   SliderHistoryContext,
   SliderScopeContext,
@@ -58,13 +58,14 @@ const GRADIENT_CSS: Record<Gradient, string> = {
   bluePrimarySat: "linear-gradient(to right, #555555 0%, #4a6ab0 50%, #4a8bff 100%)",
 };
 
-/** Draggable colored track with thin white handle and centre tick. */
+/** Draggable track with a pill handle (halo'd), matching the raw-ux slider. */
 export function GradientSlider({
   value,
   onChange,
   gradient = "plain",
   disabled = false,
   onCommit,
+  centered = true,
 }: {
   value: number;
   onChange: (v: number) => void;
@@ -72,9 +73,13 @@ export function GradientSlider({
   disabled?: boolean;
   /** Fires once when a drag ends / after a keyboard nudge (history step). */
   onCommit?: () => void;
+  /** Fill grows from the centre (signed range) instead of from the left. */
+  centered?: boolean;
 }) {
   const trackRef = useRef<HTMLDivElement>(null);
   const draggingRef = useRef(false);
+  const [dragging, setDragging] = useState(false);
+  const [hovered, setHovered] = useState(false);
   // Latest callbacks for the document listeners registered once on mount.
   const onChangeRef = useRef(onChange);
   onChangeRef.current = onChange;
@@ -96,6 +101,7 @@ export function GradientSlider({
     const handleUp = () => {
       if (!draggingRef.current) return;
       draggingRef.current = false;
+      setDragging(false);
       onCommitRef.current?.();
     };
     document.addEventListener("mousemove", handleMove);
@@ -104,8 +110,13 @@ export function GradientSlider({
       document.removeEventListener("mousemove", handleMove);
       document.removeEventListener("mouseup", handleUp);
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  const active = !disabled && (hovered || dragging);
+  const hasGradient = gradient !== "plain";
+  const fillLeft = centered ? Math.min(50, value) : 0;
+  const fillWidth = centered ? Math.abs(value - 50) : value;
+  const handleColor = dragging ? "bg-[#ababab]" : active ? "bg-[#5e5e5e]" : "bg-[#474747]";
 
   return (
     <div
@@ -116,9 +127,12 @@ export function GradientSlider({
       aria-valuenow={Math.round(value)}
       tabIndex={disabled ? -1 : 0}
       aria-disabled={disabled || undefined}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
       onMouseDown={(e) => {
         if (disabled) return;
         draggingRef.current = true;
+        setDragging(true);
         updateFromClientX(e.clientX);
       }}
       onKeyDown={(e) => {
@@ -127,23 +141,36 @@ export function GradientSlider({
         if (e.key === "ArrowRight") onChange(Math.min(100, value + 2));
         if (e.key === "ArrowLeft" || e.key === "ArrowRight") onCommit?.();
       }}
-      className={`relative h-4 select-none ${
+      className={`relative h-[18px] select-none ${
         disabled ? "cursor-not-allowed opacity-40" : "cursor-pointer"
       }`}
     >
       <div
-        className="absolute inset-x-0 top-1/2 h-[3px] -translate-y-1/2 rounded-full"
-        style={{ background: GRADIENT_CSS[gradient] }}
-      />
-      {/* Centre tick */}
-      <div className="pointer-events-none absolute left-1/2 top-1/2 h-2 w-px -translate-x-1/2 -translate-y-1/2 bg-white/50" />
-      {/* Handle */}
-      <div
-        className={`absolute top-1/2 h-3 w-[3px] -translate-x-1/2 -translate-y-1/2 rounded-sm bg-white ${
-          disabled ? "" : "cursor-grab active:cursor-grabbing"
+        className={`absolute inset-x-0 top-1/2 h-1 -translate-y-1/2 overflow-hidden rounded-full transition-colors ${
+          hasGradient ? "" : active ? "bg-[#5e5e5e]" : "bg-[#474747]"
         }`}
+        style={hasGradient ? { background: GRADIENT_CSS[gradient] } : undefined}
+      >
+        {!hasGradient && (
+          <div
+            className={`absolute top-0 h-full rounded-full transition-colors ${
+              active ? "bg-[#ababab]" : "bg-[#777]"
+            }`}
+            style={{ left: `${fillLeft}%`, width: `${fillWidth}%` }}
+          />
+        )}
+      </div>
+      {/* Handle: pill inside a dark halo */}
+      <div
+        className="pointer-events-none absolute top-1/2 flex h-[18px] w-2 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full bg-[#1c1c1c]"
         style={{ left: `${value}%` }}
-      />
+      >
+        <div
+          className={`rounded-full transition-[width,height,background-color] duration-150 ${handleColor} ${
+            active ? "h-[14px] w-1" : "h-3 w-0.5"
+          }`}
+        />
+      </div>
     </div>
   );
 }
@@ -158,7 +185,7 @@ export function SliderRow({
   initial = 50,
   max = 100,
   disabled = false,
-  labelWidth = 88,
+  labelWidth = 106,
   readoutWidth = 36,
   signed = true,
   onChange,
@@ -198,9 +225,9 @@ export function SliderRow({
     speedTarget.scope === scope &&
     speedTarget.label === label;
   return (
-    <div className={`flex items-center gap-2 ${isMutedRow ? "opacity-50" : ""}`}>
+    <div className={`flex items-center ${isMutedRow ? "opacity-50" : ""}`}>
       <span
-        className={`shrink-0 text-[11px] ${speedEditing ? "text-white" : "text-neutral-400"}`}
+        className={`shrink-0 truncate text-[12px] ${speedEditing ? "text-white" : "text-[#777]"}`}
         style={{ width: labelWidth }}
       >
         {label}
@@ -212,10 +239,11 @@ export function SliderRow({
           onCommit={slider.onCommit}
           gradient={gradient}
           disabled={disabled}
+          centered={signed}
         />
       </div>
       <span
-        className="shrink-0 text-right text-[11px] tabular-nums text-neutral-400"
+        className="shrink-0 text-right text-[12px] font-medium tabular-nums text-[#777]"
         style={{ width: readoutWidth }}
       >
         {signed && display > 0 && max === 100 ? `+${display}` : display}

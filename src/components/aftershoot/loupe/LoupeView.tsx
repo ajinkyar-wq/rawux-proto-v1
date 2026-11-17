@@ -1,22 +1,39 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { BottomBar } from "../BottomBar";
-import { CULL_IMAGES } from "../cull-data";
+import { dupId, duplicateCount, photoName } from "../duplicates";
 import { DuplicatesStrip } from "../DuplicatesStrip";
 import { AlbumFilmstrip } from "./AlbumFilmstrip";
 import { CropOverlay } from "./CropOverlay";
+import { BrushToolbar } from "./BrushToolbar";
 import { LoupeImage } from "./LoupeImage";
+import { useCullStore } from "@/features/import/store/useCullStore";
 import { LoupeRail } from "./LoupeRail";
 import { LoupeRailPanel, type LoupeAIState } from "./LoupeRailPanel";
 import { loupeRailInTab, type LoupeRailKey } from "./loupe-rail-config";
+import { useShortcuts } from "../shortcuts/shortcutRegistry";
 import type { Ratings } from "../use-ratings";
 import type { AIAction } from "../panels/ImagePanel";
 import type { AppTab, RailKey as GridRailKey } from "../rail-config";
+
+const ALBUM_LAST = 231; // 232 images in the album
+
+const PANEL_SHORTCUTS: { rail: LoupeRailKey; key: string; shift?: boolean; label: string }[] = [
+  { rail: "edit", key: "e", label: "Manual Editing" },
+  { rail: "crop", key: "r", label: "Crop & Rotate" },
+  { rail: "mask", key: "m", label: "Masking" },
+  { rail: "retouch", key: "f", shift: true, label: "Retouching" },
+  { rail: "background", key: "b", shift: true, label: "Background Changer" },
+  { rail: "patch", key: "j", shift: true, label: "Object Removal" },
+];
 
 export function LoupeView({
   viewBar,
   tab,
   selectedIndex,
   onSelectIndex,
+  dupIndex,
+  onSelectDup,
+  onSelectPhoto,
   cullFiltersVisible,
   ai,
   entryRail,
@@ -25,6 +42,7 @@ export function LoupeView({
   lastRail,
   onRailChange,
   onOpenShortcuts,
+  onOpenSurvey,
 }: {
   // Filter row (ViewBar) — sits above the image area only.
   viewBar?: React.ReactNode;
@@ -32,6 +50,13 @@ export function LoupeView({
   tab: AppTab;
   selectedIndex: number;
   onSelectIndex: (i: number) => void;
+  // Which photo of the image's duplicate set is showing (0 = the image itself).
+  // Duplicates are the same sample picture, so this only changes the badge,
+  // name and rating; shared with Survey so both show the same photo.
+  dupIndex: number;
+  onSelectDup: (k: number) => void;
+  /** Jump to a specific photo (image + duplicate) in one step. */
+  onSelectPhoto: (id: number) => void;
   // Cull filters exist only for an Automated cull, surfaced inside the AI
   // Actions panel's CULL tab.
   cullFiltersVisible: boolean;
@@ -52,6 +77,9 @@ export function LoupeView({
   // side panel. Gets the tool that was open so the modal can start on the
   // shortcuts that matter there (e.g. Crop / Mask → Crop & Masking).
   onOpenShortcuts?: (from: LoupeRailKey) => void;
+  // Cull tab only, and only once a cull has produced duplicate stacks: pinching
+  // out past fit opens Survey Mode to compare the stack.
+  onOpenSurvey?: () => void;
 }) {
   // Which rail loupe opens on is contextual to how you arrived. See initialRail.
   // Returning to loupe restores the tool the user last had open here.
@@ -64,7 +92,16 @@ export function LoupeView({
     onRailChange?.(activeRail);
   }, [activeRail, onRailChange]);
   // Image zoom (0 = fit) — loupe-only, so it never changes the grid's columns.
-  const [imageZoom, setImageZoom] = useState(0);
+  // `actualZoom` is % of the photo's natural pixels; null = fit to canvas.
+  const [actualZoom, setActualZoom] = useState<number | null>(null);
+  const [fitPercent, setFitPercent] = useState(100);
+  // Last zoom level used, so Space can return to it from Fit (default 100%).
+  const lastZoomRef = useRef(100);
+  useEffect(() => {
+    if (actualZoom !== null) lastZoomRef.current = actualZoom;
+  }, [actualZoom]);
+  const [showAfter, setShowAfter] = useState(true);
+  const handleMetrics = useCallback((m: { fitPercent: number }) => setFitPercent(m.fitPercent), []);
   const [showDuplicates, setShowDuplicates] = useState(true);
   // The right side panel collapses when you click the already-active rail icon
   // again; clicking it once more (or a different icon) reopens it.
@@ -81,7 +118,65 @@ export function LoupeView({
     setPanelOpen(true);
   }, [railRequest]);
 
+  // Duplicate traversal (cull only): , and . step through the set and flow into
+  // the neighbouring image's set at either end; ' and ;
+  // jump to the next / previous image's set.
+  const cullDone = tab === "cull" && ai.actionStatuses.cull === "complete";
+  const dupTotal = duplicateCount(selectedIndex);
+  const photoId = dupId(selectedIndex, dupIndex);
+  useShortcuts(
+    () =>
+      cullDone
+        ? [
+            {
+              id: "loupe.dup.next",
+              combo: { key: "." },
+              label: "Next in duplicate set",
+              section: "Cull",
+              run: () =>
+                dupIndex + 1 < dupTotal
+                  ? onSelectDup(dupIndex + 1)
+                  : selectedIndex < ALBUM_LAST && onSelectPhoto(dupId(selectedIndex + 1, 0)),
+            },
+            {
+              id: "loupe.dup.prev",
+              combo: { key: "," },
+              label: "Previous in duplicate set",
+              section: "Cull",
+              run: () =>
+                dupIndex > 0
+                  ? onSelectDup(dupIndex - 1)
+                  : selectedIndex > 0 &&
+                    onSelectPhoto(
+                      dupId(selectedIndex - 1, duplicateCount(selectedIndex - 1) - 1),
+                    ),
+            },
+            {
+              id: "loupe.set.next",
+              combo: { key: "'" },
+              label: "Next duplicate set",
+              section: "Cull",
+              run: () => onSelectIndex(Math.min(selectedIndex + 1, ALBUM_LAST)),
+            },
+            {
+              id: "loupe.set.prev",
+              combo: { key: ";" },
+              label: "Previous duplicate set",
+              section: "Cull",
+              run: () => onSelectIndex(Math.max(selectedIndex - 1, 0)),
+            },
+          ]
+        : [],
+    [cullDone, dupIndex, dupTotal, selectedIndex, onSelectDup, onSelectIndex, onSelectPhoto],
+  );
+
+  const openOneClick = useCullStore((s) => s.openOneClick);
+
   function handleRailSelect(key: LoupeRailKey) {
+    if (key === "oneClick") {
+      openOneClick();
+      return;
+    }
     if (key === "keyboard") {
       onOpenShortcuts?.(activeRail);
       return;
@@ -95,14 +190,62 @@ export function LoupeView({
     }
   }
 
+  // Space toggles between Fit and the last zoom level (100% by default).
+  useShortcuts(
+    () => [
+      {
+        id: "loupe.zoom.toggle",
+        combo: { key: " " },
+        label: "Toggle Fit / Zoom",
+        section: "View",
+        run: () => setActualZoom((z) => (z === null ? lastZoomRef.current : null)),
+      },
+    ],
+    [],
+  );
+
+  // Panel shortcuts shown on the rail tooltips (E / R / M / ⇧F / ⇧B / ⇧J).
+  // Re-registered each render so the handlers see the latest rail state.
+  useShortcuts(
+    () =>
+      PANEL_SHORTCUTS.filter((s) => loupeRailInTab(s.rail, tab)).map((s) => ({
+        id: `loupe.panel.${s.rail}`,
+        combo: { key: s.key, shift: s.shift },
+        label: s.label,
+        section: "Tool",
+        run: () => handleRailSelect(s.rail),
+      })),
+    [tab, activeRail, panelOpen, onOpenShortcuts],
+  );
+
   return (
     <div className="flex min-h-0 min-w-0 flex-1">
       <div className="flex min-h-0 min-w-0 flex-1 flex-col">
         {viewBar}
         <LoupeImage
           image={selectedIndex}
-          zoom={imageZoom}
+          actualZoom={actualZoom}
+          onMetrics={handleMetrics}
+          onActualZoomChange={setActualZoom}
+          onPullToSurvey={
+            tab === "cull" && ai.actionStatuses.cull === "complete" ? onOpenSurvey : undefined
+          }
+          badge={
+            <>
+              {!showAfter && (
+                <span className="pointer-events-none absolute left-6 top-6 rounded bg-black/60 px-2 py-0.5 text-[11px] font-medium text-white">
+                  Before
+                </span>
+              )}
+              {cullDone && dupTotal > 1 && (
+                <span className="pointer-events-none absolute right-6 top-6 rounded bg-black/60 px-2 py-0.5 text-[11px] font-medium text-white">
+                  Duplicate {dupIndex + 1} of {dupTotal}
+                </span>
+              )}
+            </>
+          }
           overlay={activeRail === "crop" ? <CropOverlay /> : null}
+          canvasOverlay={activeRail === "patch" ? <BrushToolbar /> : null}
         />
 
         {/* Duplicates strip: contextual to culling — appears only while the AI
@@ -113,6 +256,8 @@ export function LoupeView({
             expanded={showDuplicates}
             onToggle={() => setShowDuplicates((v) => !v)}
             selectedGridTile={selectedIndex}
+            activeDup={dupIndex}
+            onSelectDup={onSelectDup}
             size="compact"
           />
         )}
@@ -123,13 +268,21 @@ export function LoupeView({
           cullComplete={ai.actionStatuses.cull === "complete"}
         />
         <BottomBar
-          zoom={imageZoom}
-          onZoomChange={setImageZoom}
+          zoom={0}
+          onZoomChange={() => {}}
+          imageZoom={{
+            fit: actualZoom === null,
+            percent: actualZoom ?? fitPercent,
+            onFit: () => setActualZoom(null),
+            onPercent: setActualZoom,
+          }}
+          showAfter={showAfter}
+          onToggleAfter={() => setShowAfter((v) => !v)}
           showSprayCan={false}
-          rating={ratings.ratingOf(selectedIndex)}
-          onRate={(v) => ratings.setRating(selectedIndex, v)}
+          rating={ratings.ratingOf(photoId)}
+          onRate={(v) => ratings.setRating(photoId, v)}
           index={selectedIndex}
-          imageName={CULL_IMAGES[selectedIndex % CULL_IMAGES.length]?.name}
+          imageName={photoName(photoId)}
         />
       </div>
 

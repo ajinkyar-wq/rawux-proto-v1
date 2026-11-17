@@ -1,5 +1,5 @@
 import { createContext, useCallback, useContext, useMemo, useRef, useState } from "react";
-import { CULL_IMAGES } from "../cull-data";
+import { photoName } from "../duplicates";
 import type { ViewMode } from "../Toolbar";
 import type { LoupeRailKey } from "../loupe/loupe-rail-config";
 
@@ -39,7 +39,7 @@ export const VIEW_LABEL: Record<ViewMode, string> = {
   survey: "Survey",
 };
 
-export const imageName = (i: number) => CULL_IMAGES[i % CULL_IMAGES.length].name;
+export const imageName = (i: number) => photoName(i);
 
 type Place = { view: ViewMode; image: number };
 

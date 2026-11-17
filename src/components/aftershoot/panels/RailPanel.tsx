@@ -1,6 +1,7 @@
 import { Loader2, Scissors } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import type { ActionStatus, ActionStatuses } from "../action-status";
+import type { Ratings } from "../use-ratings";
 import type { RailKey } from "../rail-config";
 import { AIEditingPanel, AIToolsPanel } from "./AIEditingPanel";
 import { EditRetouchPanel } from "./EditRetouchPanel";
@@ -25,11 +26,12 @@ type RailPanelProps = {
   onToggleRating: (rating: number) => void;
   // False for an Assisted cull (no AI ratings → no cull filter sidebar).
   cullFiltersVisible: boolean;
+  ratings?: Ratings;
 };
 
 export function RailPanel(props: RailPanelProps) {
   return (
-    <div className="flex min-h-0 w-[280px] shrink-0 flex-col gap-3 border-l border-white/5 bg-[#1a1a1a] p-3">
+    <div className="flex min-h-0 w-[344px] shrink-0 flex-col gap-3 border-l border-white/5 bg-[#1a1a1a] p-3">
       <RailPanelBody {...props} />
     </div>
   );
@@ -78,11 +80,16 @@ function CullTab({
   ratingFilter,
   onToggleRating,
   cullFiltersVisible,
+  ratings,
 }: RailPanelProps) {
   const status = actionStatuses.cull;
   return (
     <>
-      <TabHeader title="AI Culling" status={status} onRestart={() => onAction("cull")} />
+      {/* The Cull Filters header carries its own Restart; without filters
+          (Assisted cull) fall back to the plain tab header. */}
+      {!(status === "complete" && cullFiltersVisible) && (
+        <TabHeader title="AI Culling" status={status} onRestart={() => onAction("cull")} />
+      )}
       {status !== "complete" ? (
         <RunCard
           icon={Scissors}
@@ -93,14 +100,23 @@ function CullTab({
           onClick={() => onAction("cull")}
         />
       ) : (
-        <div className="flex min-h-0 flex-1 animate-[fadeIn_220ms_ease-out] flex-col gap-2">
+        // Full-bleed sections (divider spans the panel) scrolling together.
+        <div className="-m-3 min-h-0 flex-1 animate-[fadeIn_220ms_ease-out] overflow-y-auto [&>section]:border-t [&>section]:border-white/5 [&>section:first-child]:border-t-0">
           {cullFiltersVisible && (
-            <CullFilterSidebar ratingFilter={ratingFilter} onToggleRating={onToggleRating} />
+            <section className="p-3">
+              <CullFilterSidebar
+                ratingFilter={ratingFilter}
+                onToggleRating={onToggleRating}
+                onRestart={() => onAction("cull")}
+              />
+            </section>
           )}
-          <div className="min-h-0 flex-1 overflow-y-auto">
+          <section className="p-3">
             <KeyFacesGrid selectedGridTile={selectedGridTile} />
-            <DuplicatesPanel selectedGridTile={selectedGridTile} />
-          </div>
+          </section>
+          <section className="p-3">
+            <DuplicatesPanel selectedGridTile={selectedGridTile} ratings={ratings} />
+          </section>
         </div>
       )}
     </>
