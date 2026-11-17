@@ -254,7 +254,12 @@ export function LoupeView({
               </SliderHistoryContext.Provider>
             ) : null
           }
-          canvasOverlay={activeRail === "patch" ? <BrushToolbar /> : null}
+          canvasOverlay={
+            // Brush toolbar for the brush-based tools: Masking and Object Removal.
+            activeRail === "patch" || activeRail === "mask" ? (
+              <BrushToolbar key={activeRail} />
+            ) : null
+          }
         />
 
         {/* Duplicates strip: contextual to culling — appears only while the AI
