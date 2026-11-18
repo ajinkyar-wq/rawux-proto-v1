@@ -93,7 +93,11 @@ export function LoupeRailPanel({
             </ScrollFade>
             {/* Footer is OUTSIDE the scroll area, so Sync/Reset stay pinned to the
           bottom of the panel regardless of how long the content scrolls. */}
-            {EDITING_RAILS.includes(activeRail) && <EditingPanelFooter />}
+            {EDITING_RAILS.includes(activeRail) && (
+              // Sync and Copy Settings (the gear) only applies to editing
+              // sliders; the retouching tools get a plain Sync button.
+              <EditingPanelFooter syncSettings={!RETOUCH_RAILS.includes(activeRail)} />
+            )}
           </div>
         </div>
       )}
@@ -151,27 +155,36 @@ function LoupeRailPanelBody({
  * [Sync | ⚙] [Reset]. Sync is a full-pill label button joined (1px gap) to a
  * 32px round gear that opens Sync and Copy Settings; Reset has no settings. */
 
-function EditingPanelFooter() {
+const RETOUCH_RAILS: LoupeRailKey[] = ["retouch", "background", "patch"];
+
+function EditingPanelFooter({ syncSettings: withSettings }: { syncSettings: boolean }) {
   const [syncOpen, setSyncOpen] = useState(false);
   const [syncSettings, setSyncSettings] = useState<SyncSettings>(DEFAULT_SYNC_SETTINGS);
   const closeSync = useCallback(() => setSyncOpen(false), []);
   return (
     <div className="flex items-start gap-3 px-4 py-3">
-      <div className="flex min-w-px flex-1 items-center gap-px">
-        <button type="button" className={`${PILL} rounded-l-full`}>
+      {!withSettings && (
+        <button type="button" className={`${PILL} rounded-full`}>
           Sync
         </button>
-        <IconTooltip label="Sync settings">
-          <button
-            type="button"
-            aria-label="Sync settings"
-            onClick={() => setSyncOpen(true)}
-            className="flex size-8 shrink-0 items-center justify-center rounded-r-full bg-[#303030] p-2 text-[#e2e2e2] hover:bg-[#3a3a3a]"
-          >
-            <SettingsIcon className="size-4" strokeWidth={1.5} />
+      )}
+      {withSettings && (
+        <div className="flex min-w-px flex-1 items-center gap-px">
+          <button type="button" className={`${PILL} rounded-l-full`}>
+            Sync
           </button>
-        </IconTooltip>
-      </div>
+          <IconTooltip label="Sync settings">
+            <button
+              type="button"
+              aria-label="Sync settings"
+              onClick={() => setSyncOpen(true)}
+              className="flex size-8 shrink-0 items-center justify-center rounded-r-full bg-[#303030] p-2 text-[#e2e2e2] hover:bg-[#3a3a3a]"
+            >
+              <SettingsIcon className="size-4" strokeWidth={1.5} />
+            </button>
+          </IconTooltip>
+        </div>
+      )}
       <button type="button" className={`${PILL} rounded-full`}>
         Reset
       </button>

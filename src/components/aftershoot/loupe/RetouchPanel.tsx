@@ -1,7 +1,12 @@
 import { useState } from "react";
 import { Checkbox } from "../primitives";
 import { InlineSelectRow, Section } from "./EditPanel";
-import { RETOUCH_PRESET_NAMES, RETOUCH_PRESET_NONE, RetouchPresetsBrowser } from "./BrowsePanels";
+import {
+  createRetouchPreset,
+  RETOUCH_PRESET_NAMES,
+  RETOUCH_PRESET_NONE,
+  RetouchPresetsBrowser,
+} from "./BrowsePanels";
 import { useHistoryChoice } from "../history/album-history";
 import { SliderRow } from "./slider-primitives";
 
@@ -56,6 +61,10 @@ export function RetouchPanel() {
         browse={{
           id: "retouchPresets",
           title: "Retouching Presets",
+          onCreate: createRetouchPreset,
+          createLabel: "Create retouching preset",
+          emptyValue: RETOUCH_PRESET_NONE,
+          emptyLabel: "Select Retouch Preset",
           render: (v, pick) => <RetouchPresetsBrowser value={v} onPick={pick} />,
         }}
       />

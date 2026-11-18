@@ -1,8 +1,9 @@
-import { useContext, useState } from "react";
-import { ChevronDown, Heart, Search } from "lucide-react";
+import { useContext, useEffect, useRef, useState, useSyncExternalStore } from "react";
+import { ChevronDown, Heart, Plus, Search } from "lucide-react";
 import { SliderHistoryContext, useHistorySlider } from "../history/album-history";
 import { photoUrl } from "../cull-data";
 import { GradientSlider } from "./slider-primitives";
+import { IconTooltip } from "../IconTooltip";
 
 // Content of the browse flyouts opened from the underlined values in the
 // loupe Edit / Retouch panels. Picking an item calls onPick (a history step);
@@ -71,10 +72,10 @@ const PRESET_GROUPS: Group[] = [
   {
     title: "Yours",
     items: [
-      { name: "Enhance Portrait" },
-      { name: "Cinematic C1" },
+      { name: "Enhance Portrait", fav: true },
+      { name: "Cinematic C1", fav: true },
       { name: "Portra 800", fav: true },
-      { name: "Portra 400" },
+      { name: "Portra 400", fav: true },
     ],
   },
   {
@@ -98,12 +99,12 @@ const PRESET_GROUPS: Group[] = [
 ];
 
 const RETOUCH_PRESET_ITEMS: Card[] = [
-  { name: "Face Pop" },
+  { name: "Face Pop", fav: true },
   { name: "Glare Reduction" },
   { name: "Student Portraits" },
   { name: "Face Clean Up" },
   { name: "Anti Aging" },
-  { name: "Wedding Radiance" },
+  { name: "Wedding Radiance", fav: true },
   { name: "Glamour Finish" },
   { name: "Hair Clean Up" },
   { name: "NewBorn Shoots" },
@@ -112,14 +113,104 @@ const RETOUCH_PRESET_ITEMS: Card[] = [
 ];
 
 // Option lists for the history store (index = stored value — keep order).
-export const AI_PROFILE_NAMES = AI_PROFILE_GROUPS.flatMap((g) => g.items.map((i) => i.name));
-export const PRESET_NAMES = PRESET_GROUPS.flatMap((g) => g.items.map((i) => i.name));
+// Profiles the user made themselves (the Instant AI Profiles), shown under
+// Yours → Created. Appended after the marketplace ones so stored indices of
+// existing profiles don't shift.
+const CREATED_PROFILES: Card[] = [
+  { name: "My Style 3" },
+  { name: "My Style 4" },
+  { name: "My Style 9" },
+  { name: "My Style 10" },
+];
+
+// Unapplied: clicking the applied card again removes it. Appended last so
+// stored indices of real profiles / presets don't shift.
+export const NOTHING_APPLIED = "None";
+
+export const AI_PROFILE_NAMES = [
+  ...AI_PROFILE_GROUPS.flatMap((g) => g.items.map((i) => i.name)),
+  ...CREATED_PROFILES.map((i) => i.name),
+  NOTHING_APPLIED,
+];
+// Presets the user saved themselves, shown under Yours → Created.
+const CREATED_PRESETS: Card[] = [
+  { name: "My Preset 1" },
+  { name: "My Preset 2" },
+  { name: "Warm Portraits" },
+  { name: "Clean B&W" },
+];
+
+// "+" in a preset panel saves a new preset. Names are reserved up front so
+// the history store (which keeps the option's index) can hold them.
+const MAX_NEW = 30;
+const newPresetName = (n: number) => `New Preset ${n}`;
+const newRetouchPresetName = (n: number) => `New Retouch Preset ${n}`;
+const reserve = (name: (n: number) => string) =>
+  Array.from({ length: MAX_NEW }, (_, i) => name(i + 1));
+
+export const PRESET_NAMES = [
+  ...PRESET_GROUPS.flatMap((g) => g.items.map((i) => i.name)),
+  NOTHING_APPLIED,
+  ...CREATED_PRESETS.map((i) => i.name),
+  ...reserve(newPresetName),
+];
 export const PRESETS_BROWSER_ID = "presets";
 export const RETOUCH_PRESET_NONE = "Retouch Preset";
+// Retouching presets the user saved themselves (Yours → Created).
+const CREATED_RETOUCH_PRESETS: Card[] = [
+  { name: "My Retouch 1" },
+  { name: "Soft Skin Studio" },
+  { name: "Bridal Glow" },
+];
+
 export const RETOUCH_PRESET_NAMES = [
   RETOUCH_PRESET_NONE,
   ...RETOUCH_PRESET_ITEMS.map((i) => i.name),
+  ...CREATED_RETOUCH_PRESETS.map((i) => i.name),
+  ...reserve(newRetouchPresetName),
 ];
+
+// Presets added with "+" this session (shared by every panel instance).
+function createdStore(initial: Card[], name: (n: number) => string) {
+  let items = initial;
+  let added = 0;
+  const listeners = new Set<() => void>();
+  return {
+    add(): string | null {
+      if (added >= MAX_NEW) return null;
+      added += 1;
+      const card = { name: name(added) };
+      items = [...items, card];
+      listeners.forEach((l) => l());
+      return card.name;
+    },
+    use(): Card[] {
+      return useSyncExternalStore(
+        (l) => {
+          listeners.add(l);
+          return () => listeners.delete(l);
+        },
+        () => items,
+        () => items,
+      );
+    },
+  };
+}
+const createdPresets = createdStore(CREATED_PRESETS, newPresetName);
+const createdRetouchPresets = createdStore(CREATED_RETOUCH_PRESETS, newRetouchPresetName);
+
+/** Header "+" in the Presets / Retouching Presets panels: returns the new name. */
+export const createPreset = () => createdPresets.add();
+export const createRetouchPreset = () => createdRetouchPresets.add();
+
+function useJumpToYoursOnCreate(count: number, jump: () => void) {
+  const seen = useRef(count);
+  useEffect(() => {
+    if (count > seen.current) jump();
+    seen.current = count;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [count]);
+}
 
 /* ------------------------------ Shared bits ------------------------------ */
 
@@ -141,10 +232,15 @@ function Tabs<T extends string>({
   tabs,
   value,
   onChange,
+  onAdd,
+  addLabel,
 }: {
   tabs: readonly T[];
   value: T;
   onChange: (t: T) => void;
+  /** Shows a "+" at the right of the tab row (create a new preset). */
+  onAdd?: () => void;
+  addLabel?: string;
 }) {
   return (
     <div className="flex shrink-0 items-center gap-4 px-4">
@@ -162,6 +258,18 @@ function Tabs<T extends string>({
           {t}
         </button>
       ))}
+      {onAdd && (
+        <IconTooltip label={addLabel ?? "Create preset"}>
+          <button
+            type="button"
+            aria-label={addLabel ?? "Create preset"}
+            onClick={onAdd}
+            className="-mt-1 ml-auto flex h-6 w-6 items-center justify-center rounded text-neutral-400 hover:bg-white/[0.06] hover:text-white"
+          >
+            <Plus className="h-3.5 w-3.5" strokeWidth={1.75} />
+          </button>
+        </IconTooltip>
+      )}
     </div>
   );
 }
@@ -247,7 +355,8 @@ function ThumbCard({
         }`}
       >
         <span className="min-w-0 flex-1 truncate text-[11px] text-white">{item.name}</span>
-        {!selected && <HeartButton on={fav} onClick={onFav} />}
+        {/* Heart stays on the selected card too (red when favourited). */}
+        <HeartButton on={fav} onClick={onFav} />
       </div>
     </div>
   );
@@ -301,7 +410,8 @@ function CardGroups({
                         item={item}
                         selected={item.name === value}
                         fav={favs.has(item.name)}
-                        onPick={() => onPick(item.name)}
+                        // Clicking the applied card again unapplies it.
+                        onPick={() => onPick(item.name === value ? NOTHING_APPLIED : item.name)}
                         onFav={() => onFav(item.name)}
                       />
                     ))}
@@ -341,19 +451,21 @@ export function AIProfilesBrowser({
 }) {
   const [tab, setTab] = useState<"Marketplace" | "Yours">("Marketplace");
   const { favs, toggle } = useFavorites(AI_PROFILE_GROUPS);
+  // Yours: the hearted profiles (Favorite), then the user's own (Created).
+  const all = [...AI_PROFILE_GROUPS.flatMap((g) => g.items), ...CREATED_PROFILES];
   const groups =
     tab === "Marketplace"
       ? AI_PROFILE_GROUPS
       : [
-          {
-            title: "Favorites",
-            items: AI_PROFILE_GROUPS.flatMap((g) => g.items).filter((i) => favs.has(i.name)),
-          },
+          { title: "Favorite", items: all.filter((i) => favs.has(i.name)) },
+          { title: "Created", items: CREATED_PROFILES },
         ];
   return (
     <>
       <Tabs tabs={["Marketplace", "Yours"] as const} value={tab} onChange={setTab} />
-      <div className="flex shrink-0 gap-2 px-4 py-3">
+      {tab === "Yours" && <div className="h-3 shrink-0" />}
+      {/* Filters only apply to the Marketplace. */}
+      <div className={`${tab === "Yours" ? "hidden" : "flex"} shrink-0 gap-2 px-4 py-3`}>
         <FilterButton>
           <span className="truncate">
             <span className="text-neutral-500">Wedding: </span>True to Life
@@ -382,14 +494,17 @@ export function PresetsBrowser({
 }) {
   const [tab, setTab] = useState<"Recommended" | "Yours">("Recommended");
   const { favs, toggle } = useFavorites(PRESET_GROUPS);
+  // Yours: the hearted presets (Favorite), then the user's own (Created).
+  const created = createdPresets.use();
+  const all = [...PRESET_GROUPS.flatMap((g) => g.items), ...created];
+  // A preset made with the header "+" shows up under Yours → Created.
+  useJumpToYoursOnCreate(created.length, () => setTab("Yours"));
   const groups =
     tab === "Recommended"
       ? PRESET_GROUPS
       : [
-          {
-            title: "Favorites",
-            items: PRESET_GROUPS.flatMap((g) => g.items).filter((i) => favs.has(i.name)),
-          },
+          { title: "Favorite", items: all.filter((i) => favs.has(i.name)) },
+          { title: "Created", items: created },
         ];
   return (
     <>
@@ -409,8 +524,8 @@ export function PresetsBrowser({
 }
 
 // Amount for the applied preset (0–100), shown under its card row.
-function PresetAmount() {
-  const amount = useHistorySlider("Preset Amount", 50, (v) => String(Math.round(v)));
+function PresetAmount({ label = "Preset Amount" }: { label?: string }) {
+  const amount = useHistorySlider(label, 50, (v) => String(Math.round(v)));
   return (
     <div className="flex flex-col gap-1.5 pb-1">
       <div className="flex items-center justify-between text-[11px] text-neutral-400">
@@ -439,11 +554,23 @@ export function RetouchPresetsBrowser({
   const [tab, setTab] = useState<"Recommended" | "Yours">("Recommended");
   const [query, setQuery] = useState("");
   const { favs, toggle } = useFavorites([{ title: "", items: RETOUCH_PRESET_ITEMS }]);
-  const items = RETOUCH_PRESET_ITEMS.filter(
-    (i) =>
-      (tab === "Recommended" || favs.has(i.name)) &&
-      i.name.toLowerCase().includes(query.trim().toLowerCase()),
-  );
+  const q = query.trim().toLowerCase();
+  const match = (i: Card) => i.name.toLowerCase().includes(q);
+  // Recommended: one flat list. Yours: hearted (Favorite), then own (Created).
+  const created = createdRetouchPresets.use();
+  const all = [...RETOUCH_PRESET_ITEMS, ...created];
+  useJumpToYoursOnCreate(created.length, () => {
+    setQuery("");
+    setTab("Yours");
+  });
+  const sections: { title: string | null; items: Card[] }[] =
+    tab === "Recommended"
+      ? [{ title: null, items: RETOUCH_PRESET_ITEMS.filter(match) }]
+      : [
+          { title: "Favorite", items: all.filter((i) => favs.has(i.name) && match(i)) },
+          { title: "Created", items: created.filter(match) },
+        ];
+  const empty = sections.every((sec) => sec.items.length === 0);
   return (
     <>
       <div className="shrink-0 px-4 pb-3">
@@ -459,33 +586,77 @@ export function RetouchPresetsBrowser({
       </div>
       <Tabs tabs={["Recommended", "Yours"] as const} value={tab} onChange={setTab} />
       <div className="mt-2 min-h-0 flex-1 overflow-y-auto">
-        {items.length === 0 && (
+        {empty && (
           <p className="px-4 py-6 text-center text-[12px] text-neutral-500">No presets found</p>
         )}
-        {items.map((item) => {
-          const selected = item.name === value;
-          return (
-            <div
-              key={item.name}
-              role="button"
-              tabIndex={0}
-              onClick={() => onPick(item.name)}
-              onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && onPick(item.name)}
-              className={`flex cursor-pointer items-center gap-2 border-b border-white/[0.05] px-4 py-3 ${
-                selected ? "bg-[#2b3242]" : "hover:bg-white/[0.04]"
-              }`}
-            >
-              <div className="flex min-w-0 flex-1 flex-col items-start gap-1.5">
-                <span className="truncate text-[12.5px] text-neutral-200">{item.name}</span>
-                <span className="rounded bg-black/40 px-1.5 py-0.5 text-[10.5px] text-neutral-200">
-                  All Subjects
-                </span>
+        {sections.map((sec) => (
+          <section key={sec.title ?? "all"}>
+            {sec.title && sec.items.length > 0 && (
+              <div className="px-4 pb-1 pt-3 text-[11px] font-semibold uppercase tracking-wider text-neutral-300">
+                {sec.title}
               </div>
-              <HeartButton on={favs.has(item.name)} onClick={() => toggle(item.name)} />
-            </div>
-          );
-        })}
+            )}
+            {sec.items.map((item) => (
+              <RetouchPresetRow
+                key={item.name}
+                item={item}
+                selected={item.name === value}
+                fav={favs.has(item.name)}
+                onPick={() => onPick(item.name === value ? RETOUCH_PRESET_NONE : item.name)}
+                onFav={() => toggle(item.name)}
+              />
+            ))}
+          </section>
+        ))}
       </div>
     </>
+  );
+}
+
+// One retouching preset: name, subject tag, heart; the applied one also shows
+// its Amount slider (clicking the slider doesn't unapply the preset).
+function RetouchPresetRow({
+  item,
+  selected,
+  fav,
+  onPick,
+  onFav,
+}: {
+  item: Card;
+  selected: boolean;
+  fav: boolean;
+  onPick: () => void;
+  onFav: () => void;
+}) {
+  return (
+    <div
+      role="button"
+      tabIndex={0}
+      aria-pressed={selected}
+      onClick={onPick}
+      onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && onPick()}
+      className={`flex cursor-pointer flex-col gap-3 border-b border-white/[0.05] px-4 py-3 ${
+        selected ? "bg-white/[0.03]" : "hover:bg-white/[0.04]"
+      }`}
+    >
+      <div className="flex items-center gap-2">
+        <div className="flex min-w-0 flex-1 flex-col items-start gap-1.5">
+          <span className="truncate text-[12.5px] text-neutral-200">{item.name}</span>
+          <span
+            className={`rounded px-1.5 py-0.5 text-[10.5px] text-neutral-200 ${
+              selected ? "bg-white/10 text-white" : "bg-black/40"
+            }`}
+          >
+            All Subjects
+          </span>
+        </div>
+        <HeartButton on={fav} onClick={onFav} />
+      </div>
+      {selected && (
+        <div onClick={(e) => e.stopPropagation()} onKeyDown={(e) => e.stopPropagation()}>
+          <PresetAmount label="Retouch Preset Amount" />
+        </div>
+      )}
+    </div>
   );
 }

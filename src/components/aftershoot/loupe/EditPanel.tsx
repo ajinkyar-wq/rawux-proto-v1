@@ -8,6 +8,8 @@ import { useFlag } from "../feature-flags";
 import {
   AIProfilesBrowser,
   AI_PROFILE_NAMES,
+  createPreset,
+  NOTHING_APPLIED,
   PRESETS_BROWSER_ID,
   PresetsBrowser,
   PRESET_NAMES,
@@ -52,6 +54,7 @@ export function EditPanel() {
           browse={{
             id: "aiProfiles",
             title: "AI Profiles",
+            emptyLabel: "Select AI Profile",
             render: (v, pick) => <AIProfilesBrowser value={v} onPick={pick} />,
           }}
         />
@@ -64,6 +67,9 @@ export function EditPanel() {
           browse={{
             id: PRESETS_BROWSER_ID,
             title: "Presets",
+            onCreate: createPreset,
+            createLabel: "Create preset",
+            emptyLabel: "Select Preset",
             render: (v, pick) => <PresetsBrowser value={v} onPick={pick} />,
           }}
         />
@@ -149,6 +155,13 @@ type BrowseSpec = {
   id: string;
   title: string;
   render: (value: string, onPick: (v: string) => void) => React.ReactNode;
+  /** Shown instead of the value when nothing is applied, e.g. "Select Preset". */
+  emptyLabel?: string;
+  /** The stored value that means "nothing applied" (default "None"). */
+  emptyValue?: string;
+  /** Header "+": creates a preset and returns its name (applied right away). */
+  onCreate?: () => string | null;
+  createLabel?: string;
 };
 
 export function InlineSelectRow({
@@ -222,7 +235,12 @@ export function InlineSelectRow({
               : "flex items-center gap-1 text-[12px] text-neutral-200 hover:text-white"
           }
         >
-          {value}
+          {/* Nothing applied: a muted prompt ("Select Preset") instead of the value. */}
+          {value === (browse?.emptyValue ?? NOTHING_APPLIED) ? (
+            <span className="text-neutral-500">{browse?.emptyLabel ?? "Select"}</span>
+          ) : (
+            value
+          )}
           {variant === "select" && (
             <CaretDown
               size={12}
@@ -232,7 +250,20 @@ export function InlineSelectRow({
           )}
         </button>
         {useBrowse && flyout.open && browse && (
-          <FlyoutPanel slot={flyout.slot} title={browse.title} onClose={flyout.close}>
+          <FlyoutPanel
+            slot={flyout.slot}
+            title={browse.title}
+            onClose={flyout.close}
+            addLabel={browse.createLabel}
+            onAdd={
+              browse.onCreate
+                ? () => {
+                    const name = browse.onCreate?.();
+                    if (name) onChange(name);
+                  }
+                : undefined
+            }
+          >
             {browse.render(value, onChange)}
           </FlyoutPanel>
         )}
