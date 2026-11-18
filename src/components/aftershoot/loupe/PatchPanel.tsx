@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { FlaskIcon, Warning } from "@phosphor-icons/react";
+import { Warning } from "@phosphor-icons/react";
+import { Brush, Lasso, SquareDashed } from "lucide-react";
 import { Checkbox } from "../primitives";
 import { IconTooltip } from "../IconTooltip";
 
@@ -11,8 +12,16 @@ const MOCK_RESULTS = [
   { label: "Thermostats", count: 1 },
 ];
 
+type PatchTool = "brush" | "rect" | "lasso";
+const PATCH_TOOLS: { id: PatchTool; label: string; icon: typeof Brush }[] = [
+  { id: "brush", label: "Brush", icon: Brush },
+  { id: "rect", label: "Rectangle select", icon: SquareDashed },
+  { id: "lasso", label: "Lasso", icon: Lasso },
+];
+
 export function PatchPanel() {
   const [scanned, setScanned] = useState(false);
+  const [tool, setTool] = useState<PatchTool>("brush");
   const [selected, setSelected] = useState<Set<string>>(new Set());
 
   const toggle = (label: string) =>
@@ -33,14 +42,12 @@ export function PatchPanel() {
   return (
     <div className="flex flex-col gap-4">
       <div className="flex flex-col gap-2">
-        {/* Title row */}
-        <div className="flex h-6 items-center gap-1.5">
-          <span className="text-[14px] leading-5 text-[#e2e2e2]">AI Distraction Removal</span>
-          <IconTooltip label="Beta">
-            <span className="inline-flex">
-              <FlaskIcon size={16} weight="fill" color="#EAB308" />
-            </span>
-          </IconTooltip>
+        {/* Title row — same header style as the other loupe panels. */}
+        <div className="flex h-6 items-center gap-2">
+          <SectionTitle>Smart Object Removal</SectionTitle>
+          <span className="rounded border border-white/15 px-1.5 py-px text-[10px] font-medium text-neutral-200">
+            Beta
+          </span>
         </div>
 
         {!scanned ? (
@@ -52,12 +59,11 @@ export function PatchPanel() {
               className="w-full rounded object-cover"
             />
             <p className="text-[12px] leading-4 text-[#ababab]">
-              Scan for distracting objects like exit signs, fire alarms, fire extinguishers, and
-              thermostats to remove.
+              Aftershoot currently removes a fixed set of 4 distraction types.
             </p>
             <div className="mt-1 flex flex-col gap-2">
-              <PrimaryButton onClick={() => setScanned(true)}>Auto Remove from Image</PrimaryButton>
-              <OutlineButton>Auto Remove from Album</OutlineButton>
+              <PrimaryButton onClick={() => setScanned(true)}>Remove from this Image</PrimaryButton>
+              <SecondaryButton>Remove from All Images</SecondaryButton>
             </div>
           </>
         ) : MOCK_RESULTS.every((r) => r.count === 0) ? (
@@ -94,7 +100,7 @@ export function PatchPanel() {
             </div>
             <div className="mt-2 flex flex-col gap-2">
               <PrimaryButton disabled={!canRemove}>{removeLabel}</PrimaryButton>
-              <OutlineButton>Auto Remove from Album</OutlineButton>
+              <SecondaryButton>Remove from All Images</SecondaryButton>
               <button
                 type="button"
                 onClick={() => {
@@ -109,7 +115,47 @@ export function PatchPanel() {
           </>
         )}
       </div>
+
+      <div className="h-px bg-white/5" />
+
+      {/* Manual Patch: pick how to mark what to remove on the photo. */}
+      <section className="flex flex-col gap-3">
+        <SectionTitle>Manual Patch</SectionTitle>
+        <div className="flex items-center gap-2">
+          {PATCH_TOOLS.map((t) => {
+            const Icon = t.icon;
+            const active = tool === t.id;
+            return (
+              <IconTooltip key={t.id} label={t.label}>
+                <button
+                  type="button"
+                  aria-label={t.label}
+                  aria-pressed={active}
+                  onClick={() => setTool(t.id)}
+                  className={`flex h-8 w-8 items-center justify-center rounded-md ${
+                    active
+                      ? "border border-white/15 bg-white/[0.08] text-white"
+                      : "text-neutral-500 hover:bg-white/[0.04] hover:text-neutral-200"
+                  }`}
+                >
+                  <Icon className="h-4 w-4" strokeWidth={1.5} />
+                </button>
+              </IconTooltip>
+            );
+          })}
+        </div>
+      </section>
     </div>
+  );
+}
+
+// Same as the section headers in the other loupe panels (WHITE BALANCE,
+// LIGHT, FACE BLEMISH…): 12px semibold uppercase.
+function SectionTitle({ children }: { children: React.ReactNode }) {
+  return (
+    <span className="text-[12px] font-semibold uppercase tracking-wider text-neutral-200">
+      {children}
+    </span>
   );
 }
 
@@ -138,11 +184,11 @@ function PrimaryButton({
   );
 }
 
-function OutlineButton({ children }: { children: React.ReactNode }) {
+function SecondaryButton({ children }: { children: React.ReactNode }) {
   return (
     <button
       type="button"
-      className="flex h-9 w-full items-center justify-center rounded border border-[#303030] px-3 text-[12px] font-medium text-[#e2e2e2] transition-colors hover:border-[#3a3a3a]"
+      className="flex h-9 w-full items-center justify-center rounded bg-[#2c2c2c] px-3 text-[12px] font-medium text-[#e2e2e2] transition-colors hover:bg-[#343434]"
     >
       {children}
     </button>
