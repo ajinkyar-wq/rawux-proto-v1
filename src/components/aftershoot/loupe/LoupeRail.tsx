@@ -17,7 +17,7 @@ import {
 // Figma spec for node 93:5730.
 
 // Long hover: the label pill only appears after the pointer rests on an icon.
-const RAIL_TOOLTIP_DELAY_MS = 700;
+const RAIL_TOOLTIP_DELAY_MS = 300;
 
 // Once one tooltip has opened, the rest open instantly until the cursor leaves
 // the rail (then the long-hover delay applies again).
@@ -152,6 +152,7 @@ export function RailIconButton({
       <TooltipTrigger asChild>
         <button
           onClick={onClick}
+          style={{ "--rf-delay": `${animationMs}ms` } as React.CSSProperties}
           className={`group flex size-9 items-center justify-center rounded border-[0.5px] p-2 transition-colors data-[state=delayed-open]:rounded-l-none data-[state=delayed-open]:border-l-transparent data-[state=instant-open]:rounded-l-none data-[state=instant-open]:border-l-transparent ${
             active
               ? "border-[#5e5e5e] bg-[#303030] text-[#e2e2e2]"
