@@ -1,4 +1,16 @@
 import type { ComponentType } from "react";
+import {
+  Camera,
+  ClockCounterClockwise,
+  Crop,
+  Eraser,
+  FadersHorizontal,
+  Info,
+  Keyboard,
+  Palette,
+  Scissors,
+  UserRectangle,
+} from "@phosphor-icons/react";
 import type { AppTab } from "../rail-config";
 
 // Icon component accepting a className (phosphor icons + custom mask icons).
@@ -23,6 +35,24 @@ export type LoupeRailKey =
   | "keyboard" //      Keyboard
   | "settings"; //     Settings
 
+// Animated outline icon that cross-fades to the Phosphor "fill" glyph once its
+// hover animation finishes (the button sets --rf-delay; see styles.css).
+// Flip to false to turn the filled-on-hover swap off (icons stay outline-only).
+export const RAIL_FILLED_ON_HOVER = true;
+
+const withFilled = (
+  Outline: RailIcon,
+  Filled: ComponentType<{ weight?: "fill"; className?: string }>,
+): RailIcon =>
+  !RAIL_FILLED_ON_HOVER
+    ? Outline
+    : ({ className }) => (
+        <span className={`relative inline-block ${className ?? ""}`}>
+          <Outline className="rail-outline absolute inset-0 size-full" />
+          <Filled weight="fill" className="rail-filled absolute inset-0 size-full" />
+        </span>
+      );
+
 export type RailItem =
   | { kind: "icon"; key: LoupeRailKey; icon: RailIcon; label: string; shortcut?: string }
   | { kind: "divider" };
@@ -34,7 +64,7 @@ export type RailItem =
 // two halves pivoting on the screw at (17,16) so the blades can snip on hover
 // (see styles.css). Top half = upper ring + long blade; bottom half = lower
 // ring + short blade pieces.
-export const ScissorsIcon: RailIcon = ({ className }) => (
+const ScissorsIconOutline: RailIcon = ({ className }) => (
   <svg
     viewBox="0 0 32 32"
     className={className}
@@ -56,12 +86,13 @@ export const ScissorsIcon: RailIcon = ({ className }) => (
     </g>
   </svg>
 );
+export const ScissorsIcon = withFilled(ScissorsIconOutline, Scissors);
 // Crop & Rotate (Figma "Crop", node 19:25344): the crop mark plus two rotate
 // arrows, inlined as separate groups so the arrows can spin 180deg while the
 // crop mark does a little scale "adjust" on hover (see styles.css). Arrows are
 // the Figma ArrowsCounterClockwise glyphs (10x10, stroke 1.5), each rotated
 // 56.17deg about its own centre.
-const CropIcon: RailIcon = ({ className }) => (
+const CropIconOutline: RailIcon = ({ className }) => (
   <svg
     viewBox="0 0 32 32"
     className={className}
@@ -90,10 +121,11 @@ const CropIcon: RailIcon = ({ className }) => (
     </g>
   </svg>
 );
+export const CropIcon = withFilled(CropIconOutline, Crop);
 // Retouching (Figma "Smiley", node 19:25858; a 20-unit grid, unlike the others):
 // face ring, two eyes, smile and the sparkle star, inlined so the star can glint,
 // the eyes blink and the smile widen on hover (see styles.css).
-export const RetouchIcon: RailIcon = ({ className }) => (
+const RetouchOutline: RailIcon = ({ className }) => (
   <svg
     viewBox="0 0 20 20"
     overflow="visible"
@@ -137,6 +169,25 @@ export const RetouchIcon: RailIcon = ({ className }) => (
     />
   </svg>
 );
+// Filled Retouch (Figma "Smiley", node 24:26814): face with cut-out eyes + smile
+// and a solid sparkle, shown once the hover animation finishes.
+const RetouchFilled: ComponentType<{ className?: string }> = ({ className }) => (
+  <svg viewBox="0 0 32 32" className={className} fill="currentColor" aria-hidden>
+    <path
+      fillRule="evenodd"
+      clipRule="evenodd"
+      d="M16 3C17.4509 3.00154 18.8763 3.24633 20.2227 3.70996L20.0615 3.76465C20.0555 3.76665 20.0489 3.76846 20.043 3.77051C19.5149 3.95262 19.0554 4.26245 18.7061 4.66016L18.6738 4.69727L18.6152 4.76758L18.5606 4.83691C18.2398 5.26519 18.0509 5.76374 18.0088 6.27832L18 6.49902C18 7.09121 18.1942 7.67185 18.5606 8.16113C18.9269 8.65027 19.4453 9.02142 20.043 9.22754C20.0489 9.22956 20.0556 9.23044 20.0615 9.23242L21.5215 9.72656L22.0537 11.085C22.0559 11.0907 22.0573 11.0968 22.0596 11.1025C22.2815 11.6575 22.6824 12.1383 23.209 12.4785C23.7359 12.8188 24.3605 13 24.9981 13C25.6357 13 26.2603 12.8188 26.7871 12.4785C27.3139 12.1382 27.7146 11.6574 27.9365 11.1025C27.9388 11.0968 27.9402 11.0907 27.9424 11.085L27.9844 10.9756C28.6462 12.5517 28.9982 14.2575 29 16C29 18.5712 28.2371 21.0848 26.8086 23.2227C25.3802 25.3603 23.3499 27.0269 20.9746 28.0107C18.5993 28.9946 15.9855 29.2516 13.4639 28.75C10.9421 28.2484 8.6257 27.0104 6.80762 25.1924C4.98954 23.3743 3.75161 21.0579 3.25 18.5361C2.74842 16.0145 3.00543 13.4007 3.98926 11.0254C4.9732 8.64995 6.63951 6.61889 8.77735 5.19043C10.9152 3.76202 13.4289 3 16 3ZM21.1416 17.9707C21.0077 17.9544 20.8717 17.9654 20.7422 18.0029C20.6127 18.0405 20.4921 18.1041 20.3877 18.1895C20.2833 18.2748 20.1973 18.3805 20.1348 18.5C19.201 20.1124 17.7337 21 16 21C14.2663 21 12.799 20.1137 11.8652 18.5C11.8028 18.3806 11.7166 18.2748 11.6123 18.1895C11.508 18.1041 11.3872 18.0405 11.2578 18.0029C11.1283 17.9654 10.9922 17.9545 10.8584 17.9707C10.7246 17.987 10.5952 18.0302 10.4785 18.0977C10.3618 18.1651 10.2596 18.2554 10.1787 18.3633C10.0978 18.4712 10.0399 18.5946 10.0078 18.7256C9.97573 18.8566 9.9703 18.9929 9.99219 19.126C10.0141 19.259 10.0625 19.3862 10.1348 19.5C11.421 21.725 13.5588 23 16 23C18.4412 23 20.579 21.7237 21.8652 19.5C21.9375 19.3863 21.9859 19.2589 22.0078 19.126C22.0297 18.9929 22.0243 18.8566 21.9922 18.7256C21.9601 18.5946 21.9022 18.4712 21.8213 18.3633C21.7404 18.2554 21.6382 18.1651 21.5215 18.0977C21.4047 18.0302 21.2755 17.987 21.1416 17.9707ZM11.5 12C11.1022 12 10.7208 12.1582 10.4395 12.4395C10.1582 12.7208 10 13.1022 10 13.5C10 13.7966 10.0882 14.0864 10.2529 14.333C10.4177 14.5796 10.6517 14.7722 10.9258 14.8857C11.1999 14.9993 11.502 15.0286 11.793 14.9707C12.0837 14.9128 12.3509 14.7702 12.5606 14.5605C12.7702 14.3509 12.9128 14.0838 12.9707 13.793C13.0286 13.502 12.9993 13.1999 12.8857 12.9258C12.7722 12.6518 12.5796 12.4177 12.333 12.2529C12.0864 12.0882 11.7966 12 11.5 12ZM21.0742 12.1143C20.8001 12.0007 20.498 11.9714 20.207 12.0293C19.9162 12.0872 19.6492 12.2298 19.4395 12.4395C19.2297 12.6492 19.0862 12.9162 19.0283 13.207C18.9704 13.498 19.0007 13.8001 19.1143 14.0742C19.2278 14.3482 19.4204 14.5823 19.667 14.7471C19.9136 14.9118 20.2034 15 20.5 15C20.8978 15 21.2793 14.8418 21.5606 14.5605C21.8418 14.2792 22 13.8978 22 13.5C22 13.2034 21.9118 12.9136 21.7471 12.667C21.5823 12.4204 21.3482 12.2278 21.0742 12.1143Z"
+    />
+    <path
+      stroke="currentColor"
+      strokeWidth={2}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      d="M26.3672 7.86722L25.3214 10.7435C25.2969 10.8093 25.253 10.8661 25.1954 10.9061C25.1378 10.9462 25.0693 10.9677 24.9991 10.9677C24.9289 10.9677 24.8604 10.9462 24.8028 10.9061C24.7452 10.8661 24.7012 10.8093 24.6768 10.7435L23.6327 7.86722L20.7564 6.82136C20.6906 6.79694 20.6338 6.75297 20.5938 6.69536C20.5537 6.63775 20.5322 6.56926 20.5322 6.49909C20.5322 6.42892 20.5537 6.36043 20.5938 6.30282C20.6338 6.24521 20.6906 6.20124 20.7564 6.17683L23.6327 5.13268L24.6785 2.25636C24.703 2.19057 24.7469 2.13383 24.8045 2.09377C24.8621 2.0537 24.9306 2.03223 25.0008 2.03223C25.071 2.03223 25.1395 2.0537 25.1971 2.09377C25.2547 2.13383 25.2987 2.19057 25.3231 2.25636L26.3689 5.13268L29.2453 6.17854C29.311 6.20296 29.3678 6.24693 29.4079 6.30454C29.4479 6.36215 29.4694 6.43064 29.4694 6.50081C29.4694 6.57098 29.4479 6.63947 29.4079 6.69708C29.3678 6.75469 29.311 6.79866 29.2453 6.82308L26.3672 7.86722Z"
+    />
+  </svg>
+);
+export const RetouchIcon = withFilled(RetouchOutline, RetouchFilled);
 // One Click (Figma "Sparkle", node 30:26848): blue star + two sparks; turns white
 // while its long-hover pill is open (blue fill). Inlined so the star spins and
 // the sparks pop out on hover (see styles.css).
@@ -171,7 +222,7 @@ export const OneClickIcon: RailIcon = ({ className }) => (
 // styles.css).
 // Palette (Figma "Palette", node 30:26862): outline + four paint dots, inlined so
 // the outline zooms in and the dots pop into place on hover (see styles.css).
-export const PaletteIcon: RailIcon = ({ className }) => (
+const PaletteIconOutline: RailIcon = ({ className }) => (
   <svg
     viewBox="0 0 32 32"
     className={className}
@@ -220,11 +271,12 @@ export const PaletteIcon: RailIcon = ({ className }) => (
     />
   </svg>
 );
+export const PaletteIcon = withFilled(PaletteIconOutline, Palette);
 // Manual Editing faders (Figma "FadersHorizontal", node 30:26876): two tracks,
 // each broken at its knob. The track pieces are full-width lines trimmed with
 // stroke-dasharray (so their round ends survive big length changes). Inlined in parts so the knobs slide (top left, bottom
 // right) and back on hover while the track pieces stretch/shrink with them (see styles.css).
-export const FadersIcon: RailIcon = ({ className }) => (
+const FadersIconOutline: RailIcon = ({ className }) => (
   <svg
     viewBox="0 0 32 32"
     className={className}
@@ -243,9 +295,10 @@ export const FadersIcon: RailIcon = ({ className }) => (
     <path className="faders-knob faders-knob-2" d="M11 19V25" />
   </svg>
 );
+export const FadersIcon = withFilled(FadersIconOutline, FadersHorizontal);
 // Tethering camera (Figma "Camera", node 33:26930): inlined so the lens can
 // shrink and spring back like a shutter click on hover (see styles.css).
-export const CameraIcon: RailIcon = ({ className }) => (
+const CameraIconOutline: RailIcon = ({ className }) => (
   <svg
     viewBox="0 0 32 32"
     className={className}
@@ -260,9 +313,10 @@ export const CameraIcon: RailIcon = ({ className }) => (
     <circle className="camera-lens" cx="16" cy="16.5" r="4.5" />
   </svg>
 );
+export const CameraIcon = withFilled(CameraIconOutline, Camera);
 // Info (Figma "Info", node 33:26934): inlined so the "i" can wiggle inside its
 // circle on hover (see styles.css).
-export const InfoIcon: RailIcon = ({ className }) => (
+const InfoIconOutline: RailIcon = ({ className }) => (
   <svg
     viewBox="0 0 32 32"
     className={className}
@@ -280,11 +334,12 @@ export const InfoIcon: RailIcon = ({ className }) => (
     </g>
   </svg>
 );
+export const InfoIcon = withFilled(InfoIconOutline, Info);
 // Object Removal eraser (Figma "Eraser", node 33:26947): inlined so the eraser
 // can scrub right with a little shake while the baseline gets erased, then
 // restores (see styles.css). The baseline (14..27) is its own piece; the body's
 // bottom edge (8.34..14) is closed here so the icon is identical at rest.
-export const EraserIcon: RailIcon = ({ className }) => (
+const EraserIconOutline: RailIcon = ({ className }) => (
   <svg
     viewBox="0 0 32 32"
     overflow="visible"
@@ -303,9 +358,10 @@ export const EraserIcon: RailIcon = ({ className }) => (
     </g>
   </svg>
 );
+export const EraserIcon = withFilled(EraserIconOutline, Eraser);
 // Keyboard shortcuts (Figma "Keyboard", node 33:26939): inlined so the key rows
 // press down one after another like typing on hover (see styles.css).
-export const KeyboardIcon: RailIcon = ({ className }) => (
+const KeyboardIconOutline: RailIcon = ({ className }) => (
   <svg
     viewBox="0 0 32 32"
     className={className}
@@ -324,10 +380,11 @@ export const KeyboardIcon: RailIcon = ({ className }) => (
     <path className="kb-key kb-bottom" d="M24 20H25" />
   </svg>
 );
+export const KeyboardIcon = withFilled(KeyboardIconOutline, Keyboard);
 // History (Figma "ClockCounterClockwise", node 34:26952): inlined so the circular
 // arrow (the Figma "Group") can spin a full turn while the clock hands swing
 // -10deg / 8deg and settle (see styles.css).
-export const HistoryIcon: RailIcon = ({ className }) => (
+const HistoryIconOutline: RailIcon = ({ className }) => (
   <svg
     viewBox="0 0 32 32"
     className={className}
@@ -345,7 +402,8 @@ export const HistoryIcon: RailIcon = ({ className }) => (
     </g>
   </svg>
 );
-export const SprayCanIcon: RailIcon = ({ className }) => (
+export const HistoryIcon = withFilled(HistoryIconOutline, ClockCounterClockwise);
+const SprayCanOutline: RailIcon = ({ className }) => (
   <svg
     viewBox="0 0 32 32"
     className={className}
@@ -375,11 +433,24 @@ export const SprayCanIcon: RailIcon = ({ className }) => (
     </g>
   </svg>
 );
+// Filled Spray Can (Figma "Spraycan-Custom", node 37:26988), shown once the hover
+// animation finishes.
+const SprayCanFilled: ComponentType<{ className?: string }> = ({ className }) => (
+  <svg viewBox="0 0 16 16" className={className} fill="currentColor" aria-hidden>
+    <path
+      fillRule="evenodd"
+      clipRule="evenodd"
+      d="M8.55627 1.69567C9.24651 1.69567 9.80609 2.25626 9.80627 2.94645V3.99176C11.1901 4.22933 12.2436 5.43241 12.2438 6.88395V13.7965C12.2436 14.0724 12.0198 14.2965 11.7438 14.2965H4.24377C3.96776 14.2965 3.74399 14.0724 3.74377 13.7965V7.07145C3.74394 5.5161 4.88095 4.22896 6.36877 3.98942V2.94645C6.36896 2.25626 6.92853 1.69567 7.61877 1.69567H8.55627ZM6.86877 4.94645C5.86767 4.94645 5.02985 5.63951 4.80471 6.57145H11.2164C11.0667 5.65041 10.2696 4.94658 9.30627 4.94645H6.86877Z"
+    />
+    <path d="M13.4227 1.17301C13.6695 1.04977 13.9694 1.14914 14.093 1.39567C14.2164 1.64245 14.1169 1.94229 13.8703 2.06598L12.0969 2.9527L13.8703 3.83942C14.1169 3.96308 14.2164 4.2637 14.093 4.51051C13.9693 4.75688 13.6694 4.85631 13.4227 4.73317L10.7555 3.39958C10.5865 3.31475 10.4797 3.14181 10.4797 2.9527C10.4798 2.76373 10.5867 2.59141 10.7555 2.50661L13.4227 1.17301Z" />
+  </svg>
+);
+export const SprayCanIcon = withFilled(SprayCanOutline, SprayCanFilled);
 // Masking (Figma "SquareHalfBottom", nodes 34:26977 final / 34:26961 before): the
 // square plus a diagonal hatch clipped to it (nested <svg> = built-in clip, no
 // ids needed). In the "before" state the hatch sits tilted -45deg below the
 // square; on hover it sweeps out and slides back in (see styles.css).
-const MaskIcon: RailIcon = ({ className }) => (
+const MaskIconOutline: RailIcon = ({ className }) => (
   <svg
     viewBox="0 0 32 32"
     className={className}
@@ -402,11 +473,32 @@ const MaskIcon: RailIcon = ({ className }) => (
     </svg>
   </svg>
 );
+// Filled Masking (Figma "SquareHalfBottom", node 37:26996): square outline with
+// the lower-left half solid, shown once the hover animation finishes.
+const MaskFilled: ComponentType<{ className?: string }> = ({ className }) => (
+  <svg
+    viewBox="0 0 32 32"
+    className={className}
+    fill="none"
+    stroke="currentColor"
+    strokeWidth={2}
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    aria-hidden
+  >
+    <path d="M7 6H25C25.5523 6 26 6.44772 26 7V25C26 25.5523 25.5523 26 25 26H7C6.44772 26 6 25.5523 6 25V7C6 6.44772 6.44772 6 7 6Z" />
+    <path
+      fill="currentColor"
+      d="M25.9998 25.9998L5.99981 5.99982L5.99981 24.9998L25.9998 25.9998Z"
+    />
+  </svg>
+);
+export const MaskIcon = withFilled(MaskIconOutline, MaskFilled);
 // Background Changer (Figma "Rectangle", New Design System node 3661:38813; the
 // 80-unit design scaled x0.4 onto the 32 grid, stroke 5 -> 2). The hatched
 // background lines are dropped. On hover the frame erases itself and redraws
 // (a "new background") while the subject pops (see styles.css).
-const BackgroundIcon: RailIcon = ({ className }) => (
+const BackgroundIconOutline: RailIcon = ({ className }) => (
   <svg
     viewBox="0 0 32 32"
     className={className}
@@ -428,6 +520,7 @@ const BackgroundIcon: RailIcon = ({ className }) => (
     </g>
   </svg>
 );
+export const BackgroundIcon = withFilled(BackgroundIconOutline, UserRectangle);
 
 // Custom Figma icons are single-colour SVGs; render them as a CSS mask so they
 // follow the button's text colour (active / hover states).
