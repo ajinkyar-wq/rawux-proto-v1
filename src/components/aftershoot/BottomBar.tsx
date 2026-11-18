@@ -116,7 +116,12 @@ export function BottomBar({
   cycle,
   showAfter = true,
   onToggleAfter,
+  infoOpen,
+  onToggleInfo,
 }: {
+  /** Floating image info card on the canvas (loupe): open state + toggle. */
+  infoOpen?: boolean;
+  onToggleInfo?: () => void;
   /** 0-100 percentage driving thumbnail/grid size. */
   zoom: number;
   onZoomChange: (v: number) => void;
@@ -179,7 +184,11 @@ export function BottomBar({
                 <button
                   type="button"
                   aria-label="Image info"
-                  className="rounded-full text-neutral-500 hover:text-neutral-200"
+                  aria-pressed={!!infoOpen}
+                  onClick={onToggleInfo}
+                  className={`rounded-full hover:text-neutral-200 ${
+                    infoOpen ? "text-white" : "text-neutral-500"
+                  }`}
                 >
                   <Info className="h-4 w-4" strokeWidth={1.5} />
                 </button>

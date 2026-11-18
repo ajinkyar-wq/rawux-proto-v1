@@ -6,6 +6,7 @@ import { AlbumFilmstrip } from "./AlbumFilmstrip";
 import { CropOverlay } from "./CropOverlay";
 import { SliderHistoryContext, SliderScopeContext } from "../history/album-history";
 import { BrushToolbar } from "./BrushToolbar";
+import { ImageInfoCard } from "./ImageInfoCard";
 import { LoupeImage } from "./LoupeImage";
 import { useCullStore } from "@/features/import/store/useCullStore";
 import { LoupeRail } from "./LoupeRail";
@@ -88,7 +89,7 @@ export function LoupeView({
     // Coming from a grid Editing / Retouching tab always lands on that tool.
     const preferred =
       gridToolRail(entryRail) ?? lastRail ?? initialRail(ai.actionStatuses, entryRail);
-    if (loupeRailInTab(preferred, tab)) return preferred;
+    if (loupeRailInTab(preferred, tab, useCullStore.getState().isAlbumTethered)) return preferred;
     return tab === "cull" ? "ai" : "edit";
   });
   useEffect(() => {
@@ -97,6 +98,14 @@ export function LoupeView({
   // Image zoom (0 = fit) — loupe-only, so it never changes the grid's columns.
   // `actualZoom` is % of the photo's natural pixels; null = fit to canvas.
   const [actualZoom, setActualZoom] = useState<number | null>(null);
+  // Floating image info card (stays open while you move between photos).
+  const [infoOpen, setInfoOpen] = useState(false);
+  useEffect(() => {
+    if (!infoOpen) return;
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && setInfoOpen(false);
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [infoOpen]);
   const [fitPercent, setFitPercent] = useState(100);
   // Last zoom level used, so Space can return to it from Fit (default 100%).
   const lastZoomRef = useRef(100);
@@ -284,10 +293,20 @@ export function LoupeView({
             ) : null
           }
           canvasOverlay={
-            // Brush toolbar for the brush-based tools: Masking and Object Removal.
-            activeRail === "patch" || activeRail === "mask" ? (
-              <BrushToolbar key={activeRail} />
-            ) : null
+            <>
+              {/* Brush toolbar for the brush-based tools: Masking and Object Removal. */}
+              {(activeRail === "patch" || activeRail === "mask") && (
+                <BrushToolbar key={activeRail} />
+              )}
+              {/* Image info floats over the canvas (ⓘ in the bottom bar). */}
+              {infoOpen && (
+                <ImageInfoCard
+                  image={photoId}
+                  name={photoName(photoId)}
+                  onClose={() => setInfoOpen(false)}
+                />
+              )}
+            </>
           }
         />
 
@@ -326,6 +345,8 @@ export function LoupeView({
           onRate={(v) => ratings.setRating(photoId, v)}
           index={selectedIndex}
           imageName={photoName(photoId)}
+          infoOpen={infoOpen}
+          onToggleInfo={() => setInfoOpen((v) => !v)}
         />
       </div>
 

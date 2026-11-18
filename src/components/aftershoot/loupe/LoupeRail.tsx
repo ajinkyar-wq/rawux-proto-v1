@@ -1,6 +1,7 @@
 import { createContext, useContext, useState } from "react";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import type { AppTab } from "../rail-config";
+import { useCullStore } from "@/features/import/store/useCullStore";
 import {
   loupeBottomRail,
   RAIL_ICON_ANIM_MS,
@@ -38,6 +39,7 @@ export function LoupeRail({
   // Survey: Spray Can mode toggle, shown above Keyboard shortcuts.
   spray?: { on: boolean; onToggle: () => void };
 }) {
+  const tethered = useCullStore((s) => s.isAlbumTethered);
   const bottom: RailItem[] = [
     ...(spray
       ? ([
@@ -45,7 +47,7 @@ export function LoupeRail({
           { kind: "divider" },
         ] as RailItem[])
       : []),
-    ...loupeBottomRail(tab),
+    ...loupeBottomRail(tab, tethered),
   ];
   const select = (key: LoupeRailKey) => (key === "spray" ? spray?.onToggle() : onSelect(key));
   const bottomActive = spray?.on ? "spray" : activeRail;

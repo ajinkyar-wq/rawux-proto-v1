@@ -96,6 +96,8 @@ interface ImportState {
 	setViewMode: (mode: 'list' | 'grid') => void
 	openNewAlbum: (addTo?: string | null) => void
 	closeNewAlbum: () => void
+	/** Tethered Shooting card: start a tethered session in this album and open it. */
+	startTetheredShooting: () => void
 	setAlbumName: (name: string) => void
 	openFinder: (purpose: FinderPurpose, addTo?: string | null) => void
 	closeFinder: () => void
@@ -338,6 +340,12 @@ export const useImportStore = create<ImportState>((set, get) => {
 
 		openNewAlbum: (addTo = null) => unlessDraftWaiting(() => set({ isNewAlbumOpen: true, addToAlbum: addTo, albumName: addTo ?? '' })),
 		closeNewAlbum: () => set({ isNewAlbumOpen: false, addToAlbum: null }),
+		startTetheredShooting: () => {
+			const { addToAlbum, albumName } = get()
+			const name = addToAlbum ?? (albumName.trim() || 'Tethered Session')
+			set({ isNewAlbumOpen: false, addToAlbum: null, albumName: '' })
+			useCullStore.getState().startTethered(name)
+		},
 		setAlbumName: (name) => set({ albumName: name }),
 		openFinder: (purpose, addTo = null) => {
 			const open = () => set((s) => ({ finder: { purpose, addTo: addTo ?? s.addToAlbum } }))

@@ -72,7 +72,7 @@ export function ImageHistoryPanel({ image }: { image: number }) {
     e.images.length > 1 ? `${TOOL_LABEL[e.tool]} · ${e.images.length} images` : TOOL_LABEL[e.tool];
 
   return (
-    <div className="flex flex-col gap-2">
+    <div className="flex flex-col gap-3 pt-1">
       <div className="flex items-center justify-between">
         <span className="text-[11px] font-semibold uppercase tracking-wider text-neutral-300">
           History
@@ -88,12 +88,12 @@ export function ImageHistoryPanel({ image }: { image: number }) {
         )}
       </div>
 
-      <div className="flex flex-col">
+      <div className="flex flex-col gap-0.5">
         {undone.map((s) => (
           <div
             key={s.e.id}
             title="Undone — press ⇧⌘Z to redo"
-            className="flex items-center justify-between gap-2 px-2 py-1.5"
+            className="flex items-center justify-between gap-2 px-3 py-2.5"
           >
             <span className="text-[12px] text-neutral-600 line-through">{label(s.e)}</span>
             <span className="text-[10px] text-neutral-700">{tag(s.e)}</span>
@@ -107,7 +107,7 @@ export function ImageHistoryPanel({ image }: { image: number }) {
               key={s.e.id}
               type="button"
               onClick={() => browseTo(i)}
-              className={`flex items-center justify-between gap-2 rounded px-2 py-1.5 text-left ${
+              className={`flex items-center justify-between gap-2 rounded px-3 py-2.5 text-left ${
                 active ? "bg-white/10" : "hover:bg-white/[0.04]"
               }`}
             >
@@ -123,7 +123,7 @@ export function ImageHistoryPanel({ image }: { image: number }) {
         <button
           type="button"
           onClick={() => browseTo(steps.length)}
-          className={`flex items-center rounded px-2 py-1.5 text-left text-[12px] ${
+          className={`flex items-center rounded px-3 py-2.5 text-left text-[12px] ${
             current === steps.length
               ? "bg-white/10 text-neutral-100"
               : "text-neutral-400 hover:bg-white/[0.04]"
@@ -134,7 +134,7 @@ export function ImageHistoryPanel({ image }: { image: number }) {
       </div>
 
       {all.length === 0 && (
-        <p className="px-2 text-[11px] text-neutral-500">No changes on this image yet.</p>
+        <p className="px-3 text-[11px] text-neutral-500">No changes on this image yet.</p>
       )}
     </div>
   );

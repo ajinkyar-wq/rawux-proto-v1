@@ -1,5 +1,3 @@
-import {
-} from "@phosphor-icons/react";
 import type { ComponentType } from "react";
 import type { AppTab } from "../rail-config";
 
@@ -30,7 +28,7 @@ export type RailItem =
   | { kind: "divider" };
 
 // Loupe rail (Figma node 22:26252): AI · Manual Editing / Crop / Masking ·
-// Retouching / Background / Object Removal on top; Camera · History / Info ·
+// Retouching / Background / Object Removal on top; Camera · History ·
 // Keyboard Shortcuts pinned to the bottom.
 // AI Culling scissors (Figma "Scissors", node 30:26836). Inlined and split into
 // two halves pivoting on the screw at (17,16) so the blades can snip on hover
@@ -112,8 +110,22 @@ export const RetouchIcon: RailIcon = ({ className }) => (
       fill="currentColor"
       stroke="none"
     />
-    <circle className="retouch-eye" cx="7.1875" cy="8.4375" r="0.9375" fill="currentColor" stroke="none" />
-    <circle className="retouch-eye" cx="12.8125" cy="8.4375" r="0.9375" fill="currentColor" stroke="none" />
+    <circle
+      className="retouch-eye"
+      cx="7.1875"
+      cy="8.4375"
+      r="0.9375"
+      fill="currentColor"
+      stroke="none"
+    />
+    <circle
+      className="retouch-eye"
+      cx="12.8125"
+      cy="8.4375"
+      r="0.9375"
+      fill="currentColor"
+      stroke="none"
+    />
     <path
       className="retouch-smile"
       d="M13.125 11.875C12.4766 12.9961 11.3883 13.75 10 13.75C8.61172 13.75 7.52344 12.9961 6.875 11.875"
@@ -174,10 +186,38 @@ export const PaletteIcon: RailIcon = ({ className }) => (
       className="palette-outline"
       d="M16 24C16 23.2044 16.3161 22.4413 16.8787 21.8787C17.4413 21.3161 18.2044 21 19 21H24.7763C25.4558 21.0001 26.1152 20.7695 26.6465 20.346C27.1779 19.9225 27.5498 19.3312 27.7013 18.6688C27.9077 17.7592 28.008 16.8289 28 15.8962C27.9438 9.29375 22.48 3.93375 15.875 4C12.7141 4.03293 9.69388 5.31173 7.47041 7.55861C5.24694 9.80549 3.99983 12.8389 4 16C4 21.2263 7.34125 25.18 12 26.8263C12.4523 26.9862 12.9364 27.0353 13.4116 26.9695C13.8868 26.9036 14.3393 26.7248 14.7312 26.4479C15.123 26.1711 15.4427 25.8043 15.6635 25.3784C15.8842 24.9524 15.9997 24.4798 16 24Z"
     />
-    <circle className="palette-dot palette-dot-1" cx="16" cy="9.5" r="1.5" fill="currentColor" stroke="none" />
-    <circle className="palette-dot palette-dot-2" cx="10.5" cy="12.5" r="1.5" fill="currentColor" stroke="none" />
-    <circle className="palette-dot palette-dot-3" cx="21.5" cy="12.5" r="1.5" fill="currentColor" stroke="none" />
-    <circle className="palette-dot palette-dot-4" cx="10.5" cy="19.5" r="1.5" fill="currentColor" stroke="none" />
+    <circle
+      className="palette-dot palette-dot-1"
+      cx="16"
+      cy="9.5"
+      r="1.5"
+      fill="currentColor"
+      stroke="none"
+    />
+    <circle
+      className="palette-dot palette-dot-2"
+      cx="10.5"
+      cy="12.5"
+      r="1.5"
+      fill="currentColor"
+      stroke="none"
+    />
+    <circle
+      className="palette-dot palette-dot-3"
+      cx="21.5"
+      cy="12.5"
+      r="1.5"
+      fill="currentColor"
+      stroke="none"
+    />
+    <circle
+      className="palette-dot palette-dot-4"
+      cx="10.5"
+      cy="19.5"
+      r="1.5"
+      fill="currentColor"
+      stroke="none"
+    />
   </svg>
 );
 // Manual Editing faders (Figma "FadersHorizontal", node 30:26876): two tracks,
@@ -318,9 +358,19 @@ export const SprayCanIcon: RailIcon = ({ className }) => (
   >
     <g className="spray-all">
       <path d="M12 9H20C21.0609 9 22.0783 9.57194 22.8284 10.59C23.5786 11.608 24 12.9888 24 14.4286V26.6429C24 27.0028 23.8946 27.348 23.7071 27.6025C23.5196 27.857 23.2652 28 23 28H9C8.73478 28 8.48043 27.857 8.29289 27.6025C8.10536 27.348 8 27.0028 8 26.6429V14.4286C8 12.9888 8.42143 11.608 9.17157 10.59C9.92172 9.57194 10.9391 9 12 9Z" />
-      <path className="spray-nozzle" d="M13.5 9V8V6.5C13.5 5.39543 14.3954 4.5 15.5 4.5H16.5C17.6046 4.5 18.5 5.39543 18.5 6.5V8V9" />
+      <path
+        className="spray-nozzle"
+        d="M13.5 9V8V6.5C13.5 5.39543 14.3954 4.5 15.5 4.5H16.5C17.6046 4.5 18.5 5.39543 18.5 6.5V8V9"
+      />
       <line x1="23" y1="14" x2="9" y2="14" />
-      <line className="spray-line" pathLength={1} x1="22.4142" y1="5.53569" x2="25.9497" y2="9.07122" />
+      <line
+        className="spray-line"
+        pathLength={1}
+        x1="22.4142"
+        y1="5.53569"
+        x2="25.9497"
+        y2="9.07122"
+      />
       <line className="spray-line" pathLength={1} x1="22.415" y1="5.53553" x2="25.9506" y2="2" />
     </g>
   </svg>
@@ -367,7 +417,11 @@ const BackgroundIcon: RailIcon = ({ className }) => (
     strokeLinejoin="round"
     aria-hidden
   >
-    <path className="bgswap-frame" pathLength={1} d="M6.739 27.025H3.8725C3.2636 27.025 2.77 26.5314 2.77 25.9225V6.0775C2.77 5.4686 3.2636 4.975 3.8725 4.975H28.1275C28.7364 4.975 29.23 5.4686 29.23 6.0775V25.9225C29.23 26.5314 28.7364 27.025 28.1275 27.025H25.261" />
+    <path
+      className="bgswap-frame"
+      pathLength={1}
+      d="M6.739 27.025H3.8725C3.2636 27.025 2.77 26.5314 2.77 25.9225V6.0775C2.77 5.4686 3.2636 4.975 3.8725 4.975H28.1275C28.7364 4.975 29.23 5.4686 29.23 6.0775V25.9225C29.23 26.5314 28.7364 27.025 28.1275 27.025H25.261"
+    />
     <g className="bgswap-subject">
       <path d="M21.733 15.7795C21.733 18.9457 19.1662 21.5125 16 21.5125C12.8338 21.5125 10.267 18.9457 10.267 15.7795C10.267 12.6132 12.8338 10.0465 16 10.0465C19.1662 10.0465 21.733 12.6132 21.733 15.7795Z" />
       <path d="M6.739 27.025C8.6076 23.8621 12.0014 21.733 16 21.733C19.9986 21.733 23.3924 23.8621 25.261 27.025" />
@@ -398,17 +452,17 @@ function MaskSvg({ src, className }: { src: string; className?: string }) {
   );
 }
 
-const ONE_CLICK: RailItem = {
-  kind: "icon",
-  key: "oneClick",
-  icon: OneClickIcon,
-  label: "One Click",
-};
 const AI: RailItem = { kind: "icon", key: "ai", icon: ScissorsIcon, label: "AI Culling" };
 
+const HISTORY_ITEM: RailItem = {
+  kind: "icon",
+  key: "history",
+  icon: HistoryIcon,
+  label: "History",
+};
+
+// One Click (cull & edit) lives only on the GRID rail, not in loupe.
 export const LOUPE_TOP_RAIL: RailItem[] = [
-  ONE_CLICK,
-  { kind: "divider" },
   { kind: "icon", key: "edit", icon: FadersIcon, label: "Manual Editing", shortcut: "E" },
   { kind: "icon", key: "crop", icon: CropIcon, label: "Crop & Rotate", shortcut: "R" },
   { kind: "icon", key: "mask", icon: MaskIcon, label: "Masking", shortcut: "M" },
@@ -422,39 +476,38 @@ export const LOUPE_TOP_RAIL: RailItem[] = [
     shortcut: "⇧B",
   },
   { kind: "icon", key: "patch", icon: EraserIcon, label: "Object Removal", shortcut: "⇧J" },
+  // History sits right after the editing tools, in its own group.
+  { kind: "divider" },
+  HISTORY_ITEM,
 ];
 
-const HISTORY_ITEM: RailItem = {
-  kind: "icon",
-  key: "history",
-  icon: HistoryIcon,
-  label: "History",
-};
-
-// History, Info and Tethering are editing concerns — hidden in CULL, which keeps
-// only the keyboard shortcuts.
-export const loupeBottomRail = (tab: AppTab): RailItem[] => [
+// Tethering is an editing concern — hidden in CULL, which keeps only the
+// keyboard shortcuts. Tethering only appears for an album started from the
+// import flow's Tethered Shooting card. Image info is a floating card on the
+// canvas (ⓘ in the bottom bar), not a rail panel.
+export const loupeBottomRail = (tab: AppTab, tethered = false): RailItem[] => [
   ...(tab === "cull"
     ? []
     : ([
-        { kind: "icon", key: "camera", icon: CameraIcon, label: "Tethering" },
-        { kind: "divider" },
-        HISTORY_ITEM,
-        { kind: "icon", key: "info", icon: InfoIcon, label: "Info" },
-        { kind: "divider" },
+        ...(tethered
+          ? [
+              { kind: "icon", key: "camera", icon: CameraIcon, label: "Tethering" },
+              { kind: "divider" },
+            ]
+          : []),
       ] as RailItem[])),
   { kind: "icon", key: "keyboard", icon: KeyboardIcon, label: "Keyboard shortcuts" },
 ];
 
 // Loupe rail per app tab: CULL keeps culling only; ENHANCE carries the
-// editing + retouching tools. History / Info are in the shared bottom group.
+// editing + retouching tools, then History.
 export const LOUPE_TAB_RAIL: Record<AppTab, RailItem[]> = {
-  cull: [ONE_CLICK, { kind: "divider" }, AI],
+  cull: [AI],
   enhance: LOUPE_TOP_RAIL,
 };
 
-export const loupeRailInTab = (key: LoupeRailKey, tab: AppTab) =>
-  [...LOUPE_TAB_RAIL[tab], ...loupeBottomRail(tab)].some(
+export const loupeRailInTab = (key: LoupeRailKey, tab: AppTab, tethered = false) =>
+  [...LOUPE_TAB_RAIL[tab], ...loupeBottomRail(tab, tethered)].some(
     (item) => item.kind === "icon" && item.key === key,
   );
 

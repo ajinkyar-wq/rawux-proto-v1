@@ -29,10 +29,16 @@ interface CullState {
 	isAlbumNew: boolean
 	/** Goes up each time an album is opened, so the workspace starts over for it. */
 	albumSession: number
+	/** Albums started from the import flow's Tethered Shooting card. */
+	tetheredAlbumNames: Set<string>
+	/** Whether the open album is a tethered one (shows the Tethering tool). */
+	isAlbumTethered: boolean
 
 	setAlbumName: (name: string) => void
 	setActiveSection: (section: AppSection) => void
 	openAlbum: (name: string, section: AppSection) => void
+	/** Tethered Shooting from the import flow: marks the album tethered and opens it. */
+	startTethered: (name: string) => void
 	openOneClick: (genre?: string | null) => void
 	closeOneClick: () => void
 	goHome: () => void
@@ -58,10 +64,18 @@ export const useCullStore = create<CullState>((set) => ({
 	newAlbumNames: new Set(),
 	isAlbumNew: false,
 	albumSession: 0,
+	tetheredAlbumNames: new Set(),
+	isAlbumTethered: false,
 
 	setAlbumName: (name) => set({ albumName: name }),
 	setActiveSection: (section) => set({ activeSection: section }),
-	openAlbum: (name, section) => set((s) => ({ screen: 'album', albumName: name, activeSection: section, isAlbumNew: s.newAlbumNames.has(name), albumSession: s.albumSession + 1 })),
+	openAlbum: (name, section) => set((s) => ({ screen: 'album', albumName: name, activeSection: section, isAlbumNew: s.newAlbumNames.has(name), isAlbumTethered: s.tetheredAlbumNames.has(name), albumSession: s.albumSession + 1 })),
+	startTethered: (name) => {
+		const s = useCullStore.getState()
+		if (!s.albums.some((a) => a.name === name)) s.addAlbum({ id: `album-${Date.now()}`, name, photoCount: 1, coverUrl: null, action: 'edit' })
+		set((st) => ({ tetheredAlbumNames: new Set([...st.tetheredAlbumNames, name]) }))
+		useCullStore.getState().openAlbum(name, 'edit')
+	},
 	openOneClick: (genre = null) => set({ oneClick: { isOpen: true, genre } }),
 	closeOneClick: () => set({ oneClick: { isOpen: false, genre: null } }),
 	goHome: () => set({ screen: 'home' }),

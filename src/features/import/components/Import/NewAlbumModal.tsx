@@ -88,6 +88,8 @@ interface WayCardProps {
 	/** Draws the status dot at the end of the title row. */
 	dot?: string
 	background: string
+	/** Makes the card clickable (Tethered Shooting starts a tethered session). */
+	onClick?: () => void
 }
 
 /** The "or Ingest Images from a memory card" row. It keeps its own hover state so lighting it up doesn't re-render the whole dialog. */
@@ -129,11 +131,15 @@ function CopyRow({ buttonRef, isMenuOpen, onPress }: { buttonRef: Ref<HTMLButton
 }
 
 /** Other ways to start that aren't part of this prototype: shown as in the design, but not clickable. */
-function WayCard({ glyph, glyphWidth, glyphHeight, title, subtitle, dot, background }: WayCardProps) {
+function WayCard({ glyph, glyphWidth, glyphHeight, title, subtitle, dot, background, onClick }: WayCardProps) {
 	return (
 		<div
-			aria-disabled="true"
-			style={{ flex: 1, display: 'flex', alignItems: 'center', gap: spacing[32], padding: `${spacing[20]} ${spacing[40]}`, background, borderRadius: radius['2xl'] }}
+			role={onClick ? 'button' : undefined}
+			tabIndex={onClick ? 0 : undefined}
+			aria-disabled={onClick ? undefined : 'true'}
+			onClick={onClick}
+			onKeyDown={onClick ? (e) => (e.key === 'Enter' || e.key === ' ') && onClick() : undefined}
+			style={{ flex: 1, display: 'flex', alignItems: 'center', gap: spacing[32], padding: `${spacing[20]} ${spacing[40]}`, background, borderRadius: radius['2xl'], cursor: onClick ? 'pointer' : undefined }}
 		>
 			<span style={{ width: glyphWidth, height: WAY_GLYPH_SLOT_HEIGHT, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
 				<img src={glyph} alt="" width={glyphWidth} height={glyphHeight} />
@@ -155,6 +161,7 @@ export function NewAlbumModal() {
 	const albumName = useImportStore((s) => s.albumName)
 	const addToAlbum = useImportStore((s) => s.addToAlbum)
 	const setAlbumName = useImportStore((s) => s.setAlbumName)
+	const startTetheredShooting = useImportStore((s) => s.startTetheredShooting)
 	const closeNewAlbum = useImportStore((s) => s.closeNewAlbum)
 	const openFinder = useImportStore((s) => s.openFinder)
 	const startCopyFromCard = useImportStore((s) => s.startCopyFromCard)
@@ -210,7 +217,7 @@ export function NewAlbumModal() {
 			</div>
 
 			<div style={{ display: 'flex', gap: spacing[20] }}>
-				<WayCard glyph="/import/camera.svg" glyphWidth={72} glyphHeight={72} title="Tethered Shooting" subtitle="Live capture with real-time edits" dot="/import/dot-green.svg" background={TETHERED_CARD_BACKGROUND} />
+				<WayCard glyph="/import/camera.svg" glyphWidth={72} glyphHeight={72} title="Tethered Shooting" subtitle="Live capture with real-time edits" dot="/import/dot-green.svg" background={TETHERED_CARD_BACKGROUND} onClick={startTetheredShooting} />
 				<WayCard glyph="/import/lr-c1.svg" glyphWidth={90} glyphHeight={43.58} title="Edit Lr / C1 Catalog" subtitle="Edit your existing Lr/C1 catalogs with AI" background={CATALOG_CARD_BACKGROUND} />
 			</div>
 
