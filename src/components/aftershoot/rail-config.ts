@@ -1,5 +1,13 @@
-import { Keyboard, Palette, Scissors, Shapes } from "lucide-react";
-import { OneClickIcon, RetouchIcon, SprayCanIcon, type RailIcon } from "./loupe/loupe-rail-config";
+import { Shapes } from "lucide-react";
+import {
+  KeyboardIcon,
+  OneClickIcon,
+  PaletteIcon,
+  RetouchIcon,
+  ScissorsIcon,
+  SprayCanIcon,
+  type RailIcon,
+} from "./loupe/loupe-rail-config";
 
 export type RailKey =
   // Grid-view side panel tabs: AI Culling / AI Editing / AI Retouching.
@@ -45,7 +53,7 @@ const ONE_CLICK: RailItem[] = [
 
 const CULL_RAIL: RailItem[] = [
   ...ONE_CLICK,
-  { kind: "icon", key: "cull", icon: Scissors, label: "AI Culling" },
+  { kind: "icon", key: "cull", icon: ScissorsIcon, label: "AI Culling" },
 ];
 
 export const TAB_RAIL: Record<Layout, Record<AppTab, RailItem[]>> = {
@@ -53,14 +61,14 @@ export const TAB_RAIL: Record<Layout, Record<AppTab, RailItem[]>> = {
     cull: CULL_RAIL,
     enhance: [
       ...ONE_CLICK,
-      { kind: "icon", key: "editRetouchAll", icon: Palette, label: "Editing & Retouching" },
+      { kind: "icon", key: "editRetouchAll", icon: PaletteIcon, label: "Editing & Retouching" },
     ],
   },
   ui1: {
     cull: CULL_RAIL,
     enhance: [
       ...ONE_CLICK,
-      { kind: "icon", key: "edit", icon: Palette, label: "AI Editing" },
+      { kind: "icon", key: "edit", icon: PaletteIcon, label: "AI Editing" },
       { kind: "icon", key: "retouch", icon: RetouchIcon, label: "AI Retouching" },
     ],
   },
@@ -68,7 +76,7 @@ export const TAB_RAIL: Record<Layout, Record<AppTab, RailItem[]>> = {
     cull: CULL_RAIL,
     enhance: [
       ...ONE_CLICK,
-      { kind: "icon", key: "editRetouch", icon: Palette, label: "Edit & Retouch" },
+      { kind: "icon", key: "editRetouch", icon: PaletteIcon, label: "Edit & Retouch" },
       { kind: "icon", key: "aiTools", icon: Shapes, label: "AI Crop, Masking & Denoise" },
     ],
   },
@@ -95,5 +103,5 @@ export const railForAction = (layout: Layout, action: "cull" | "edit" | "retouch
 export const BOTTOM_RAIL: RailItem[] = [
   { kind: "icon", key: "spray", icon: SprayCanIcon, label: "Spray Can" },
   { kind: "divider" },
-  { kind: "icon", key: "keyboard", icon: Keyboard, label: "Keyboard shortcuts" },
+  { kind: "icon", key: "keyboard", icon: KeyboardIcon, label: "Keyboard shortcuts" },
 ];

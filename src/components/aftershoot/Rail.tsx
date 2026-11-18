@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useCullStore } from "@/features/import/store/useCullStore";
 import { RailIconButton, RailTooltipProvider } from "./loupe/LoupeRail";
+import { RAIL_ICON_ANIM_MS } from "./loupe/loupe-rail-config";
 import {
   BOTTOM_RAIL,
   TAB_RAIL,
@@ -63,6 +64,7 @@ function RailGroup({
             onClick={() => onSelect(item.key)}
             icon={<item.icon className="h-5 w-5" />}
             accent={item.key === "oneClick"}
+            animationMs={RAIL_ICON_ANIM_MS.get(item.icon)}
           />
         ),
       )}
