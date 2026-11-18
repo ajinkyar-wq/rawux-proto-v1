@@ -22,7 +22,7 @@ export interface EditSettings {
   saturation: number;
 
   // Color Mixer
-  colorMixerTab: 'hue' | 'saturation' | 'luminance' | 'all';
+  colorMixerTab: "hue" | "saturation" | "luminance" | "all";
   colorMixer: {
     red: { hue: number; saturation: number; luminance: number };
     orange: { hue: number; saturation: number; luminance: number };
@@ -35,7 +35,7 @@ export interface EditSettings {
   };
 
   // Color Grading
-  colorGradingTab: 'shadows' | 'midtones' | 'highlights' | 'global' | 'all';
+  colorGradingTab: "shadows" | "midtones" | "highlights" | "global" | "all";
   colorGrading: {
     shadows: { hue: number; saturation: number; luminance: number };
     midtones: { hue: number; saturation: number; luminance: number };
@@ -86,7 +86,7 @@ export const defaultSettings: EditSettings = {
   dehaze: 0,
   vibrance: 0,
   saturation: 0,
-  colorMixerTab: 'hue',
+  colorMixerTab: "hue",
   colorMixer: {
     red: { hue: 0, saturation: 0, luminance: 0 },
     orange: { hue: 0, saturation: 0, luminance: 0 },
@@ -97,7 +97,7 @@ export const defaultSettings: EditSettings = {
     purple: { hue: 0, saturation: 0, luminance: 0 },
     magenta: { hue: 0, saturation: 0, luminance: 0 },
   },
-  colorGradingTab: 'shadows',
+  colorGradingTab: "shadows",
   colorGrading: {
     shadows: { hue: 0, saturation: 0, luminance: 0 },
     midtones: { hue: 0, saturation: 0, luminance: 0 },

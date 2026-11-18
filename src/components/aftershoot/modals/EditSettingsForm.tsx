@@ -89,13 +89,7 @@ function Section({ title, children }: { title: string; children: React.ReactNode
   );
 }
 
-function AIProfileRow({
-  value,
-  onChange,
-}: {
-  value: string;
-  onChange: (v: string) => void;
-}) {
+function AIProfileRow({ value, onChange }: { value: string; onChange: (v: string) => void }) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
@@ -131,9 +125,7 @@ function AIProfileRow({
           JPEG
         </span>
         <ChevronDown
-          className={`h-3 w-3 text-neutral-400 transition-transform ${
-            open ? "rotate-180" : ""
-          }`}
+          className={`h-3 w-3 text-neutral-400 transition-transform ${open ? "rotate-180" : ""}`}
           strokeWidth={1.75}
         />
       </button>
@@ -177,13 +169,7 @@ function ToggleRow({
   );
 }
 
-function Toggle({
-  checked,
-  onChange,
-}: {
-  checked: boolean;
-  onChange: (v: boolean) => void;
-}) {
+function Toggle({ checked, onChange }: { checked: boolean; onChange: (v: boolean) => void }) {
   return (
     <button
       onClick={() => onChange(!checked)}
@@ -213,9 +199,7 @@ function PillGroup({
 }) {
   return (
     <div className="flex flex-col gap-1.5">
-      <div className="text-[10px] font-semibold tracking-wider text-neutral-500">
-        {groupLabel}
-      </div>
+      <div className="text-[10px] font-semibold tracking-wider text-neutral-500">{groupLabel}</div>
       <div className="flex flex-wrap items-center gap-1.5">
         {options.map((opt) => {
           const active = opt === value;

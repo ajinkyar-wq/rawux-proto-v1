@@ -1,5 +1,5 @@
-import { useSyncExternalStore } from 'react';
-import type { MapKeys } from './shortcutMap';
+import { useSyncExternalStore } from "react";
+import type { MapKeys } from "./shortcutMap";
 
 // After the update migrated the user's keys, the modal marks every shortcut
 // that changed, with the key the user had, so they can see what moved:
@@ -8,7 +8,7 @@ import type { MapKeys } from './shortcutMap';
 // An editable row's mark clears once it gets a key again; dismissing the
 // banner clears them all.
 
-export type ChangeFlagKind = 'reset' | 'changed';
+export type ChangeFlagKind = "reset" | "changed";
 
 interface ChangeFlags {
   active: boolean;
@@ -20,14 +20,17 @@ interface ChangeFlags {
 /** Fixed rows have no id: they're flagged by label. */
 export const fixedFlagKey = (label: string) => `fixed:${label}`;
 
-const EMPTY: ChangeFlags = { active: false, kind: 'changed', previous: {} };
+const EMPTY: ChangeFlags = { active: false, kind: "changed", previous: {} };
 let state: ChangeFlags = EMPTY;
 const listeners = new Set<() => void>();
 const emit = () => listeners.forEach((l) => l());
 
 /** Start (with the user's old keys) or clear (null) the change flags. */
-export function setResetFlags(previous: MapKeys | null, kind: ChangeFlagKind = 'reset') {
-  state = previous && Object.keys(previous).length ? { active: true, kind, previous: { ...previous } } : EMPTY;
+export function setResetFlags(previous: MapKeys | null, kind: ChangeFlagKind = "reset") {
+  state =
+    previous && Object.keys(previous).length
+      ? { active: true, kind, previous: { ...previous } }
+      : EMPTY;
   emit();
 }
 

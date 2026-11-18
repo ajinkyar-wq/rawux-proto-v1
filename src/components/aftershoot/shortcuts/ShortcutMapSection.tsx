@@ -1,10 +1,10 @@
-import { useEffect, useState } from 'react';
-import { CircleAlert, Info, X } from 'lucide-react';
-import { KeyBadge, KeyCell } from './KeyBindingsPanel';
-import type { KeyBindings } from './useKeyBindings';
-import { clearResetFlag, fixedFlagKey, useResetFlags } from './shortcutResetFlags';
-import { clearUnbound, markUnbound, useUnboundKeys, type FlashTarget } from './unboundKeys';
-import type { SliderDef } from './sliderRegistry';
+import { useEffect, useState } from "react";
+import { CircleAlert, Info, X } from "lucide-react";
+import { KeyBadge, KeyCell } from "./KeyBindingsPanel";
+import type { KeyBindings } from "./useKeyBindings";
+import { clearResetFlag, fixedFlagKey, useResetFlags } from "./shortcutResetFlags";
+import { clearUnbound, markUnbound, useUnboundKeys, type FlashTarget } from "./unboundKeys";
+import type { SliderDef } from "./sliderRegistry";
 import {
   ROW_BY_ID,
   resolveMapKey,
@@ -13,7 +13,7 @@ import {
   type MapRow,
   type MapSection,
   type Tone,
-} from './shortcutMap';
+} from "./shortcutMap";
 
 // Renders one rail section of the shortcut map: sub-headed blocks of rows in
 // two columns. Editable rows use Speed Edit's own KeyCell, fixed rows the
@@ -34,7 +34,7 @@ function StarPill({ rating }: { rating: number }) {
           key={i}
           viewBox="0 0 24 24"
           // Same-colour stroke with round joins softens the points.
-          className={`h-3.5 w-3.5 ${i < rating ? 'fill-[#ffffff] text-[#ffffff]' : 'fill-[#4a4a4a] text-[#4a4a4a]'}`}
+          className={`h-3.5 w-3.5 ${i < rating ? "fill-[#ffffff] text-[#ffffff]" : "fill-[#4a4a4a] text-[#4a4a4a]"}`}
           stroke="currentColor"
           strokeWidth={2}
           strokeLinejoin="round"
@@ -57,12 +57,12 @@ export function UnboundDot() {
 
 /** Colour dot shown before a colour-label row's text. */
 const TONE_DOTS: Record<Tone, string> = {
-  red: 'bg-[#F26B6B]',
-  yellow: 'bg-[#E0B22A]',
-  green: 'bg-[#4CAF64]',
-  blue: 'bg-[#4A9BFF]',
-  purple: 'bg-[#A970FF]',
-  clear: 'bg-[#8a8a8a]',
+  red: "bg-[#F26B6B]",
+  yellow: "bg-[#E0B22A]",
+  green: "bg-[#4CAF64]",
+  blue: "bg-[#4A9BFF]",
+  purple: "bg-[#A970FF]",
+  clear: "bg-[#8a8a8a]",
 };
 
 export function ShortcutMapSection({
@@ -93,11 +93,17 @@ export function ShortcutMapSection({
 
   const resolve = (id: string, raw: string) => {
     const outcome = resolveMapKey(keys, id, raw, sliderBindings, (s) => sliderDefs[s]?.label ?? s);
-    if (outcome.kind === 'notice') {
+    if (outcome.kind === "notice") {
       const owner = outcome.ownerId ? ROW_BY_ID[outcome.ownerId] : null;
       onFlash(
         outcome.message,
-        owner ? { sectionId: owner.section.id, id: outcome.ownerId!, label: owner.row.short ?? owner.row.label } : undefined,
+        owner
+          ? {
+              sectionId: owner.section.id,
+              id: outcome.ownerId!,
+              label: owner.row.short ?? owner.row.label,
+            }
+          : undefined,
       );
     }
     return outcome;
@@ -126,7 +132,9 @@ export function ShortcutMapSection({
     return (
       <span className="inline-flex items-center whitespace-nowrap">
         <span className="mr-[6px]">{row.label.slice(0, m.index).trim()}</span>
-        <span className={`mr-[6px] inline-block h-[9px] w-[9px] shrink-0 rounded-full ${TONE_DOTS[row.tone]}`} />
+        <span
+          className={`mr-[6px] inline-block h-[9px] w-[9px] shrink-0 rounded-full ${TONE_DOTS[row.tone]}`}
+        />
         {row.label.slice(m.index)}
       </span>
     );
@@ -142,7 +150,13 @@ export function ShortcutMapSection({
       const self = ROW_BY_ID[id];
       markUnbound(
         Object.entries(keys)
-          .filter(([other, v]) => other !== id && v && v.toLowerCase() === k && scopesOverlap(self.group, ROW_BY_ID[other].group))
+          .filter(
+            ([other, v]) =>
+              other !== id &&
+              v &&
+              v.toLowerCase() === k &&
+              scopesOverlap(self.group, ROW_BY_ID[other].group),
+          )
           .map(([other]) => other),
       );
     }
@@ -166,7 +180,9 @@ export function ShortcutMapSection({
       return (
         <>
           {hadKey(resetFlags.previous[fixedFlagKey(row.label)])}
-          {row.keys!.map((k, i) => <KeyBadge key={i} k={k} />)}
+          {row.keys!.map((k, i) => (
+            <KeyBadge key={i} k={k} />
+          ))}
         </>
       );
     return (
@@ -215,9 +231,7 @@ export function ShortcutMapSection({
                   {col.map((row, ri) => (
                     <div key={`${ci}-${ri}`} data-key-row={row.id}>
                       <div className="flex items-center justify-between gap-4 py-[6px]">
-                        <span className="text-[13px] text-[#e2e2e2]">
-                          {renderLabel(row)}
-                        </span>
+                        <span className="text-[13px] text-[#e2e2e2]">{renderLabel(row)}</span>
                         <div className="flex shrink-0 items-center gap-1.5">{renderKeys(row)}</div>
                       </div>
                       {row.id && keyError?.id === row.id && (

@@ -156,12 +156,8 @@ function ModeCard({
 
       <div className="mb-3 overflow-hidden rounded-md bg-black/40">{preview}</div>
 
-      <h3 className="mb-1.5 text-[14px] font-semibold leading-snug text-white">
-        {heading}
-      </h3>
-      <p className="mb-3 flex-1 text-[11px] leading-relaxed text-neutral-400">
-        {description}
-      </p>
+      <h3 className="mb-1.5 text-[14px] font-semibold leading-snug text-white">{heading}</h3>
+      <p className="mb-3 flex-1 text-[11px] leading-relaxed text-neutral-400">{description}</p>
 
       <button
         onClick={onClick}
@@ -239,28 +235,20 @@ function AssistedPreferences({
 
         <div className="flex flex-col gap-2">
           <div className="flex items-center gap-1.5">
-            <span className="text-[13px] font-medium text-white">
-              Duplicate Photo Groups
-            </span>
+            <span className="text-[13px] font-medium text-white">Duplicate Photo Groups</span>
             <Info className="h-3.5 w-3.5 text-neutral-500" strokeWidth={1.5} />
           </div>
 
           <RangeSlider value={groupSize} onChange={setGroupSize} />
 
           <div className="flex items-center justify-between text-[11px] font-semibold tracking-wider">
-            <span className={groupSize < 33 ? "text-white" : "text-neutral-500"}>
-              SMALL
-            </span>
+            <span className={groupSize < 33 ? "text-white" : "text-neutral-500"}>SMALL</span>
             <span
-              className={
-                groupSize >= 33 && groupSize <= 66 ? "text-white" : "text-neutral-500"
-              }
+              className={groupSize >= 33 && groupSize <= 66 ? "text-white" : "text-neutral-500"}
             >
               STANDARD
             </span>
-            <span className={groupSize > 66 ? "text-white" : "text-neutral-500"}>
-              LARGE
-            </span>
+            <span className={groupSize > 66 ? "text-white" : "text-neutral-500"}>LARGE</span>
           </div>
         </div>
       </div>
@@ -314,13 +302,7 @@ function AutomatedSettings({
   );
 }
 
-function SelectionAmount({
-  value,
-  onChange,
-}: {
-  value: number;
-  onChange: (v: number) => void;
-}) {
+function SelectionAmount({ value, onChange }: { value: number; onChange: (v: number) => void }) {
   const active = value < 33 ? "few" : value > 66 ? "more" : "standard";
   return (
     <div className="flex flex-col gap-2">
@@ -337,9 +319,7 @@ function SelectionAmount({
 
       <div className="flex items-center justify-between text-[10px] font-semibold tracking-wider">
         <span className={active === "few" ? "text-white" : "text-neutral-500"}>FEW</span>
-        <span className={active === "standard" ? "text-white" : "text-neutral-500"}>
-          STANDARD
-        </span>
+        <span className={active === "standard" ? "text-white" : "text-neutral-500"}>STANDARD</span>
         <span className={active === "more" ? "text-white" : "text-neutral-500"}>MORE</span>
       </div>
     </div>
@@ -355,9 +335,7 @@ function Customise({ open, onToggle }: { open: boolean; onToggle: () => void }) 
         className="flex items-center gap-1 text-left text-[13px] font-semibold text-white"
       >
         <ChevronRight
-          className={`h-3.5 w-3.5 text-neutral-400 transition-transform ${
-            open ? "rotate-90" : ""
-          }`}
+          className={`h-3.5 w-3.5 text-neutral-400 transition-transform ${open ? "rotate-90" : ""}`}
           strokeWidth={2}
         />
         Customise

@@ -1,5 +1,5 @@
-import { useEffect, useRef, useState } from 'react';
-import { createPortal } from 'react-dom';
+import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 
 interface QuickEditHudProps {
   /** Shown only while a quick-edit key is actually being held. */
@@ -47,7 +47,7 @@ export function QuickEditHud({
 
   useEffect(() => {
     if (!visible) return;
-    setHost(document.querySelector<HTMLElement>('[data-quick-edit-hud-host]'));
+    setHost(document.querySelector<HTMLElement>("[data-quick-edit-hud-host]"));
   }, [visible]);
 
   useEffect(() => {
@@ -86,12 +86,12 @@ export function QuickEditHud({
   return createPortal(
     <div
       className="pointer-events-none absolute inset-x-0 bottom-[6px] z-[30] flex justify-center px-[16px]"
-      style={{ fontFamily: 'Geist, sans-serif' }}
+      style={{ fontFamily: "Geist, sans-serif" }}
       aria-live="polite"
     >
       <div
         className={`flex items-center gap-[10px] rounded-[8px] bg-[#1c1c1c]/92 px-[10px] py-[6px] shadow-[0_4px_16px_rgba(0,0,0,0.5)] backdrop-blur-[12px] transition-[opacity,transform] duration-150 ease-out ${
-          visible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-[6px]'
+          visible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-[6px]"
         }`}
       >
         {/* Label + keycap */}

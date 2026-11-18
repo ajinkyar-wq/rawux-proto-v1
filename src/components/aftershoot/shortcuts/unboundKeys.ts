@@ -1,4 +1,4 @@
-import { useSyncExternalStore } from 'react';
+import { useSyncExternalStore } from "react";
 
 // Shortcuts (and speed edit sliders) that lost their key while the user was
 // editing in the modal: setting a key elsewhere took it. They're marked with a
@@ -7,7 +7,7 @@ import { useSyncExternalStore } from 'react';
 
 /** Speed edit sliders share the set with shortcut ids, so they're prefixed. */
 export const sliderMark = (sliderId: string) => `slider:${sliderId}`;
-export const isSliderMark = (mark: string) => mark.startsWith('slider:');
+export const isSliderMark = (mark: string) => mark.startsWith("slider:");
 
 /** What a reassign banner's button jumps to: the row that just lost its key. */
 export type FlashTarget = { sectionId: string; id: string; label: string; slider?: boolean };

@@ -34,8 +34,7 @@ export function RetouchSettingsModal({
     setRows((rs) => rs.map((r) => (r.id === id ? { ...r, ...patch } : r)));
   };
   const removeRow = (id: number) => setRows((rs) => rs.filter((r) => r.id !== id));
-  const addRow = () =>
-    setRows((rs) => [...rs, { id: nextId++, subject: null, preset: null }]);
+  const addRow = () => setRows((rs) => [...rs, { id: nextId++, subject: null, preset: null }]);
 
   const toggleObject = (label: string) => {
     setSelectedObjects((prev) => {
@@ -53,16 +52,8 @@ export function RetouchSettingsModal({
       footer={<PrimaryButton label="Start AI Retouch" onClick={onStart} />}
     >
       <div className="flex flex-col gap-4 pt-1">
-        <SubjectSync
-          rows={rows}
-          onUpdate={updateRow}
-          onRemove={removeRow}
-          onAdd={addRow}
-        />
-        <SmartObjectRemoval
-          selected={selectedObjects}
-          onToggle={toggleObject}
-        />
+        <SubjectSync rows={rows} onUpdate={updateRow} onRemove={removeRow} onAdd={addRow} />
+        <SmartObjectRemoval selected={selectedObjects} onToggle={toggleObject} />
       </div>
     </SettingsModal>
   );

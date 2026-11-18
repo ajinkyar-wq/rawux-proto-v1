@@ -2,6 +2,9 @@ import { useEffect, useRef } from "react";
 import { Flag } from "lucide-react";
 import { CULL_IMAGES, photoUrl } from "./cull-data";
 import { RatingChip } from "./RatingChip";
+import { useAlbumHistoryContext } from "./history/album-history";
+import { FittedCroppedPhoto } from "./loupe/CroppedPhoto";
+import { cropOf } from "./loupe/crop-config";
 import type { Ratings } from "./use-ratings";
 
 // Clickable image tile grid in the main canvas. Columns are driven by the
@@ -62,6 +65,8 @@ export function CanvasGrid({
     return () => window.clearTimeout(t);
   }, [scrollTarget]);
   const { ratingOf, setRating } = ratings;
+  // Crops live in the album history (per image).
+  const history = useAlbumHistoryContext();
   const filterActive = !!ratingFilter && ratingFilter.size > 0;
 
   return (
@@ -100,10 +105,12 @@ export function CanvasGrid({
               {/* Filename */}
               <span className="truncate text-[11px] text-neutral-400">{img.name}</span>
 
-              {/* Image placeholder */}
-              <div
-                className="aspect-[3/2] w-full rounded-sm bg-[#2a2a2a] bg-cover bg-center"
-                style={{ backgroundImage: `url(${photoUrl(img.id, 480)})` }}
+              {/* Photo: the tile keeps its 3:2 size; the cropped photo is
+                  fitted inside it (portrait crops narrow, wide crops short). */}
+              <FittedCroppedPhoto
+                src={photoUrl(img.id, 480)}
+                crop={cropOf(history, img.id)}
+                frameClassName="bg-[#2a2a2a]"
               />
 
               {/* Status footer: rating chip (clickable stars) + flag */}

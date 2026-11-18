@@ -1,5 +1,13 @@
 import { useState } from "react";
-import { ArrowRight, ChevronLeft, Columns2, Crown, Download, SlidersHorizontal, X } from "lucide-react";
+import {
+  ArrowRight,
+  ChevronLeft,
+  Columns2,
+  Crown,
+  Download,
+  SlidersHorizontal,
+  X,
+} from "lucide-react";
 
 /* -------------------------------------------------------------------------- */
 /* Data                                                                       */
@@ -17,19 +25,84 @@ type Style = {
 };
 
 const RECOMMENDED: Style[] = [
-  { id: "true-to-life", name: "True to Life", author: "By Aftershoot", format: "RAW", preview: "from-emerald-700 to-neutral-900" },
-  { id: "brownies", name: "Brownies", author: "By Aftershoot", format: "RAW", preview: "from-amber-800 to-neutral-900" },
-  { id: "graicard", name: "Graicard", author: "By Aftershoot", format: "RAW", preview: "from-sky-800 to-neutral-900" },
-  { id: "editorial", name: "The Editorial", author: "By Ratta-Studio", format: "RAW", premium: true, preview: "from-rose-900 to-neutral-900" },
-  { id: "jpeg-graicard", name: "JPEG Graicard", author: "By Aftershoot", format: "JPEG", adjusted: true, preview: "from-lime-800 to-neutral-900" },
-  { id: "butter-pecan", name: "Butter Pecan", author: "By Aftershoot", format: "JPEG", preview: "from-orange-800 to-neutral-900" },
+  {
+    id: "true-to-life",
+    name: "True to Life",
+    author: "By Aftershoot",
+    format: "RAW",
+    preview: "from-emerald-700 to-neutral-900",
+  },
+  {
+    id: "brownies",
+    name: "Brownies",
+    author: "By Aftershoot",
+    format: "RAW",
+    preview: "from-amber-800 to-neutral-900",
+  },
+  {
+    id: "graicard",
+    name: "Graicard",
+    author: "By Aftershoot",
+    format: "RAW",
+    preview: "from-sky-800 to-neutral-900",
+  },
+  {
+    id: "editorial",
+    name: "The Editorial",
+    author: "By Ratta-Studio",
+    format: "RAW",
+    premium: true,
+    preview: "from-rose-900 to-neutral-900",
+  },
+  {
+    id: "jpeg-graicard",
+    name: "JPEG Graicard",
+    author: "By Aftershoot",
+    format: "JPEG",
+    adjusted: true,
+    preview: "from-lime-800 to-neutral-900",
+  },
+  {
+    id: "butter-pecan",
+    name: "Butter Pecan",
+    author: "By Aftershoot",
+    format: "JPEG",
+    preview: "from-orange-800 to-neutral-900",
+  },
 ];
 
 const CREATORS: Style[] = [
-  { id: "cherie", name: "Chérie by ME...", author: "By Roots-Presets", format: "RAW", premium: true, preview: "from-fuchsia-900 to-neutral-900" },
-  { id: "leo", name: "Leo", author: "By Esteban-Gil", format: "RAW", premium: true, preview: "from-indigo-900 to-neutral-900" },
-  { id: "aurora", name: "Aurora", author: "By Mint-Studio", format: "RAW", preview: "from-teal-800 to-neutral-900" },
-  { id: "noir", name: "Noir", author: "By Frame-Co", format: "RAW", premium: true, preview: "from-slate-700 to-neutral-900" },
+  {
+    id: "cherie",
+    name: "Chérie by ME...",
+    author: "By Roots-Presets",
+    format: "RAW",
+    premium: true,
+    preview: "from-fuchsia-900 to-neutral-900",
+  },
+  {
+    id: "leo",
+    name: "Leo",
+    author: "By Esteban-Gil",
+    format: "RAW",
+    premium: true,
+    preview: "from-indigo-900 to-neutral-900",
+  },
+  {
+    id: "aurora",
+    name: "Aurora",
+    author: "By Mint-Studio",
+    format: "RAW",
+    preview: "from-teal-800 to-neutral-900",
+  },
+  {
+    id: "noir",
+    name: "Noir",
+    author: "By Frame-Co",
+    format: "RAW",
+    premium: true,
+    preview: "from-slate-700 to-neutral-900",
+  },
 ];
 
 const FILMSTRIP = Array.from({ length: 10 });
@@ -207,8 +280,8 @@ function ComparePlaceholder() {
       <Columns2 className="mb-3 h-6 w-6 text-neutral-300" strokeWidth={1.5} />
       <div className="text-[15px] font-semibold text-white">Compare AI Styles</div>
       <p className="mt-2 max-w-[260px] text-[12px] leading-relaxed text-neutral-400">
-        Choose up to 3 AI Styles from the panel on the right, to compare against your
-        original photo.
+        Choose up to 3 AI Styles from the panel on the right, to compare against your original
+        photo.
       </p>
     </div>
   );
@@ -237,13 +310,7 @@ function Filmstrip() {
 /* Right styles panel                                                         */
 /* -------------------------------------------------------------------------- */
 
-function StylesPanel({
-  compare,
-  onToggle,
-}: {
-  compare: Style[];
-  onToggle: (s: Style) => void;
-}) {
+function StylesPanel({ compare, onToggle }: { compare: Style[]; onToggle: (s: Style) => void }) {
   const full = compare.length >= MAX_COMPARE;
   return (
     <div className="flex w-[360px] shrink-0 flex-col border-l border-white/5 bg-[#141414]">
@@ -268,7 +335,6 @@ function StylesPanel({
           onToggle={onToggle}
         />
       </div>
-
     </div>
   );
 }

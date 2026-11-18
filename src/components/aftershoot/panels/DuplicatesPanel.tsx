@@ -63,7 +63,11 @@ export function DuplicatesPanel({
         {expanded && count > 0 && (
           <div className="ml-auto flex items-center gap-1.5">
             <IconTooltip label="Sort by rating">
-              <ToolButton pressed={sorted} onClick={() => setSorted((v) => !v)} label="Sort by rating">
+              <ToolButton
+                pressed={sorted}
+                onClick={() => setSorted((v) => !v)}
+                label="Sort by rating"
+              >
                 <ArrowDownUp className="h-4 w-4" strokeWidth={1.5} />
               </ToolButton>
             </IconTooltip>

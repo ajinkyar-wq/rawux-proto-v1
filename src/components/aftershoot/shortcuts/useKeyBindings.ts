@@ -1,7 +1,7 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from "react";
 
 // v4: defaults run straight along the keyboard rows.
-const STORAGE_KEY = 'editor.keyBindings.v4';
+const STORAGE_KEY = "editor.keyBindings.v4";
 
 export type KeyBindings = Record<string, string>;
 
@@ -10,21 +10,21 @@ export type KeyBindings = Record<string, string>;
 // runs the shortcut, hold adjusts the slider).
 export const DEFAULT_BINDINGS: KeyBindings = {
   // White Balance
-  temperature: 'q',
-  tint: 'w',
+  temperature: "q",
+  tint: "w",
   // Light
-  exposure: 'e',
-  contrast: 'r',
-  highlights: 't',
-  shadows: 'y',
-  whites: 'u',
-  blacks: 'i',
+  exposure: "e",
+  contrast: "r",
+  highlights: "t",
+  shadows: "y",
+  whites: "u",
+  blacks: "i",
   // Presence
-  texture: 'o',
-  clarity: 'p',
-  dehaze: 'a',
-  vibrance: 's',
-  saturation: 'd',
+  texture: "o",
+  clarity: "p",
+  dehaze: "a",
+  vibrance: "s",
+  saturation: "d",
 };
 
 function load(): KeyBindings {
@@ -32,8 +32,10 @@ function load(): KeyBindings {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return { ...DEFAULT_BINDINGS };
     const parsed = JSON.parse(raw);
-    if (parsed && typeof parsed === 'object') return parsed as KeyBindings;
-  } catch {}
+    if (parsed && typeof parsed === "object") return parsed as KeyBindings;
+  } catch {
+    /* storage unavailable — fall back to defaults */
+  }
   return { ...DEFAULT_BINDINGS };
 }
 
@@ -43,7 +45,9 @@ export function useKeyBindings() {
   useEffect(() => {
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(bindings));
-    } catch {}
+    } catch {
+      /* storage unavailable — keep in memory only */
+    }
   }, [bindings]);
 
   /** Assign `key` to `sliderId`; another slider holding it loses it. */

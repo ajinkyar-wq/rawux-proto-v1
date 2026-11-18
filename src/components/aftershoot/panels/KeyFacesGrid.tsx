@@ -129,7 +129,7 @@ function PanelFaceCard({ image, k, scores }: { image: number; k: number; scores:
         backgroundSize: `${CROP * 100}%`,
         backgroundPosition: `${pos(x)}% ${pos(y)}%`,
       }}
-      className="relative aspect-square rounded-sm bg-[#2d2d2d]"
+      className="relative aspect-square bg-[#2d2d2d]"
     >
       {scores && (
         <span className="absolute bottom-1 left-1 flex gap-1">
@@ -188,14 +188,14 @@ function FaceCard({ image, k, controls }: { image: number; k: number; controls: 
         backgroundSize: `${CROP * 100}%`,
         backgroundPosition: `${pos(x)}% ${pos(y)}%`,
       }}
-      className={`relative aspect-square rounded-sm bg-[#1f1f1f] ${
+      className={`relative aspect-square bg-[#1f1f1f] ${
         on
           ? "outline outline-2 outline-white"
           : "outline outline-1 outline-white/10 hover:outline-white/40"
       }`}
     >
       {controls.scores && (
-        <span className="absolute inset-x-0 bottom-0 flex items-center justify-between rounded-b-sm bg-gradient-to-t from-black/70 to-transparent px-1 pb-0.5 pt-3">
+        <span className="absolute inset-x-0 bottom-0 flex items-center justify-between bg-gradient-to-t from-black/70 to-transparent px-1 pb-0.5 pt-3">
           {eyesOpen ? (
             <Eye className="h-3.5 w-3.5 text-[#4cc38a]" strokeWidth={1.75} />
           ) : (

@@ -173,9 +173,7 @@ function EditCard({
       <div className="mb-4 overflow-hidden rounded-md bg-black/40">{preview}</div>
 
       <h3 className="mb-1.5 text-[16px] font-semibold leading-tight text-white">{heading}</h3>
-      <p className="mb-4 flex-1 text-[12.5px] leading-relaxed text-neutral-400">
-        {description}
-      </p>
+      <p className="mb-4 flex-1 text-[12.5px] leading-relaxed text-neutral-400">{description}</p>
 
       <button
         onClick={onClick}

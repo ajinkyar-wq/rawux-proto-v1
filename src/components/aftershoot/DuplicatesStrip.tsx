@@ -1,6 +1,9 @@
 import { useEffect, useRef, useState } from "react";
 import { ChevronDown } from "lucide-react";
 import { photoUrl } from "./cull-data";
+import { useAlbumHistoryContext } from "./history/album-history";
+import { CroppedPhoto } from "./loupe/CroppedPhoto";
+import { cropAspect, cropOf } from "./loupe/crop-config";
 import { IconTooltip } from "./IconTooltip";
 import { duplicateCount } from "./duplicates";
 
@@ -72,7 +75,7 @@ export function DuplicatesStrip({
       <CollapseTab expanded={expanded} onToggle={onToggle} />
 
       {expanded && (
-        <div className="relative border-t border-white/[0.05] bg-[#111111]">
+        <div className="relative border-t border-white/[0.05] bg-[#1c1c1c]">
           {resizable && (
             // Invisible drag hit-area on the top edge — no visible handle.
             <div
@@ -101,7 +104,7 @@ function CollapseTab({ expanded, onToggle }: { expanded: boolean; onToggle: () =
     <IconTooltip label={expanded ? "Hide duplicates" : "Show duplicates"} side="top">
       <button
         onClick={onToggle}
-        className="absolute bottom-0 left-1/2 z-10 flex h-4 w-8 -translate-x-1/2 translate-y-1/2 items-center justify-center rounded-md border border-white/10 bg-[#111111] text-[#ababab] hover:text-white"
+        className="absolute bottom-0 left-1/2 z-10 flex h-4 w-8 -translate-x-1/2 translate-y-1/2 items-center justify-center rounded-md border border-white/10 bg-[#1c1c1c] text-[#ababab] hover:text-white"
       >
         <ChevronDown
           className={`h-3 w-3 transition-transform ${expanded ? "" : "rotate-180"}`}
@@ -131,6 +134,10 @@ function FilmstripRow({
 }) {
   const scrollerRef = useRef<HTMLDivElement>(null);
   const selectedRef = useRef<HTMLButtonElement>(null);
+  // Duplicates are the same picture, so every tile shows this image's crop:
+  // same height, as wide as the crop's shape (like the album filmstrip).
+  const crop = cropOf(useAlbumHistoryContext(), image);
+  const width = Math.round(tileHeight * cropAspect(crop)) || tileWidth;
 
   // Scroll the selected tile into view (left-aligned, not center-padded).
   useEffect(() => {
@@ -156,19 +163,17 @@ function FilmstripRow({
             aria-pressed={i === selectedIndex}
             onClick={() => onSelect?.(i)}
             ref={i === selectedIndex ? selectedRef : undefined}
-            style={{
-              height: tileHeight,
-              width: tileWidth,
-              backgroundImage: `url(${photoUrl(image, 240)})`,
-            }}
-            className={`shrink-0 rounded-[3px] bg-[#242424] bg-cover bg-center ${
+            style={{ height: tileHeight, width }}
+            className={`relative shrink-0 overflow-hidden rounded-[3px] bg-[#242424] ${
               onSelect ? "cursor-pointer" : ""
             } ${
               i === selectedIndex
                 ? "outline outline-[1.5px] outline-white"
                 : "outline outline-1 -outline-offset-1 outline-[#303030] hover:outline-white/40"
             }`}
-          />
+          >
+            <CroppedPhoto src={photoUrl(image, 240)} crop={crop} className="h-full w-full" />
+          </button>
         ))}
       </div>
     </div>

@@ -1,6 +1,6 @@
-import { useEffect, useRef } from 'react';
-import { matchShortcut, normalizeKey, shortcutForKey } from './shortcutRegistry';
-import { eventHasModifier, type ShortcutModifier } from './useShortcutMode';
+import { useEffect, useRef } from "react";
+import { matchShortcut, normalizeKey, shortcutForKey } from "./shortcutRegistry";
+import { eventHasModifier, type ShortcutModifier } from "./useShortcutMode";
 
 /**
  * The ONE keyboard router for plain keys. Behaviour depends on the chosen
@@ -60,7 +60,7 @@ export function useKeyDispatcher(deps: DispatcherDeps) {
   useEffect(() => {
     const isTyping = () => {
       const a = document.activeElement as HTMLElement | null;
-      return !!a && (a.tagName === 'INPUT' || a.tagName === 'TEXTAREA' || a.isContentEditable);
+      return !!a && (a.tagName === "INPUT" || a.tagName === "TEXTAREA" || a.isContentEditable);
     };
 
     const onKeyDown = (e: KeyboardEvent) => {
@@ -71,8 +71,12 @@ export function useKeyDispatcher(deps: DispatcherDeps) {
       // (The bare key speed-edits, below. Only applies to keys that are both a
       //  slider key and a shortcut. Matched on the physical key, since e.g.
       //  ⌥E on a Mac reports a dead key rather than "e".)
-      const physical = /^(Key[A-Z]|Digit\d)$/.test(e.code ?? '');
-      if (d.shortcutModifier && eventHasModifier(e, d.shortcutModifier) && (physical || e.key.length === 1)) {
+      const physical = /^(Key[A-Z]|Digit\d)$/.test(e.code ?? "");
+      if (
+        d.shortcutModifier &&
+        eventHasModifier(e, d.shortcutModifier) &&
+        (physical || e.key.length === 1)
+      ) {
         const key = normalizeKey(e);
         const sliderId = d.speedEditEnabled ? d.lookupSpeedEdit(key) : null;
         const sc = shortcutForKey(key); // bare-key shortcut owner
@@ -95,7 +99,7 @@ export function useKeyDispatcher(deps: DispatcherDeps) {
       }
 
       // Tab / Escape / arrows are owned by useShiftNavigation & friends.
-      if (e.key === 'Tab' || e.key === 'Escape') return;
+      if (e.key === "Tab" || e.key === "Escape") return;
 
       // Swallow auto-repeat and any other key while a slider hold is active,
       // so a stray keypress can't fire a shortcut mid speed-edit.
@@ -110,7 +114,10 @@ export function useKeyDispatcher(deps: DispatcherDeps) {
       if (e.key.length !== 1 || (e.shiftKey && !shiftedSpeedEdit)) {
         // Non-printable / Shift combos -> registry only.
         const sc = matchShortcut(e);
-        if (sc) { e.preventDefault(); sc.run(); }
+        if (sc) {
+          e.preventDefault();
+          sc.run();
+        }
         return;
       }
 
@@ -205,13 +212,13 @@ export function useKeyDispatcher(deps: DispatcherDeps) {
       }
     };
 
-    window.addEventListener('keydown', onKeyDown);
-    window.addEventListener('keyup', onKeyUp);
-    window.addEventListener('blur', onBlur);
+    window.addEventListener("keydown", onKeyDown);
+    window.addEventListener("keyup", onKeyUp);
+    window.addEventListener("blur", onBlur);
     return () => {
-      window.removeEventListener('keydown', onKeyDown);
-      window.removeEventListener('keyup', onKeyUp);
-      window.removeEventListener('blur', onBlur);
+      window.removeEventListener("keydown", onKeyDown);
+      window.removeEventListener("keyup", onKeyUp);
+      window.removeEventListener("blur", onBlur);
     };
   }, []);
 }

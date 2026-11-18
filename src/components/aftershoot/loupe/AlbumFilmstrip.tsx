@@ -1,8 +1,13 @@
 import { useEffect, useRef, useState } from "react";
 import { CULL_IMAGES, photoUrl } from "../cull-data";
 import { ratingColorHex } from "../rating";
+import { useAlbumHistoryContext } from "../history/album-history";
+import { cropAspect, cropOf } from "./crop-config";
+import { CroppedPhoto } from "./CroppedPhoto";
 
-// Horizontal filmstrip of all images in the album. Selected tile outlined
+// Horizontal filmstrip of all images in the album, Lightroom style: every
+// thumbnail is the same height and as wide as its photo's (cropped) shape, so
+// a square crop is narrow and a 16:9 crop is wide. Selected tile outlined
 // white; clicking a tile switches the loupe to that image. Height is
 // drag-resizable via the grab handle on its top edge (double-click resets).
 // Top edge keeps generous breathing room; the bottom edge is tight so the
@@ -10,7 +15,9 @@ import { ratingColorHex } from "../rating";
 const TOP_PAD = 10;
 const BOTTOM_PAD = 10; // room for the thin horizontal scrollbar
 const DEFAULT_HEIGHT = 108;
-const MIN_HEIGHT = 40;
+// Floor: below this, portrait thumbnails get thinner than their rating pill
+// and the strip stops reading as photos.
+const MIN_HEIGHT = 80;
 const MAX_HEIGHT = 260;
 
 // The height survives remounts (Loupe ↔ Grid ↔ Survey, CULL ↔ ENHANCE) and is
@@ -41,7 +48,7 @@ export function AlbumFilmstrip({
   const inSet = highlight ? new Set(highlight) : null;
   const scrollerRef = useRef<HTMLDivElement>(null);
   const selectedRef = useRef<HTMLButtonElement>(null);
-  const [stripHeight, setStripHeightState] = useState(() => savedHeight);
+  const [stripHeight, setStripHeightState] = useState(() => Math.max(MIN_HEIGHT, savedHeight));
   const setStripHeight = (h: number) => {
     savedHeight = h;
     setStripHeightState(h);
@@ -56,7 +63,8 @@ export function AlbumFilmstrip({
   const PILL_GAP = cullComplete ? 4 : 0;
   // The image keeps a ~16:10 ratio and scales with the strip height as it's dragged.
   const tileHeight = stripHeight - TOP_PAD - BOTTOM_PAD - PILL_H - PILL_GAP;
-  const tileWidth = Math.round(tileHeight * 1.6);
+  // Crops live in the album history (per image, revert on Undo).
+  const history = useAlbumHistoryContext();
 
   // Keep the current image centred in the strip: smoothly when it changes,
   // instantly on first show and whenever the strip resizes (panel opens,
@@ -84,7 +92,8 @@ export function AlbumFilmstrip({
   }, []);
   useEffect(() => {
     centerSelected("auto");
-  }, [tileWidth]);
+    // Re-centre when the strip height or any crop (tile widths) changes.
+  }, [tileHeight, history?.cursor]);
 
   // Drag the top edge to grow the strip upward / shrink it downward.
   function startResize(e: React.PointerEvent) {
@@ -141,39 +150,45 @@ export function AlbumFilmstrip({
         className="flex h-full items-start justify-start gap-1.5 overflow-x-auto overflow-y-hidden px-2 [scrollbar-color:rgba(255,255,255,0.25)_transparent] [scrollbar-width:thin] [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-white/25 [&::-webkit-scrollbar]:h-1"
         style={{ paddingTop: TOP_PAD, paddingBottom: BOTTOM_PAD }}
       >
-        {Array.from({ length: ALBUM_TILE_COUNT }).map((_, i) => (
-          <button
-            key={i}
-            ref={i === selectedIndex ? selectedRef : undefined}
-            onClick={(e) => onSelect(i, e)}
-            style={{ width: tileWidth }}
-            className="flex shrink-0 flex-col items-center gap-1"
-          >
-            {/* Image placeholder */}
-            <div
-              style={{
-                height: tileHeight,
-                width: tileWidth,
-                backgroundImage: `url(${photoUrl(i, 240)})`,
-              }}
-              className={`rounded-[3px] bg-[#242424] bg-cover bg-center ${
-                i === selectedIndex
-                  ? "outline outline-[1.5px] outline-white"
-                  : inSet?.has(i)
-                    ? "outline outline-[1.5px] -outline-offset-1 outline-white/50"
-                    : "outline outline-1 -outline-offset-1 outline-[#303030]"
-              }`}
-            />
-            {/* Status pill below the image — the image's rating color once
+        {Array.from({ length: ALBUM_TILE_COUNT }).map((_, i) => {
+          const crop = cropOf(history, i);
+          const width = Math.round(tileHeight * cropAspect(crop));
+          return (
+            <button
+              key={i}
+              ref={i === selectedIndex ? selectedRef : undefined}
+              onClick={(e) => onSelect(i, e)}
+              style={{ width }}
+              className="flex shrink-0 flex-col items-center gap-1"
+            >
+              {/* Thumbnail: only the cropped area of the photo, at its shape. */}
+              <div
+                style={{ height: tileHeight, width }}
+                className={`relative overflow-hidden rounded-[3px] bg-[#242424] ${
+                  i === selectedIndex
+                    ? "outline outline-[1.5px] outline-white"
+                    : inSet?.has(i)
+                      ? "outline outline-[1.5px] -outline-offset-1 outline-white/50"
+                      : "outline outline-1 -outline-offset-1 outline-[#303030]"
+                }`}
+              >
+                <CroppedPhoto src={photoUrl(i, 240)} crop={crop} className="h-full w-full" />
+              </div>
+              {/* Status pill below the image — the image's rating color once
                 cull has run, grey/unrated before that. */}
-            {cullComplete && (
-              <span
-                className="h-1 w-7 rounded-full"
-                style={{ backgroundColor: ratingColorHex(tileRating(i)) }}
-              />
-            )}
-          </button>
-        ))}
+              {cullComplete && (
+                <span
+                  className="h-1 rounded-full"
+                  style={{
+                    backgroundColor: ratingColorHex(tileRating(i)),
+                    // Never wider than its thumbnail, so pills don't run together.
+                    width: Math.min(28, width - 8),
+                  }}
+                />
+              )}
+            </button>
+          );
+        })}
       </div>
     </div>
   );

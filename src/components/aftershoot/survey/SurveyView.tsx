@@ -327,11 +327,7 @@ export function SurveyView({
     if (cmd || e.altKey) return;
 
     // Moving to another photo or set closes the preview (as in the prototype).
-    if (
-      peek &&
-      ["Tab", ",", ".", "ArrowLeft", "ArrowRight"].includes(key)
-    )
-      setPeek(false);
+    if (peek && ["Tab", ",", ".", "ArrowLeft", "ArrowRight"].includes(key)) setPeek(false);
 
     // + / - zoom the active photo (in the preview as well as the grid).
     if (key === "+" || key === "=" || key === "-" || key === "_") {
@@ -799,50 +795,50 @@ function SurveyGrid({
     >
       {/* Cells share the area equally and sit edge to edge (2px gap). */}
       <div className="flex min-h-full items-center">
-      <div
-        className="grid w-full content-start"
-        style={{
-          gridTemplateColumns: `repeat(${L.cols}, minmax(0, 1fr))`,
-          gridAutoRows: `${rowH}px`,
-          gap: `${GAP}px`,
-        }}
-      >
-        {frameW > 0 &&
-          members.map((idx) => (
-            <SurveyPane
-              key={idx}
-              id={idx}
-              frameW={frameW}
-              frameH={frameH}
-              isActive={idx === active}
-              rating={ratings.ratingOf(idx)}
-              rated={cullComplete || ratings.ratingOf(idx) > 0}
-              flagged={!!flags[idx]}
-              face={faceScore ? faceScore(idx) : null}
-              view={viewOf(idx)}
-              canRemove={members.length > 1}
-              dragging={dragId === idx}
-              dropTarget={overId === idx && dragId !== null && dragId !== idx}
-              onActivate={() => onActivate(idx)}
-              onOpenInLoupe={() => onOpenInLoupe(idx)}
-              onRemove={() => onRemove(idx)}
-              onRate={(v) => ratings.setRating(idx, v)}
-              onToggleFlag={() => onToggleFlag(idx)}
-              onView={(v) => setViewOf(idx, v)}
-              onDragStart={() => setDragId(idx)}
-              onDragOver={() => setOverId(idx)}
-              onDrop={() => {
-                if (dragId !== null) onReorder(dragId, idx);
-                setDragId(null);
-                setOverId(null);
-              }}
-              onDragEnd={() => {
-                setDragId(null);
-                setOverId(null);
-              }}
-            />
-          ))}
-      </div>
+        <div
+          className="grid w-full content-start"
+          style={{
+            gridTemplateColumns: `repeat(${L.cols}, minmax(0, 1fr))`,
+            gridAutoRows: `${rowH}px`,
+            gap: `${GAP}px`,
+          }}
+        >
+          {frameW > 0 &&
+            members.map((idx) => (
+              <SurveyPane
+                key={idx}
+                id={idx}
+                frameW={frameW}
+                frameH={frameH}
+                isActive={idx === active}
+                rating={ratings.ratingOf(idx)}
+                rated={cullComplete || ratings.ratingOf(idx) > 0}
+                flagged={!!flags[idx]}
+                face={faceScore ? faceScore(idx) : null}
+                view={viewOf(idx)}
+                canRemove={members.length > 1}
+                dragging={dragId === idx}
+                dropTarget={overId === idx && dragId !== null && dragId !== idx}
+                onActivate={() => onActivate(idx)}
+                onOpenInLoupe={() => onOpenInLoupe(idx)}
+                onRemove={() => onRemove(idx)}
+                onRate={(v) => ratings.setRating(idx, v)}
+                onToggleFlag={() => onToggleFlag(idx)}
+                onView={(v) => setViewOf(idx, v)}
+                onDragStart={() => setDragId(idx)}
+                onDragOver={() => setOverId(idx)}
+                onDrop={() => {
+                  if (dragId !== null) onReorder(dragId, idx);
+                  setDragId(null);
+                  setOverId(null);
+                }}
+                onDragEnd={() => {
+                  setDragId(null);
+                  setOverId(null);
+                }}
+              />
+            ))}
+        </div>
       </div>
     </div>
   );
@@ -967,86 +963,86 @@ function SurveyPane({
     >
       {/* The canvas fills the cell; the photo is fitted inside and clipped when zoomed. */}
       <div className="flex min-h-0 flex-1">
-      <div
-        onClick={onClick}
-        onDoubleClick={(e) => {
-          if (e.metaKey || e.ctrlKey) return;
-          onOpenInLoupe();
-        }}
-        onPointerDown={onPointerDown}
-        onPointerMove={onPointerMove}
-        onPointerUp={onPointerUp}
-        onPointerCancel={onPointerUp}
-        className={`relative flex min-w-0 flex-1 items-center justify-center overflow-hidden bg-[#1b1b1b] ${
-          !isActive
-            ? "cursor-pointer"
-            : zoomed
-              ? panning
-                ? "cursor-grabbing"
-                : "cursor-grab"
-              : "cursor-zoom-in"
-        }`}
-      >
         <div
-          ref={frameRef}
-          data-frame
-          style={{ width: frameW, height: frameH }}
-          className="relative shrink-0"
+          onClick={onClick}
+          onDoubleClick={(e) => {
+            if (e.metaKey || e.ctrlKey) return;
+            onOpenInLoupe();
+          }}
+          onPointerDown={onPointerDown}
+          onPointerMove={onPointerMove}
+          onPointerUp={onPointerUp}
+          onPointerCancel={onPointerUp}
+          className={`relative flex min-w-0 flex-1 items-center justify-center overflow-hidden bg-[#1b1b1b] ${
+            !isActive
+              ? "cursor-pointer"
+              : zoomed
+                ? panning
+                  ? "cursor-grabbing"
+                  : "cursor-grab"
+                : "cursor-zoom-in"
+          }`}
         >
-          <img
-            src={photoUrl(id, 1200)}
-            alt={imgName(id)}
-            draggable={false}
-            style={{
-              transform: `translate(${view.x * frameW}px, ${view.y * frameH}px) scale(${view.zoom / 100})`,
-              transition: panning ? "none" : "transform 120ms ease-out",
-            }}
-            className="pointer-events-none h-full w-full select-none object-cover"
-          />
-        </div>
-
-        {flagged && (
-          <span className="pointer-events-none absolute left-1.5 top-1.5 flex h-5 w-5 items-center justify-center rounded bg-black/60 text-white">
-            <Flag className="h-3 w-3 fill-current" strokeWidth={1.75} />
-          </span>
-        )}
-        {/* While zoomed to a key face: that face's eyes / focus score. */}
-        {face && (
-          <span
-            role="status"
-            aria-label={`Eyes ${face.eyesOpen ? "open" : "closed"}, ${FOCUS_LABEL[face.focus].toLowerCase()}`}
-            className={`pointer-events-none absolute top-1.5 flex items-center gap-1.5 rounded-md bg-[#161616]/90 px-1.5 py-1 ${
-              flagged ? "left-9" : "left-1.5"
-            }`}
+          <div
+            ref={frameRef}
+            data-frame
+            style={{ width: frameW, height: frameH }}
+            className="relative shrink-0"
           >
-            {face.eyesOpen ? (
-              <Eye className="h-4 w-4 text-[#4cc38a]" strokeWidth={1.75} />
-            ) : (
-              <EyeOff className="h-4 w-4 text-[#e2c044]" strokeWidth={1.75} />
-            )}
-            <span
-              className="h-2 w-2 rounded-full"
-              style={{ backgroundColor: FOCUS_COLOR[face.focus] }}
-            />
-          </span>
-        )}
-        {canRemove && (
-          <IconTooltip label="Hide from view" shortcut={["⌘", "Click"]} side="bottom">
-            <button
-              type="button"
-              aria-label={`Remove ${imgName(id)} from view`}
-              onClick={(e) => {
-                e.stopPropagation();
-                onRemove();
+            <img
+              src={photoUrl(id, 1200)}
+              alt={imgName(id)}
+              draggable={false}
+              style={{
+                transform: `translate(${view.x * frameW}px, ${view.y * frameH}px) scale(${view.zoom / 100})`,
+                transition: panning ? "none" : "transform 120ms ease-out",
               }}
-              onPointerDown={(e) => e.stopPropagation()}
-              className="absolute right-1.5 top-1.5 hidden h-6 w-6 items-center justify-center rounded bg-black/60 text-neutral-200 hover:bg-black/80 group-hover:flex"
+              className="pointer-events-none h-full w-full select-none object-cover"
+            />
+          </div>
+
+          {flagged && (
+            <span className="pointer-events-none absolute left-1.5 top-1.5 flex h-5 w-5 items-center justify-center rounded bg-black/60 text-white">
+              <Flag className="h-3 w-3 fill-current" strokeWidth={1.75} />
+            </span>
+          )}
+          {/* While zoomed to a key face: that face's eyes / focus score. */}
+          {face && (
+            <span
+              role="status"
+              aria-label={`Eyes ${face.eyesOpen ? "open" : "closed"}, ${FOCUS_LABEL[face.focus].toLowerCase()}`}
+              className={`pointer-events-none absolute top-1.5 flex items-center gap-1.5 rounded-md bg-[#161616]/90 px-1.5 py-1 ${
+                flagged ? "left-9" : "left-1.5"
+              }`}
             >
-              <X className="h-3.5 w-3.5" strokeWidth={2} />
-            </button>
-          </IconTooltip>
-        )}
-      </div>
+              {face.eyesOpen ? (
+                <Eye className="h-4 w-4 text-[#4cc38a]" strokeWidth={1.75} />
+              ) : (
+                <EyeOff className="h-4 w-4 text-[#e2c044]" strokeWidth={1.75} />
+              )}
+              <span
+                className="h-2 w-2 rounded-full"
+                style={{ backgroundColor: FOCUS_COLOR[face.focus] }}
+              />
+            </span>
+          )}
+          {canRemove && (
+            <IconTooltip label="Hide from view" shortcut={["⌘", "Click"]} side="bottom">
+              <button
+                type="button"
+                aria-label={`Remove ${imgName(id)} from view`}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onRemove();
+                }}
+                onPointerDown={(e) => e.stopPropagation()}
+                className="absolute right-1.5 top-1.5 hidden h-6 w-6 items-center justify-center rounded bg-black/60 text-neutral-200 hover:bg-black/80 group-hover:flex"
+              >
+                <X className="h-3.5 w-3.5" strokeWidth={2} />
+              </button>
+            </IconTooltip>
+          )}
+        </div>
       </div>
 
       {/* Under the photo: name on the left (drag handle), rating + flag right. */}

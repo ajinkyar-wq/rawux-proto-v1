@@ -382,11 +382,7 @@ function NameStep({
 
       <div className="mt-5 flex items-center gap-10">
         <span className="text-[16px] text-white">Profile Type</span>
-        <Radio
-          label="RAW"
-          checked={profileType === "RAW"}
-          onChange={() => onProfileType("RAW")}
-        />
+        <Radio label="RAW" checked={profileType === "RAW"} onChange={() => onProfileType("RAW")} />
         <Radio
           label="JPEG"
           checked={profileType === "JPEG"}

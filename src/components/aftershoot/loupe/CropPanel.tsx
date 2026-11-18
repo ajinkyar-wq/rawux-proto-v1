@@ -12,7 +12,9 @@ import { Section } from "./EditPanel";
 import { GradientSlider } from "./slider-primitives";
 import { useHistoryChoice, useHistorySlider } from "../history/album-history";
 
-const ASPECTS = ["Original", "Free", "1:1", "3:2", "4:3", "16:9"];
+import { CROP_ASPECTS } from "./crop-config";
+
+const ASPECTS: string[] = [...CROP_ASPECTS];
 const toDegrees = (pos: number) => ((pos - 50) / 50) * 45;
 
 export function CropPanel() {

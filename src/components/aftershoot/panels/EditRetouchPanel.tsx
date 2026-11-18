@@ -23,9 +23,13 @@ export function EditRetouchPanel({
   const [retouchOpen, setRetouchOpen] = useState(true);
   return (
     <div className="-mr-2 flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto pr-2">
-      <EditingSection status={editStatus} onRunEdit={onRunEdit}
+      <EditingSection
+        status={editStatus}
+        onRunEdit={onRunEdit}
         onBrowseProfiles={onBrowseProfiles}
-        withProfile withTools={withTools} />
+        withProfile
+        withTools={withTools}
+      />
       <div className="-mx-3 h-px shrink-0 bg-white/5" />
       <section className="flex shrink-0 flex-col gap-3">
         <SectionToggle

@@ -48,13 +48,7 @@ function ModalHeader({ title, onClose }: { title: string; onClose: () => void })
   );
 }
 
-export function PrimaryButton({
-  label,
-  onClick,
-}: {
-  label: string;
-  onClick: () => void;
-}) {
+export function PrimaryButton({ label, onClick }: { label: string; onClick: () => void }) {
   return (
     <button
       onClick={onClick}

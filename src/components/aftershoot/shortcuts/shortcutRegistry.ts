@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect } from "react";
 
 /**
  * Global app-shortcut registry.
@@ -15,8 +15,8 @@ import { useEffect } from 'react';
  */
 
 export interface Combo {
-  key: string;        // normalized: lowercase char ('r', '1') or e.key for non-printables ('arrowleft', 'f1')
-  mod?: boolean;      // Cmd on macOS / Ctrl elsewhere
+  key: string; // normalized: lowercase char ('r', '1') or e.key for non-printables ('arrowleft', 'f1')
+  mod?: boolean; // Cmd on macOS / Ctrl elsewhere
   shift?: boolean;
   alt?: boolean;
 }
@@ -25,7 +25,7 @@ export interface Shortcut {
   id: string;
   combo: Combo;
   label: string;
-  section: string;    // 'Edit' | 'View' | 'Mode' | 'Navigation' | 'Tool' | ...
+  section: string; // 'Edit' | 'View' | 'Mode' | 'Navigation' | 'Tool' | ...
   run: () => void;
 }
 
@@ -37,15 +37,15 @@ const registry = new Map<string, Shortcut>();
  * { key: '1', shift: true } matches what the user actually pressed.
  */
 export function normalizeKey(e: KeyboardEvent): string {
-  if (e.code && e.code.startsWith('Digit')) return e.code.slice(5); // 'Digit1' -> '1'
-  if (e.code && e.code.startsWith('Key')) return e.code.slice(3).toLowerCase(); // layout-stable letters
+  if (e.code && e.code.startsWith("Digit")) return e.code.slice(5); // 'Digit1' -> '1'
+  if (e.code && e.code.startsWith("Key")) return e.code.slice(3).toLowerCase(); // layout-stable letters
   return e.key.toLowerCase();
 }
 
 function comboId(c: Combo): string {
-  return [c.mod ? 'mod' : '', c.shift ? 'shift' : '', c.alt ? 'alt' : '', c.key.toLowerCase()]
+  return [c.mod ? "mod" : "", c.shift ? "shift" : "", c.alt ? "alt" : "", c.key.toLowerCase()]
     .filter(Boolean)
-    .join('+');
+    .join("+");
 }
 
 function comboFromEvent(e: KeyboardEvent): string {
@@ -63,7 +63,9 @@ export function registerShortcuts(shortcuts: Shortcut[]): () => void {
     const id = comboId(s.combo);
     if (registry.has(id) && registry.get(id)!.id !== s.id) {
       // Surface duplicate registrations during development.
-      console.warn(`[shortcuts] combo "${id}" re-registered: "${registry.get(id)!.id}" -> "${s.id}"`);
+      console.warn(
+        `[shortcuts] combo "${id}" re-registered: "${registry.get(id)!.id}" -> "${s.id}"`,
+      );
     }
     registry.set(id, s);
     ids.push(id);

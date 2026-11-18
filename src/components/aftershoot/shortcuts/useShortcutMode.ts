@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState } from "react";
 
 /**
  * Three shortcut UX prototypes, chosen on the entry screen. In all three an
@@ -10,14 +10,14 @@ import { useEffect, useState } from 'react';
  *  'speedToggle' (Double-Press) — single press = slider, double press = shortcut.
  *  'modifier'    (Hold Modifier) — bare key = slider, modifier + key = shortcut.
  */
-export type ShortcutMode = 'hold' | 'speedToggle' | 'modifier';
+export type ShortcutMode = "hold" | "speedToggle" | "modifier";
 
-const STORAGE_KEY = 'editor.shortcutMode.v1';
+const STORAGE_KEY = "editor.shortcutMode.v1";
 
 export function readShortcutMode(): ShortcutMode | null {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
-    if (raw === 'hold' || raw === 'speedToggle' || raw === 'modifier') return raw;
+    if (raw === "hold" || raw === "speedToggle" || raw === "modifier") return raw;
   } catch {
     /* ignore */
   }
@@ -30,25 +30,25 @@ export function readShortcutMode(): ShortcutMode | null {
  * speed-edits and MODIFIER+key runs the shortcut. The modifier is chosen by
  * the user at the top of Speed Edit Keys.
  */
-export type ShortcutModifier = 'alt' | 'ctrl' | 'shift' | 'meta';
+export type ShortcutModifier = "alt" | "ctrl" | "shift" | "meta";
 
-const MODIFIER_KEY = 'editor.shortcutModifier.v1';
+const MODIFIER_KEY = "editor.shortcutModifier.v1";
 
 export const MODIFIER_LABELS: Record<ShortcutModifier, string> = {
-  alt: 'Alt / Option',
-  ctrl: 'Ctrl',
-  shift: 'Shift',
-  meta: '⌘ / Win',
+  alt: "Alt / Option",
+  ctrl: "Ctrl",
+  shift: "Shift",
+  meta: "⌘ / Win",
 };
 
 export function readShortcutModifier(): ShortcutModifier {
   try {
     const raw = localStorage.getItem(MODIFIER_KEY);
-    if (raw === 'alt' || raw === 'ctrl' || raw === 'shift' || raw === 'meta') return raw;
+    if (raw === "alt" || raw === "ctrl" || raw === "shift" || raw === "meta") return raw;
   } catch {
     /* ignore */
   }
-  return 'alt';
+  return "alt";
 }
 
 export function writeShortcutModifier(m: ShortcutModifier) {
@@ -57,16 +57,20 @@ export function writeShortcutModifier(m: ShortcutModifier) {
   } catch {
     /* ignore */
   }
-  window.dispatchEvent(new CustomEvent('shortcutModifierChanged', { detail: m }));
+  window.dispatchEvent(new CustomEvent("shortcutModifierChanged", { detail: m }));
 }
 
 /** True if the event carries the chosen modifier (and not typing). */
 export function eventHasModifier(e: KeyboardEvent, m: ShortcutModifier): boolean {
   switch (m) {
-    case 'alt': return e.altKey;
-    case 'ctrl': return e.ctrlKey;
-    case 'shift': return e.shiftKey;
-    case 'meta': return e.metaKey;
+    case "alt":
+      return e.altKey;
+    case "ctrl":
+      return e.ctrlKey;
+    case "shift":
+      return e.shiftKey;
+    case "meta":
+      return e.metaKey;
   }
 }
 
@@ -78,8 +82,8 @@ export function useShortcutModifier(): ShortcutModifier {
       const d = (e as CustomEvent).detail as ShortcutModifier | undefined;
       if (d) setM(d);
     };
-    window.addEventListener('shortcutModifierChanged', onChange);
-    return () => window.removeEventListener('shortcutModifierChanged', onChange);
+    window.addEventListener("shortcutModifierChanged", onChange);
+    return () => window.removeEventListener("shortcutModifierChanged", onChange);
   }, []);
   return m;
 }
@@ -97,8 +101,8 @@ export function useShortcutMode(): ShortcutMode | null {
   const [mode, setMode] = useState<ShortcutMode | null>(readShortcutMode);
   useEffect(() => {
     const onStorage = () => setMode(readShortcutMode());
-    window.addEventListener('storage', onStorage);
-    return () => window.removeEventListener('storage', onStorage);
+    window.addEventListener("storage", onStorage);
+    return () => window.removeEventListener("storage", onStorage);
   }, []);
   return mode;
 }
