@@ -1,7 +1,9 @@
 import { SliderScopeContext, useHistoryChoice, useHistorySlider } from "../history/album-history";
 import { useEffect, useRef, useState } from "react";
-import { ArrowCounterClockwise, CaretDown, Eye } from "@phosphor-icons/react";
-import { GradientSlider, SliderRow, type Gradient } from "./slider-primitives";
+import { ArrowCounterClockwise, CaretDown, Eye, Eyedropper } from "@phosphor-icons/react";
+import { IconTooltip } from "../IconTooltip";
+import { useWbPickerActive, wbPicker } from "./wb-picker";
+import { GradientSlider, ResetLabel, SliderRow, type Gradient } from "./slider-primitives";
 import { ToneCurve } from "./ToneCurve";
 import { FlyoutPanel, useFlyout } from "./Flyout";
 import { useFlag } from "../feature-flags";
@@ -16,7 +18,8 @@ import {
 } from "./BrowsePanels";
 
 const COLOR_PROFILES = ["Adobe Portrait", "Adobe Standard", "Adobe Vivid", "Camera Standard"];
-const WB_PROFILES = ["As Shot", "Auto", "Daylight", "Cloudy", "Shade", "Tungsten"];
+// "Custom" (last, so stored indices don't shift) is set by the eyedropper.
+const WB_PROFILES = ["As Shot", "Auto", "Daylight", "Cloudy", "Shade", "Tungsten", "Custom"];
 
 export function EditPanel() {
   const [preset, setPreset] = useHistoryChoice("Preset", PRESET_NAMES, "Cinematic C1");
@@ -33,15 +36,14 @@ export function EditPanel() {
 
   return (
     <div className="flex flex-col gap-3">
-      {/* EDIT: Color Profile dropdown, then the applied AI Profile and
-          Preset as underlined links (click to change). */}
+      {/* Color Profile dropdown, then the applied AI Profile and Preset as
+          underlined links (click to change). No header: the Histogram sits
+          right above these rows. */}
       <section className="flex flex-col gap-3 pb-1">
-        <h2 className="text-[11px] font-semibold uppercase tracking-wider text-neutral-300">
-          Edit
-        </h2>
         <InlineSelectRow
           label="Color Profile"
           value={colorProfile}
+          defaultValue="Adobe Portrait"
           options={COLOR_PROFILES}
           onChange={setColorProfile}
         />
@@ -77,8 +79,15 @@ export function EditPanel() {
 
       <Section title="White Balance">
         <WBProfileRow />
-        <SliderRow label="Temperature" gradient="temperature" initial={50} max={10000} />
-        <SliderRow label="Tint" gradient="tint" initial={55} />
+        {/* As Shot: 5000K / +10 — what Reset / double-click go back to. */}
+        <SliderRow
+          label="Temperature"
+          gradient="temperature"
+          initial={50}
+          asShot={50}
+          max={10000}
+        />
+        <SliderRow label="Tint" gradient="tint" initial={55} asShot={55} />
       </Section>
 
       <Section title="Light">
@@ -172,9 +181,12 @@ export function InlineSelectRow({
   labelUppercase = false,
   variant = "select",
   browse,
+  defaultValue,
 }: {
   label: string;
   value: string;
+  /** Off this value, hovering the label offers "Reset" back to it. */
+  defaultValue?: string;
   options: string[];
   onChange: (v: string) => void;
   labelUppercase?: boolean;
@@ -209,13 +221,14 @@ export function InlineSelectRow({
 
   return (
     <div className="flex items-center justify-between gap-2">
-      <span
-        className={`text-[12px] text-neutral-400 ${
+      <ResetLabel
+        label={label}
+        canReset={defaultValue !== undefined && value !== defaultValue}
+        onReset={() => defaultValue !== undefined && onChange(defaultValue)}
+        textClassName={`text-neutral-400 ${
           labelUppercase ? "font-semibold uppercase tracking-wider" : ""
         }`}
-      >
-        {label}
-      </span>
+      />
       <div ref={ref} className="relative">
         <button
           type="button"
@@ -293,7 +306,43 @@ export function InlineSelectRow({
 
 function WBProfileRow() {
   const [wb, setWb] = useHistoryChoice("WB Profile", WB_PROFILES, "As Shot");
-  return <InlineSelectRow label="WB Profile" value={wb} options={WB_PROFILES} onChange={setWb} />;
+  const picking = useWbPickerActive();
+  // Leaving the panel (tool / image switch) ends picking.
+  useEffect(() => () => wbPicker.stop(), []);
+  useEffect(() => {
+    if (!picking) return;
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && wbPicker.stop();
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [picking]);
+  return (
+    <div className="flex items-center gap-2">
+      <div className="min-w-0 flex-1">
+        <InlineSelectRow
+          label="WB Profile"
+          value={wb}
+          options={WB_PROFILES}
+          onChange={setWb}
+          defaultValue="As Shot"
+        />
+      </div>
+      <IconTooltip label={picking ? "Cancel white balance picker" : "White balance picker"}>
+        <button
+          type="button"
+          aria-label="White balance picker"
+          aria-pressed={picking}
+          onClick={() => (picking ? wbPicker.stop() : wbPicker.start(() => setWb("Custom")))}
+          className={`rounded p-0.5 ${
+            picking
+              ? "bg-white/10 text-white"
+              : "text-neutral-400 hover:bg-white/5 hover:text-white"
+          }`}
+        >
+          <Eyedropper size={16} weight="light" />
+        </button>
+      </IconTooltip>
+    </div>
+  );
 }
 
 /* ----------------- Section / Subsection ----------------- */
@@ -419,24 +468,10 @@ function ColorMixer() {
   );
 }
 
+// Same history key and readout as before, now via SliderRow so it gets the
+// shared slider interactions (hover focus, Reset label, double-click, ↑/↓).
 function MixerRow({ label, gradient }: { label: string; gradient: Gradient }) {
-  const fmt = (v: number) => {
-    const d = Math.round(((v - 50) / 50) * 100);
-    return d > 0 ? `+${d}` : String(d);
-  };
-  const { value, onChange, onCommit } = useHistorySlider(label, 50, fmt);
-  const display = Math.round(((value - 50) / 50) * 100);
-  return (
-    <div className="flex items-center">
-      <span className="w-[106px] shrink-0 truncate text-[12px] text-[#777]">{label}</span>
-      <div className="flex-1">
-        <GradientSlider value={value} onChange={onChange} onCommit={onCommit} gradient={gradient} />
-      </div>
-      <span className="w-9 shrink-0 text-right text-[12px] font-medium tabular-nums text-[#777]">
-        {display > 0 ? `+${display}` : display}
-      </span>
-    </div>
-  );
+  return <SliderRow label={label} gradient={gradient} />;
 }
 
 /* ----------------- Color Grading ----------------- */

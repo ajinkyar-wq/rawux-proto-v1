@@ -603,6 +603,9 @@ export function useHistoryValues<K extends string>(
   const scope = useContext(SliderScopeContext);
   const [local, setLocal] = useState(initial);
   const start = useRef<Record<K, number | undefined> | null>(null);
+  // What the control showed when the gesture began (stored or default). The
+  // default can itself depend on live values, so it's captured, not re-read.
+  const startShown = useRef<Record<K, number> | null>(null);
   const live = !!history && !!where;
   const fields = Object.keys(initial) as K[];
   const keyOf = (f: K) => (where ? sliderKey(where.tool, scope, `${label}.${f}`) : "");
@@ -616,21 +619,24 @@ export function useHistoryValues<K extends string>(
   const onChange = (next: Record<K, number>) => {
     latest.current = next;
     if (!live) return setLocal(next);
-    if (!start.current)
+    if (!start.current) {
       start.current = Object.fromEntries(fields.map((f) => [f, storedOf(f)])) as Record<
         K,
         number | undefined
       >;
+      startShown.current = { ...value };
+    }
     fields.forEach((f) => history.setLive(where.image, keyOf(f), next[f]));
   };
 
   const onCommit = () => {
     const s = start.current;
+    const shown = startShown.current;
     start.current = null;
-    if (!live || !s) return;
+    startShown.current = null;
+    if (!live || !s || !shown) return;
     const end = latest.current;
-    if (fields.every((f) => Math.round((s[f] ?? initial[f]) * 10) === Math.round(end[f] * 10)))
-      return;
+    if (fields.every((f) => Math.round(shown[f] * 10) === Math.round(end[f] * 10))) return;
     history.record({
       kind: "change",
       op: sliderOp(scope, label),

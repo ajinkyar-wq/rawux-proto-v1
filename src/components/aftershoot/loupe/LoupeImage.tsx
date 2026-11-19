@@ -1,13 +1,21 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { photoUrl } from "../cull-data";
+import type { CropRect } from "./crop-config";
 
 // Loupe canvas. `zoom` (0-100) scales the image from fit (1x) up to 3x.
 //
 // The frame is sized to the photo's own aspect ratio (fitted inside the
 // canvas), so there are no letterbox bars beside or above the photo, and the
 // overlay (e.g. the crop box) lines up with the photo itself.
+//
+// With `crop`, the frame takes the crop's shape and shows only that part of
+// the photo (the applied crop). Without it, the whole photo is shown — used
+// while the Crop tool is open so the crop box can be adjusted.
 export function LoupeImage({
   image,
+  rotation = 0,
+  cropBox,
+  crop,
   overlay,
   canvasOverlay,
   zoom = 0,
@@ -18,6 +26,16 @@ export function LoupeImage({
   badge,
 }: {
   image: number;
+  /** Straightening angle in degrees (photo rotates inside the frame). */
+  rotation?: number;
+  /**
+   * Crop tool open: the level crop box (in % of the full photo). The frame
+   * doesn't clip, so the rotated photo and the box's edge handles stay
+   * visible around it.
+   */
+  cropBox?: CropRect;
+  /** Applied crop, in % of the photo. Omit to show the full photo. */
+  crop?: CropRect;
   overlay?: React.ReactNode;
   /** Rendered over the canvas area (not the photo) — unaffected by zoom. */
   canvasOverlay?: React.ReactNode;
@@ -55,10 +73,12 @@ export function LoupeImage({
     return () => ro.disconnect();
   }, []);
 
-  // Largest frame with the photo's aspect that fits the canvas.
-  const fitW = Math.min(box.w, box.h * aspect);
-  const fitH = fitW / aspect;
-  const fitPercent = naturalW > 0 ? (fitW / naturalW) * 100 : 100;
+  // Largest frame with the (cropped) photo's aspect that fits the canvas.
+  const frameAspect = crop ? (crop.w / crop.h) * aspect : aspect;
+  const frameNaturalW = crop ? (naturalW * crop.w) / 100 : naturalW;
+  const fitW = Math.min(box.w, box.h * frameAspect);
+  const fitH = fitW / frameAspect;
+  const fitPercent = frameNaturalW > 0 ? (fitW / frameNaturalW) * 100 : 100;
   const scale =
     actualZoom != null && fitPercent > 0 ? actualZoom / fitPercent : 1 + (zoom / 100) * 2;
 
@@ -176,21 +196,42 @@ export function LoupeImage({
       className="relative flex min-h-0 flex-1 items-center justify-center overflow-hidden bg-[#1c1c1c] p-4"
     >
       <div
-        className="relative shrink-0 overflow-hidden rounded-sm"
+        className={`relative shrink-0 ${cropBox ? "" : "overflow-hidden"}`}
         style={{ width: fitW, height: fitH, transform: `scale(${scale})` }}
       >
-        <img
-          src={photoUrl(image, 1600)}
-          alt=""
-          onLoad={(e) => {
-            const { naturalWidth: w, naturalHeight: h } = e.currentTarget;
-            if (w && h) {
-              setAspect(w / h);
-              setNaturalW(w);
-            }
+        {/* The whole photo, placed so the frame shows the crop, rotated about
+            the photo's own centre at its normal size (never zoomed). The crop
+            is already constrained to the rotated photo, so no empty corners
+            show through the frame. */}
+        <div
+          className="absolute"
+          style={{
+            ...(crop
+              ? {
+                  width: `${(100 / crop.w) * 100}%`,
+                  height: `${(100 / crop.h) * 100}%`,
+                  left: `${(-crop.x / crop.w) * 100}%`,
+                  top: `${(-crop.y / crop.h) * 100}%`,
+                }
+              : { inset: 0 }),
+            ...(rotation
+              ? { transform: `rotate(${rotation}deg)`, transition: "transform 80ms linear" }
+              : null),
           }}
-          className="absolute inset-0 h-full w-full object-cover"
-        />
+        >
+          <img
+            src={photoUrl(image, 1600)}
+            alt=""
+            onLoad={(e) => {
+              const { naturalWidth: w, naturalHeight: h } = e.currentTarget;
+              if (w && h) {
+                setAspect(w / h);
+                setNaturalW(w);
+              }
+            }}
+            className="absolute inset-0 h-full w-full max-w-none object-cover"
+          />
+        </div>
         {overlay}
       </div>
       {badge}

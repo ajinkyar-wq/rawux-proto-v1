@@ -1,5 +1,10 @@
-import { useRef } from "react";
-import { useHistoryValues } from "../history/album-history";
+import { useContext, useRef } from "react";
+import {
+  SliderHistoryContext,
+  useAlbumHistoryContext,
+  useHistoryValues,
+} from "../history/album-history";
+import { cropOf, fitCropToRotation, straightenOf } from "./crop-config";
 
 // Adjustable crop frame rendered over the loupe image.
 //
@@ -26,12 +31,19 @@ const MIN_SIZE = 10; // percent
 export function CropOverlay() {
   const containerRef = useRef<HTMLDivElement>(null);
   // Crop box lives in the album history: one step per move / resize.
+  // Starts at the photo's current crop (its shape as shot, or a picked aspect
+  // ratio) so the box matches what the canvas showed before opening Crop.
+  const where = useContext(SliderHistoryContext);
+  const history = useAlbumHistoryContext();
+  const current = cropOf(history, where?.image ?? 0);
   const crop = useHistoryValues<keyof Rect>(
     "Crop Box",
-    { x: 18, y: 18, w: 64, h: 64 },
+    current,
     (r) => `${Math.round(r.w)}% × ${Math.round(r.h)}%`,
   );
-  const rect: Rect = crop.value;
+  // Lightroom-style: while straightened, the box shown (and applied) is the
+  // stored box shrunk to fit inside the rotated photo — never empty corners.
+  const rect: Rect = fitCropToRotation(crop.value, straightenOf(history, where?.image ?? 0));
   const setRect = crop.onChange;
   const dragRef = useRef<DragMode | null>(null);
 

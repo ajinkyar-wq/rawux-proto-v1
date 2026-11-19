@@ -9,7 +9,8 @@ import {
 } from "@phosphor-icons/react";
 import { IconTooltip } from "../IconTooltip";
 import { Section } from "./EditPanel";
-import { GradientSlider } from "./slider-primitives";
+import { GradientSlider, ResetLabel } from "./slider-primitives";
+import { useSliderFocus } from "./slider-focus";
 import { useHistoryChoice, useHistorySlider } from "../history/album-history";
 
 import { CROP_ASPECTS } from "./crop-config";
@@ -29,7 +30,10 @@ export function CropPanel() {
   return (
     <div className="flex flex-col gap-3">
       <Section title="Crop" first>
-        <Row label="Aspect Ratio">
+        <Row
+          label="Aspect Ratio"
+          reset={{ canReset: aspect !== "Original", onReset: () => setAspect("Original") }}
+        >
           <InlineDropdown value={aspect} onSelect={setAspect} options={ASPECTS} />
           <IconTooltip label="Switch orientation">
             <button
@@ -41,19 +45,12 @@ export function CropPanel() {
           </IconTooltip>
         </Row>
 
-        <div className="flex items-center">
-          <span className="w-[106px] shrink-0 truncate text-[12px] text-[#777]">Straightening</span>
-          <div className="flex-1">
-            <GradientSlider
-              value={straighten.value}
-              onChange={straighten.onChange}
-              onCommit={straighten.onCommit}
-            />
-          </div>
-          <span className="w-9 shrink-0 text-right text-[12px] font-medium tabular-nums text-[#777]">
-            {degrees.toFixed(2)}
-          </span>
-        </div>
+        <StraightenRow
+          value={straighten.value}
+          onChange={straighten.onChange}
+          onCommit={straighten.onCommit}
+          degrees={degrees}
+        />
 
         <Row label="Crop Overlay">
           <InlineDropdown
@@ -85,10 +82,25 @@ export function CropPanel() {
   );
 }
 
-function Row({ label, children }: { label: string; children: React.ReactNode }) {
+function Row({
+  label,
+  children,
+  reset,
+}: {
+  label: string;
+  children: React.ReactNode;
+  /** Dropdown off its default: hovering the label offers "Reset". */
+  reset?: { canReset: boolean; onReset: () => void };
+}) {
   return (
     <div className="flex items-center">
-      <span className="w-[106px] shrink-0 text-[12px] text-[#777]">{label}</span>
+      <ResetLabel
+        label={label}
+        canReset={!!reset?.canReset}
+        onReset={() => reset?.onReset()}
+        width={106}
+        textClassName="text-[#777]"
+      />
       <div className="flex flex-1 items-center justify-end">{children}</div>
     </div>
   );
@@ -168,6 +180,66 @@ function InlineDropdown({
           ))}
         </div>
       )}
+    </div>
+  );
+}
+
+// Straightening row with the shared slider interactions: hover focus, the
+// label turns into "Reset" when angled, double-click resets, ↑/↓ nudge.
+// Reset = 0° (slider centre).
+function StraightenRow({
+  value,
+  onChange,
+  onCommit,
+  degrees,
+}: {
+  value: number;
+  onChange: (v: number) => void;
+  onCommit: () => void;
+  degrees: number;
+}) {
+  const rowRef = useRef<HTMLDivElement>(null);
+  const moved = Math.abs(value - 50) >= 0.01;
+  const reset = () => {
+    if (!moved) return;
+    onChange(50);
+    onCommit();
+  };
+  const focus = useSliderFocus(rowRef, (dir, big) => {
+    // 0.1° per press, 1° with Shift (slider units: 50 = 45°).
+    const next = Math.max(0, Math.min(100, value + dir * ((big ? 1 : 0.1) / 45) * 50));
+    onChange(next);
+    onCommit();
+  });
+  const text = focus.focused ? "text-[#e2e2e2]" : "text-[#777]";
+  return (
+    <div
+      ref={rowRef}
+      data-slider-row
+      onMouseEnter={focus.onMouseEnter}
+      onMouseLeave={focus.onMouseLeave}
+      className="flex items-center"
+    >
+      <ResetLabel
+        label="Straightening"
+        canReset={focus.focused && moved}
+        onReset={reset}
+        width={106}
+        textClassName={text}
+      />
+      <div className="flex-1">
+        <GradientSlider
+          value={value}
+          onChange={onChange}
+          onCommit={onCommit}
+          focused={focus.focused}
+          onReset={reset}
+          isDefault={!moved}
+        />
+      </div>
+      <span className={`w-9 shrink-0 text-right text-[12px] font-medium tabular-nums ${text}`}>
+        {degrees.toFixed(2)}
+      </span>
     </div>
   );
 }

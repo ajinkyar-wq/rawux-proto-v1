@@ -4,7 +4,14 @@ import { dupId, duplicateCount, photoName } from "../duplicates";
 import { DuplicatesStrip } from "../DuplicatesStrip";
 import { AlbumFilmstrip } from "./AlbumFilmstrip";
 import { CropOverlay } from "./CropOverlay";
-import { SliderHistoryContext, SliderScopeContext } from "../history/album-history";
+import {
+  SliderHistoryContext,
+  SliderScopeContext,
+  sliderKey,
+  useAlbumHistoryContext,
+} from "../history/album-history";
+import { effectiveCropOf, straightenOf } from "./crop-config";
+import { useWbPickerActive, wbPicker } from "./wb-picker";
 import { BrushToolbar } from "./BrushToolbar";
 import { ImageInfoCard } from "./ImageInfoCard";
 import { LoupeImage } from "./LoupeImage";
@@ -113,6 +120,9 @@ export function LoupeView({
     if (actualZoom !== null) lastZoomRef.current = actualZoom;
   }, [actualZoom]);
   const [showAfter, setShowAfter] = useState(true);
+  // Crops live in the album history (per image, revert on Undo).
+  const history = useAlbumHistoryContext();
+  const wbPicking = useWbPickerActive();
   const handleMetrics = useCallback((m: { fitPercent: number }) => setFitPercent(m.fitPercent), []);
   const [showDuplicates, setShowDuplicates] = useState(true);
   // The right side panel collapses when you click the already-active rail icon
@@ -263,6 +273,16 @@ export function LoupeView({
         {viewBar}
         <LoupeImage
           image={selectedIndex}
+          // The applied crop — except while the Crop tool is open (full photo
+          // + crop box to adjust) and in the Before view (the original).
+          crop={
+            activeRail === "crop" || !showAfter
+              ? undefined
+              : effectiveCropOf(history, selectedIndex)
+          }
+          cropBox={activeRail === "crop" ? effectiveCropOf(history, selectedIndex) : undefined}
+          // Straightening (Crop panel; 0–100 slider, centre = 0°, ±45°).
+          rotation={showAfter ? straightenOf(history, selectedIndex) : 0}
           actualZoom={actualZoom}
           onMetrics={handleMetrics}
           onActualZoomChange={setActualZoom}
@@ -276,11 +296,6 @@ export function LoupeView({
                   Before
                 </span>
               )}
-              {cullDone && dupTotal > 1 && (
-                <span className="pointer-events-none absolute right-6 top-6 rounded bg-black/60 px-2 py-0.5 text-[11px] font-medium text-white">
-                  Duplicate {dupIndex + 1} of {dupTotal}
-                </span>
-              )}
             </>
           }
           overlay={
@@ -290,6 +305,14 @@ export function LoupeView({
                   <CropOverlay />
                 </SliderScopeContext.Provider>
               </SliderHistoryContext.Provider>
+            ) : wbPicking ? (
+              // White balance eyedropper: click a neutral spot on the photo.
+              <button
+                type="button"
+                aria-label="Pick white balance from the photo"
+                onClick={() => wbPicker.pick()}
+                className="absolute inset-0 z-10 cursor-crosshair"
+              />
             ) : null
           }
           canvasOverlay={

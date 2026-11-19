@@ -7,12 +7,15 @@ import {
   Info,
   Loader2,
   Plus,
+  RefreshCw,
   RotateCcw,
   Search,
   Shapes,
   Zap,
 } from "lucide-react";
 import type { ActionStatus } from "../action-status";
+import { setEditPrefs, useEditPrefs, type EditPrefs } from "./edit-prefs";
+import { Section } from "../loupe/EditPanel";
 
 // Grid-view editing panels.
 //
@@ -38,18 +41,26 @@ export const PHOTO_COUNT = 300;
 export function AIEditingPanel({
   status,
   onRunEdit,
+  onRestart,
   onBrowseProfiles,
 }: {
   status: ActionStatus;
   // Starts the AI Edit right away with the selected profile.
   onRunEdit: () => void;
+  // Restart: back to Edit Preferences (previous choices kept).
+  onRestart?: () => void;
   // Opens the Start Editing modal (browse / create AI Profiles).
   onBrowseProfiles: () => void;
 }) {
   if (status === "complete")
     return (
       <div className="-mr-2 flex min-h-0 flex-1 animate-[fadeIn_220ms_ease-out] flex-col gap-2 overflow-y-auto pr-2">
-        <EditingSection status={status} onRunEdit={onRunEdit} onBrowseProfiles={onBrowseProfiles} />
+        <EditingSection
+          status={status}
+          onRunEdit={onRunEdit}
+          onRestart={onRestart}
+          onBrowseProfiles={onBrowseProfiles}
+        />
       </div>
     );
 
@@ -82,12 +93,14 @@ export function AIToolsPanel() {
 export function EditingSection({
   status,
   onRunEdit,
+  onRestart,
   onBrowseProfiles,
   withProfile = false,
   withTools = false,
 }: {
   status: ActionStatus;
   onRunEdit: () => void;
+  onRestart?: () => void;
   onBrowseProfiles: () => void;
   withProfile?: boolean;
   /** One-tab layout: the AI tool toggles sit between the profile and the Edit button. */
@@ -95,6 +108,13 @@ export function EditingSection({
 }) {
   const [open, setOpen] = useState(true);
   const done = status === "complete";
+  if (done)
+    return (
+      <section className="flex shrink-0 flex-col gap-4">
+        <EditingSummary onRestart={onRestart ?? onRunEdit} />
+        <QuickEdits />
+      </section>
+    );
   return (
     <section className="flex shrink-0 flex-col gap-3">
       <div className="flex shrink-0 items-center justify-between">
@@ -125,6 +145,42 @@ export function EditingSection({
         ) : null)}
     </section>
   );
+}
+
+// After AI Edit: what was applied — profile · colour profile, then the AI
+// tools that ran — with Restart to run it again.
+function EditingSummary({ onRestart }: { onRestart: () => void }) {
+  const prefs = useEditPrefs();
+  const cropOnly = prefs.profile === CROP_ONLY;
+  return (
+    <div className="flex flex-col gap-1">
+      <div className="flex items-center justify-between pb-0.5">
+        <span className="text-[14px] text-white">Editing Complete</span>
+        <button
+          type="button"
+          onClick={onRestart}
+          className="flex items-center gap-1.5 text-[13px] text-neutral-300 hover:text-white"
+        >
+          <RefreshCw className="h-3.5 w-3.5" strokeWidth={1.5} />
+          Restart
+        </button>
+      </div>
+      <p className="text-[11.5px] leading-4 text-neutral-400">
+        {cropOnly ? CROP_ONLY : `${prefs.profile}  ·  ${prefs.colorProfile}`}
+      </p>
+      <p className="text-[11.5px] leading-4 text-neutral-400">{toolsSummary(prefs)}</p>
+    </div>
+  );
+}
+
+function toolsSummary(p: EditPrefs) {
+  const style = p.cropStyle.split(" - ").pop();
+  const tools = [
+    p.cropping && `AI Cropping (${style}, ${p.cropRatio})`,
+    p.straighten && "AI Straightening",
+    p.masking && "AI Masking",
+  ].filter(Boolean);
+  return tools.length ? tools.join(" · ") : "No AI tools";
 }
 
 // "▾ Title" collapsible section header.
@@ -229,7 +285,9 @@ function EditPreferences({
   // False when AI tools live in their own rail tab (UI-2 separate tabs).
   withTools: boolean;
 }) {
-  const [profile, setProfile] = useState(INSTANT_PROFILES[0].name);
+  const prefs = useEditPrefs();
+  const profile = prefs.profile;
+  const setProfile = (p: string) => setEditPrefs({ profile: p });
   const cropOnly = profile === CROP_ONLY;
   return (
     <div className="flex shrink-0 flex-col gap-4">
@@ -248,7 +306,11 @@ function EditPreferences({
       {!cropOnly && (
         <div className="flex flex-col gap-2">
           <span className="text-[12px] text-neutral-200">Color Profile</span>
-          <Select options={COLOR_PROFILES} />
+          <Select
+            options={COLOR_PROFILES}
+            value={prefs.colorProfile}
+            onChange={(v) => setEditPrefs({ colorProfile: v })}
+          />
         </div>
       )}
       {withTools && <AIToolPreferences cropOnly={cropOnly} />}
@@ -279,9 +341,11 @@ const MASK_TYPES = [
 const FEATHER_LABELS = ["Sharp", "Medium", "Soft"];
 
 function AIToolPreferences({ cropOnly }: { cropOnly: boolean }) {
-  const [cropping, setCropping] = useState(true);
-  const [straighten, setStraighten] = useState(true);
-  const [masking, setMasking] = useState(true);
+  const prefs = useEditPrefs();
+  const { cropping, straighten, masking } = prefs;
+  const setCropping = (v: boolean) => setEditPrefs({ cropping: v });
+  const setStraighten = (v: boolean) => setEditPrefs({ straighten: v });
+  const setMasking = (v: boolean) => setEditPrefs({ masking: v });
   const [feather, setFeather] = useState(50);
   const featherIdx = feather < 34 ? 0 : feather > 66 ? 2 : 1;
 
@@ -291,8 +355,18 @@ function AIToolPreferences({ cropOnly }: { cropOnly: boolean }) {
         <PrefToggle label="AI Cropping" checked={cropping} onChange={setCropping} />
         {cropping && (
           <div className="flex gap-2">
-            <Select options={CROP_STYLES} className="flex-[3]" />
-            <Select options={CROP_RATIOS} defaultValue="2 : 3" className="flex-[2]" />
+            <Select
+              options={CROP_STYLES}
+              className="flex-[3]"
+              value={prefs.cropStyle}
+              onChange={(v) => setEditPrefs({ cropStyle: v })}
+            />
+            <Select
+              options={CROP_RATIOS}
+              className="flex-[2]"
+              value={prefs.cropRatio}
+              onChange={(v) => setEditPrefs({ cropRatio: v })}
+            />
           </div>
         )}
       </div>
@@ -303,7 +377,12 @@ function AIToolPreferences({ cropOnly }: { cropOnly: boolean }) {
         <PrefToggle label="AI Masking" checked={masking} onChange={setMasking} />
         {masking && (
           // Crop & Straighten only supports a subject mask, so the picker is locked.
-          <Select key={String(cropOnly)} options={MASK_TYPES} disabled={cropOnly} />
+          <Select
+            options={MASK_TYPES}
+            disabled={cropOnly}
+            value={cropOnly ? MASK_TYPES[0] : prefs.maskType}
+            onChange={(v) => setEditPrefs({ maskType: v })}
+          />
         )}
       </div>
 
@@ -377,13 +456,23 @@ function Select({
   defaultValue,
   disabled,
   className = "",
+  value: controlled,
+  onChange,
 }: {
   options: string[];
   defaultValue?: string;
   disabled?: boolean;
   className?: string;
+  /** Controlled value (kept in the shared Edit Preferences). */
+  value?: string;
+  onChange?: (v: string) => void;
 }) {
-  const [value, setValue] = useState(defaultValue ?? options[0]);
+  const [local, setLocal] = useState(defaultValue ?? options[0]);
+  const value = controlled ?? local;
+  const setValue = (v: string) => {
+    setLocal(v);
+    onChange?.(v);
+  };
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
@@ -767,10 +856,8 @@ function QuickEdits() {
     });
 
   return (
-    <div className="flex shrink-0 flex-col gap-2 pt-1">
-      <span className="text-[11px] font-semibold uppercase tracking-wider text-neutral-300">
-        Quick Edits
-      </span>
+    // Same accordion as the loupe panel sections (WHITE BALANCE, LIGHT…).
+    <Section title="Quick Edits">
       {QUICK_EDIT_GROUPS.map((group, gi) => (
         <section
           key={group.title}
@@ -824,7 +911,7 @@ function QuickEdits() {
           ))}
         </section>
       ))}
-    </div>
+    </Section>
   );
 }
 

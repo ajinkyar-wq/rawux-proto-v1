@@ -12,11 +12,13 @@ import { RetouchingContent } from "./AIRetouchingPanel";
 export function EditRetouchPanel({
   editStatus,
   onRunEdit,
+  onRestart,
   onBrowseProfiles,
   withTools = false,
 }: {
   editStatus: ActionStatus;
   onRunEdit: () => void;
+  onRestart?: () => void;
   onBrowseProfiles: () => void;
   withTools?: boolean;
 }) {
@@ -26,6 +28,7 @@ export function EditRetouchPanel({
       <EditingSection
         status={editStatus}
         onRunEdit={onRunEdit}
+        onRestart={onRestart}
         onBrowseProfiles={onBrowseProfiles}
         withProfile
         withTools={withTools}

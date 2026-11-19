@@ -18,6 +18,7 @@ import { TetheringPanel } from "./TetheringPanel";
 import type { LoupeRailKey } from "./loupe-rail-config";
 import { IconTooltip } from "../IconTooltip";
 import { FlyoutHost } from "./Flyout";
+import { Histogram } from "./Histogram";
 import {
   DEFAULT_SYNC_SETTINGS,
   SyncSettingsModal,
@@ -83,6 +84,12 @@ export function LoupeRailPanel({
                     : null
                 }
               >
+                {/* Histogram heads every editing panel, pinned to the top. */}
+                {/* Histogram heads the editing tools only (Edit, Crop, Masking) —
+                    not the retouching ones. */}
+                {EDITING_RAILS.includes(activeRail) && !RETOUCH_RAILS.includes(activeRail) && (
+                  <Histogram image={selectedIndex ?? 0} />
+                )}
                 <LoupeRailPanelBody
                   activeRail={activeRail}
                   selectedIndex={selectedIndex}

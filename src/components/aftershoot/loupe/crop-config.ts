@@ -64,3 +64,56 @@ export function shotCrop(image: number): CropRect {
 
 /** Width:height of a crop of a 3:2 photo. */
 export const cropAspect = (c: CropRect) => (c.w / c.h) * PHOTO_ASPECT;
+
+/** Straightening angle (degrees) for an image: 0–100 slider, centre = 0°, ±45°. */
+export function straightenOf(history: AlbumHistory | null, image: number): number {
+  const pos = history?.getValue(image, sliderKey("crop", "", "Straightening")) ?? 50;
+  return ((pos - 50) / 50) * 45;
+}
+
+/**
+ * Lightroom-style "constrain to image": the photo rotates at its own size, so
+ * the crop box shrinks (keeping its shape, about its own centre) to the
+ * largest size whose corners all stay inside the rotated photo — no empty
+ * corners ever end up in the crop.
+ */
+export function fitCropToRotation(box: CropRect, deg: number): CropRect {
+  if (!deg) return box;
+  const W = PHOTO_ASPECT;
+  const H = 1;
+  const t = (deg * Math.PI) / 180;
+  const c = Math.cos(t);
+  const s = Math.sin(t);
+  // Box in photo units, relative to the photo centre.
+  const cx = ((box.x + box.w / 2) / 100) * W - W / 2;
+  const cy = ((box.y + box.h / 2) / 100) * H - H / 2;
+  const hw = (box.w / 200) * W;
+  const hh = (box.h / 200) * H;
+  const inside = (k: number) =>
+    [-1, 1].every((sx) =>
+      [-1, 1].every((sy) => {
+        const px = cx + sx * hw * k;
+        const py = cy + sy * hh * k;
+        // Into the rotated photo's own axes.
+        const rx = px * c + py * s;
+        const ry = -px * s + py * c;
+        return Math.abs(rx) <= W / 2 + 1e-9 && Math.abs(ry) <= H / 2 + 1e-9;
+      }),
+    );
+  if (inside(1)) return box;
+  let lo = 0;
+  let hi = 1;
+  for (let i = 0; i < 30; i++) {
+    const mid = (lo + hi) / 2;
+    if (inside(mid)) lo = mid;
+    else hi = mid;
+  }
+  const w = box.w * lo;
+  const h = box.h * lo;
+  return { x: box.x + (box.w - w) / 2, y: box.y + (box.h - h) / 2, w, h };
+}
+
+/** The crop actually applied: the crop box constrained to the straightened photo. */
+export function effectiveCropOf(history: AlbumHistory | null, image: number): CropRect {
+  return fitCropToRotation(cropOf(history, image), straightenOf(history, image));
+}

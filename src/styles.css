@@ -627,3 +627,14 @@
     transition-delay: 0ms;
   }
 }
+
+/* Buttons and click-to-select tiles never show the browser's focus outline:
+   navigating with the arrow keys after a click otherwise rings whatever was
+   clicked last (filmstrip thumbnails, rail icons…). Text fields keep theirs. */
+button:focus-visible,
+[role="button"]:focus-visible,
+[role="slider"]:focus-visible,
+[role="switch"]:focus-visible,
+[role="checkbox"]:focus-visible {
+  outline: none;
+}

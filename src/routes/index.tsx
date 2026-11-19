@@ -88,6 +88,18 @@ const UNDO_MODE: UxMode = "ux2";
 // session (album Undo/Redo is session-only, per the History spec).
 function AftershootScreen() {
   const layout: Layout = "ui1"; // "UI - 2 · Separate tabs"
+  // Clicking a button never moves keyboard focus onto it, so arrow keys /
+  // Space keep driving the app (not the last thing clicked) and no focus
+  // rings appear while moving around the filmstrip.
+  useEffect(() => {
+    const onDown = (e: MouseEvent) => {
+      const el = (e.target as HTMLElement | null)?.closest("button, [role='button']");
+      if (el && !el.closest("input, textarea, select, [contenteditable='true']"))
+        e.preventDefault();
+    };
+    document.addEventListener("mousedown", onDown);
+    return () => document.removeEventListener("mousedown", onDown);
+  }, []);
   const screen = useCullStore((s) => s.screen);
   const albumSession = useCullStore((s) => s.albumSession);
   const albumName = useCullStore((s) => s.albumName);
@@ -531,6 +543,9 @@ function Workspace({
       setGridPanelOpen(true);
     }, ACTION_RUN_DURATION_MS);
   };
+  // Restart: back to "not run yet" — the panel shows its settings again
+  // (keeping the previous choices) so they can be changed and re-run.
+  const resetAction = (action: AIAction) => setActionStatuses((s) => ({ ...s, [action]: "idle" }));
 
   // Survey / Loupe: show a specific photo of a duplicate set. Moving to another
   // image is recorded as album navigation, like changeImage.
@@ -600,6 +615,7 @@ function Workspace({
                 setZoom={setZoom}
                 onAction={setActiveModal}
                 onStartAction={startAction}
+                onResetAction={resetAction}
                 onOpenInLoupe={openInLoupe}
                 ratingFilter={ratingFilter}
                 onToggleRating={toggleRatingFilter}
@@ -737,6 +753,7 @@ function GridView({
   setZoom,
   onAction,
   onStartAction,
+  onResetAction,
   onOpenInLoupe,
   ratingFilter,
   onToggleRating,
@@ -758,6 +775,7 @@ function GridView({
   setZoom: (v: number) => void;
   onAction: (a: AIAction) => void;
   onStartAction: (a: AIAction) => void;
+  onResetAction: (a: AIAction) => void;
   onOpenInLoupe: (i: number) => void;
   ratingFilter: Set<number>;
   onToggleRating: (rating: number) => void;
@@ -798,6 +816,7 @@ function GridView({
           railKey={activeRail}
           onAction={onAction}
           onStartAction={onStartAction}
+          onResetAction={onResetAction}
           actionStatuses={actionStatuses}
           selectedGridTile={selectedGridTile}
           ratingFilter={ratingFilter}

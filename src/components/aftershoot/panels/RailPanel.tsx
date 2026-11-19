@@ -23,6 +23,8 @@ type RailPanelProps = {
   onAction: (action: AIAction) => void;
   // Runs the action immediately, skipping the modal.
   onStartAction: (action: AIAction) => void;
+  // Restart: back to the action's settings (not run yet).
+  onResetAction: (action: AIAction) => void;
   actionStatuses: ActionStatuses;
   selectedGridTile: number;
   ratingFilter: Set<number>;
@@ -53,6 +55,7 @@ function RailPanelBody(props: RailPanelProps) {
         <EditRetouchPanel
           editStatus={props.actionStatuses.edit}
           onRunEdit={() => props.onStartAction("edit")}
+          onRestart={() => props.onResetAction("edit")}
           onBrowseProfiles={() => props.onAction("edit")}
         />
       );
@@ -61,6 +64,7 @@ function RailPanelBody(props: RailPanelProps) {
         <EditRetouchPanel
           editStatus={props.actionStatuses.edit}
           onRunEdit={() => props.onStartAction("edit")}
+          onRestart={() => props.onResetAction("edit")}
           onBrowseProfiles={() => props.onAction("edit")}
           withTools
         />
@@ -130,11 +134,12 @@ function CullTab({
 
 /* ------------------------------ AI Editing ------------------------------ */
 
-function EditTab({ onAction, onStartAction, actionStatuses }: RailPanelProps) {
+function EditTab({ onAction, onStartAction, onResetAction, actionStatuses }: RailPanelProps) {
   return (
     <AIEditingPanel
       status={actionStatuses.edit}
       onRunEdit={() => onStartAction("edit")}
+      onRestart={() => onResetAction("edit")}
       onBrowseProfiles={() => onAction("edit")}
     />
   );
