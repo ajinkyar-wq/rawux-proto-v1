@@ -1,3 +1,4 @@
+import { photoAspect } from "../cull-data";
 import { sliderKey, type AlbumHistory } from "../history/album-history";
 
 // Shared crop definitions: the Crop panel's Aspect Ratio options and how to
@@ -6,21 +7,22 @@ import { sliderKey, type AlbumHistory } from "../history/album-history";
 
 export const CROP_ASPECTS = ["Original", "Free", "1:1", "3:2", "4:3", "16:9"] as const;
 
-// Every placeholder photo is 3:2 (see photoUrl in cull-data).
-export const PHOTO_ASPECT = 3 / 2;
+// Photos are 3:2 landscape or 2:3 portrait; see photoAspect in cull-data.
+// Crop rects are % of the photo, so converting to a shape needs its aspect.
+export { photoAspect };
 
 /** Crop rectangle in % of the photo: x / y from the top-left, w / h size. */
 export type CropRect = { x: number; y: number; w: number; h: number };
 
 const FULL: CropRect = { x: 0, y: 0, w: 100, h: 100 };
 
-/** A centred rect of the given width:height ratio inside a 3:2 photo. */
-function centred(ratio: number): CropRect {
-  if (ratio >= PHOTO_ASPECT) {
-    const h = (PHOTO_ASPECT / ratio) * 100;
+/** A centred rect of the given width:height ratio inside a photo of aspect `pa`. */
+function centred(ratio: number, pa: number): CropRect {
+  if (ratio >= pa) {
+    const h = (pa / ratio) * 100;
     return { x: 0, y: (100 - h) / 2, w: 100, h };
   }
-  const w = (ratio / PHOTO_ASPECT) * 100;
+  const w = (ratio / pa) * 100;
   return { x: (100 - w) / 2, y: 0, w, h: 100 };
 }
 
@@ -46,24 +48,16 @@ export function cropOf(history: AlbumHistory | null, image: number): CropRect {
   if (choice === "Free") return FULL;
   if (choice && choice !== "Original") {
     const [a, b] = choice.split(":").map(Number);
-    return centred(a / b);
+    return centred(a / b, photoAspect(image));
   }
   return shotCrop(image);
 }
 
-// Each photo's own shape as shot / already cropped: a fixed, random-looking
-// mix of landscape, portrait, square and wide frames, so the filmstrip varies
-// like a real shoot. Same image → same shape every time.
-const SHOT_SHAPES = [3 / 2, 3 / 2, 2 / 3, 4 / 5, 1, 16 / 9, 3 / 2, 5 / 4, 2 / 3, 3 / 2];
-export function shotCrop(image: number): CropRect {
-  let h = image * 2654435761;
-  h = (h ^ (h >>> 13)) >>> 0;
-  const ratio = SHOT_SHAPES[h % SHOT_SHAPES.length];
-  return ratio === PHOTO_ASPECT ? FULL : centred(ratio);
-}
+// Each photo starts uncropped, at its own native shape.
+export const shotCrop = (_image: number): CropRect => FULL;
 
-/** Width:height of a crop of a 3:2 photo. */
-export const cropAspect = (c: CropRect) => (c.w / c.h) * PHOTO_ASPECT;
+/** Width:height of a crop of an image's photo. */
+export const cropAspect = (c: CropRect, image: number) => (c.w / c.h) * photoAspect(image);
 
 /** Straightening angle (degrees) for an image: 0–100 slider, centre = 0°, ±45°. */
 export function straightenOf(history: AlbumHistory | null, image: number): number {
@@ -77,9 +71,9 @@ export function straightenOf(history: AlbumHistory | null, image: number): numbe
  * largest size whose corners all stay inside the rotated photo — no empty
  * corners ever end up in the crop.
  */
-export function fitCropToRotation(box: CropRect, deg: number): CropRect {
+export function fitCropToRotation(box: CropRect, deg: number, image: number): CropRect {
   if (!deg) return box;
-  const W = PHOTO_ASPECT;
+  const W = photoAspect(image);
   const H = 1;
   const t = (deg * Math.PI) / 180;
   const c = Math.cos(t);
@@ -115,5 +109,5 @@ export function fitCropToRotation(box: CropRect, deg: number): CropRect {
 
 /** The crop actually applied: the crop box constrained to the straightened photo. */
 export function effectiveCropOf(history: AlbumHistory | null, image: number): CropRect {
-  return fitCropToRotation(cropOf(history, image), straightenOf(history, image));
+  return fitCropToRotation(cropOf(history, image), straightenOf(history, image), image);
 }

@@ -137,7 +137,7 @@ function FilmstripRow({
   // Duplicates are the same picture, so every tile shows this image's crop:
   // same height, as wide as the crop's shape (like the album filmstrip).
   const crop = cropOf(useAlbumHistoryContext(), image);
-  const width = Math.round(tileHeight * cropAspect(crop)) || tileWidth;
+  const width = Math.round(tileHeight * cropAspect(crop, image)) || tileWidth;
 
   // Scroll the selected tile into view (left-aligned, not center-padded).
   useEffect(() => {

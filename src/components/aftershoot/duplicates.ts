@@ -7,10 +7,17 @@
 // The first photo of a set (k = 0) is the album image itself; the others get a
 // "virtual id" above VIRTUAL_BASE that decodes back to (image, k).
 
-const DUPLICATE_COUNTS = [12, 5, 8, 3, 20, 7, 15, 4, 11];
+// Stack sizes are pseudo-random per image (stable across renders): mostly
+// small stacks with the occasional big one.
+const STACK_SIZES = [2, 2, 3, 3, 3, 4, 4, 5, 6, 7, 9, 12, 16];
+function stackHash(image: number) {
+  let h = Math.imul(image + 1, 2654435761);
+  h = Math.imul(h ^ (h >>> 15), 2246822519);
+  return (h ^ (h >>> 13)) >>> 0;
+}
 
 /** Number of photos in an image's duplicate set (the image itself included). */
-export const duplicateCount = (image: number) => DUPLICATE_COUNTS[image % DUPLICATE_COUNTS.length];
+export const duplicateCount = (image: number) => STACK_SIZES[stackHash(image) % STACK_SIZES.length];
 
 const VIRTUAL_BASE = 1_000_000;
 const SLOTS = 1000; // max duplicates per image

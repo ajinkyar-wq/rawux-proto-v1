@@ -659,7 +659,7 @@ function SurveyPeek({
               transform: `translate(${view.x * frameW}px, ${view.y * frameH}px) scale(${view.zoom / 100})`,
               transition: panning ? "none" : "transform 120ms ease-out",
             }}
-            className="pointer-events-none h-full w-full select-none object-cover"
+            className="pointer-events-none h-full w-full select-none object-contain"
           />
         </div>
       </div>
@@ -1004,7 +1004,7 @@ function SurveyPane({
                   transform: `translate(${view.x * frameW}px, ${view.y * frameH}px) scale(${view.zoom / 100})`,
                   transition: panning ? "none" : "transform 120ms ease-out",
                 }}
-                className="pointer-events-none h-full w-full select-none object-cover"
+                className="pointer-events-none h-full w-full select-none object-contain"
               />
             </div>
 

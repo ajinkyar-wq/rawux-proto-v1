@@ -41,6 +41,8 @@ export function LoupeView({
   tab,
   selectedIndex,
   onSelectIndex,
+  onSelectFilm,
+  selection,
   dupIndex,
   onSelectDup,
   onSelectPhoto,
@@ -60,6 +62,9 @@ export function LoupeView({
   tab: AppTab;
   selectedIndex: number;
   onSelectIndex: (i: number) => void;
+  /** Filmstrip click (⌘ toggles, ⇧ ranges) and the resulting multi-selection. */
+  onSelectFilm: (i: number, e?: React.MouseEvent) => void;
+  selection: Set<number>;
   // Which photo of the image's duplicate set is showing (0 = the image itself).
   // Duplicates are the same sample picture, so this only changes the badge,
   // name and rating; shared with Survey so both show the same photo.
@@ -354,7 +359,8 @@ export function LoupeView({
 
         <AlbumFilmstrip
           selectedIndex={selectedIndex}
-          onSelect={onSelectIndex}
+          onSelect={onSelectFilm}
+          selection={selection}
           cullComplete={ai.actionStatuses.cull === "complete"}
         />
         <BottomBar

@@ -185,7 +185,7 @@ function DuplicateTile({
     >
       <div
         style={{ backgroundImage: `url(${photoUrl(image, 240)})` }}
-        className={`rounded-[3px] bg-[#2d2d2d] bg-cover bg-center ${
+        className={`rounded-[3px] bg-[#2d2d2d] bg-contain bg-center bg-no-repeat ${
           list ? "aspect-[3/2] w-16 shrink-0" : "aspect-[3/2] w-full"
         }`}
       />

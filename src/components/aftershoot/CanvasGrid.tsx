@@ -113,6 +113,7 @@ export function CanvasGrid({
                   src={photoUrl(img.id, 480)}
                   crop={cropOf(history, img.id)}
                   frameClassName="bg-[#2a2a2a]"
+                  image={img.id}
                 />
 
                 {/* Status footer: rating chip (clickable stars) + flag */}

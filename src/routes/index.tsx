@@ -421,6 +421,7 @@ function Workspace({
   };
   // Switching images in Loupe / Survey is recorded as album navigation.
   const changeImage = (i: number) => {
+    setGridSelection(new Set([i]));
     if (i === selectedGridTile) return;
     history.record({
       kind: "nav",
@@ -430,6 +431,24 @@ function Workspace({
       to: { view: viewMode, image: i },
     });
     setSelectedGridTile(i);
+  };
+
+  // Filmstrip click in Loupe: ⌘/Ctrl toggles, ⇧ selects a range from the
+  // current image, plain click switches image (and resets the selection).
+  const selectInFilmstrip = (i: number, e?: React.MouseEvent) => {
+    if (e?.metaKey || e?.ctrlKey) {
+      // Toggle without moving the canvas: the current image stays put and
+      // always remains part of the selection.
+      setGridSelection((prev) => {
+        const next = new Set(prev);
+        if (next.has(i)) next.delete(i);
+        else next.add(i);
+        next.add(selectedGridTile);
+        return next;
+      });
+    }
+    else if (e?.shiftKey) selectInGrid(i, "range");
+    else changeImage(i);
   };
 
   // Undo/Redo has already reverted/re-applied the values in the store. Here we
@@ -683,6 +702,8 @@ function Workspace({
                   tab={appTab}
                   selectedIndex={selectedGridTile}
                   onSelectIndex={changeImage}
+                  onSelectFilm={selectInFilmstrip}
+                  selection={gridSelection}
                   dupIndex={dupIndex}
                   onSelectDup={(k) => setDupState({ image: selectedGridTile, dup: k })}
                   onSelectPhoto={selectPhoto}

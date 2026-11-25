@@ -38,6 +38,7 @@ export function AlbumFilmstrip({
   onSelect,
   cullComplete = false,
   highlight,
+  selection,
 }: {
   selectedIndex: number;
   onSelect: (i: number, e?: React.MouseEvent) => void;
@@ -45,6 +46,8 @@ export function AlbumFilmstrip({
   cullComplete?: boolean;
   // Survey: images currently in the comparison set get a soft outline.
   highlight?: number[];
+  // Loupe: multi-selected images (⌘/⇧-click) get the same white outline.
+  selection?: Set<number>;
 }) {
   const inSet = highlight ? new Set(highlight) : null;
   const scrollerRef = useRef<HTMLDivElement>(null);
@@ -153,7 +156,7 @@ export function AlbumFilmstrip({
       >
         {Array.from({ length: ALBUM_TILE_COUNT }).map((_, i) => {
           const crop = cropOf(history, i);
-          const width = Math.round(tileHeight * cropAspect(crop));
+          const width = Math.round(tileHeight * cropAspect(crop, i));
           return (
             <PhotoContextMenu key={i} id={i} surface="film">
               <button
@@ -166,7 +169,7 @@ export function AlbumFilmstrip({
                 <div
                   style={{ height: tileHeight, width }}
                   className={`relative overflow-hidden rounded-[3px] bg-[#242424] ${
-                    i === selectedIndex
+                    i === selectedIndex || selection?.has(i)
                       ? "outline outline-[1.5px] outline-white"
                       : inSet?.has(i)
                         ? "outline outline-[1.5px] -outline-offset-1 outline-white/50"

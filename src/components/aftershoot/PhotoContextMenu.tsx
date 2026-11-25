@@ -154,8 +154,9 @@ export function PhotoContextMenu({
   const api = useContext(PhotoMenuContext);
   if (!api) return <>{children}</>;
 
+  const multiSurface = surface === "grid" || (surface === "film" && api.view === "loupe");
   const ids =
-    surface === "grid" && api.selection.has(id) ? [...api.selection].sort((a, b) => a - b) : [id];
+    multiSurface && api.selection.has(id) ? [...api.selection].sort((a, b) => a - b) : [id];
   const multi = ids.length > 1;
   const noun = `${ids.length} photos`;
   const cull = api.tab === "Culling";
@@ -163,7 +164,7 @@ export function PhotoContextMenu({
 
   return (
     <CM.Root>
-      <CM.Trigger asChild onContextMenu={() => surface === "grid" && api.prepare(id)}>
+      <CM.Trigger asChild onContextMenu={() => multiSurface && api.prepare(id)}>
         {children}
       </CM.Trigger>
       <CM.Portal>
