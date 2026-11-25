@@ -1,4 +1,5 @@
 import { FlaskConical, Sparkles } from "lucide-react";
+import { toPeople, useSubjects } from "../faces";
 
 // Per-tile retouch summary (mock data). Same contextual pattern as the
 // other result panels.
@@ -40,7 +41,16 @@ const RETOUCH_INFO_PER_TILE = [
 ];
 
 export function RetouchInfoPanel({ selectedGridTile }: { selectedGridTile: number }) {
-  const info = RETOUCH_INFO_PER_TILE[selectedGridTile % RETOUCH_INFO_PER_TILE.length];
+  const base = RETOUCH_INFO_PER_TILE[selectedGridTile % RETOUCH_INFO_PER_TILE.length];
+  const real = useSubjects();
+  // Real clusters (highest photo count first) replace the mock face counts.
+  const info = real.length
+    ? {
+        ...base,
+        people: toPeople(real).slice(0, 4),
+        extraFaces: Math.max(0, real.length - 4),
+      }
+    : { ...base, people: undefined };
 
   return (
     <div className="flex h-full min-h-0 flex-col gap-4 overflow-y-auto pr-0.5">
@@ -51,7 +61,9 @@ export function RetouchInfoPanel({ selectedGridTile }: { selectedGridTile: numbe
   );
 }
 
-function SubjectSyncSummary({ info }: { info: (typeof RETOUCH_INFO_PER_TILE)[number] }) {
+type RetouchInfo = (typeof RETOUCH_INFO_PER_TILE)[number] & { people?: ReturnType<typeof toPeople> };
+
+function SubjectSyncSummary({ info }: { info: RetouchInfo }) {
   return (
     <div className="flex flex-col gap-2">
       <SectionHeader
@@ -70,9 +82,9 @@ function SubjectSyncSummary({ info }: { info: (typeof RETOUCH_INFO_PER_TILE)[num
       </p>
 
       <div className="mt-1 flex items-end gap-2">
-        {info.facesCounts.map((n, i) => (
-          <FaceAvatar key={i} count={n} />
-        ))}
+        {info.people
+          ? info.people.map((p) => <FaceAvatar key={p.id} count={p.count} face={p.face} />)
+          : info.facesCounts.map((n, i) => <FaceAvatar key={i} count={n} />)}
         {info.extraFaces > 0 && <ExtraFacesAvatar count={info.extraFaces} />}
       </div>
 
@@ -84,10 +96,13 @@ function SubjectSyncSummary({ info }: { info: (typeof RETOUCH_INFO_PER_TILE)[num
   );
 }
 
-function FaceAvatar({ count }: { count: number }) {
+function FaceAvatar({ count, face }: { count: number; face?: string }) {
   return (
     <div className="flex flex-col items-center gap-0.5">
-      <div className="h-7 w-7 rounded-full bg-[#2a2a2a] ring-1 ring-inset ring-white/5" />
+      <div
+        className="h-7 w-7 rounded-full bg-[#2a2a2a] bg-cover bg-center ring-1 ring-inset ring-white/5"
+        style={face ? { backgroundImage: `url(${face})` } : undefined}
+      />
       <span className="text-[10px] text-neutral-500">{count}</span>
     </div>
   );

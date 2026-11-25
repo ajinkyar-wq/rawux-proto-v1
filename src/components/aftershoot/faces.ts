@@ -9,7 +9,7 @@
 //   eyes: open | closed      focus: g = sharp, y = slightly soft, r = blurry
 
 import { useSyncExternalStore } from "react";
-import type { FaceRect } from "@/types/detection";
+import type { FaceRect, ModelSubject } from "@/types/detection";
 import { SAMPLE_COUNT, photoAspect } from "./cull-data";
 
 // ---- real detection results, keyed by sample-photo index ----
@@ -31,6 +31,52 @@ export function setFacesLoading(v: boolean) {
   loading = v;
   version++;
   listeners.forEach((l) => l());
+}
+
+// ---- people (face clusters), ranked by photo count, highest first ----
+// Feeds Subject Sync (rail + retouch info) and the People filter.
+const MOCK_SUBJECT_COUNTS = [562, 560, 200, 200];
+let subjects: ModelSubject[] = [];
+const subjectListeners = new Set<() => void>();
+
+/** Called by FaceDetectionRunner once clustering finishes. */
+export function setSubjects(next: ModelSubject[]) {
+  subjects = [...next].sort((a, b) => b.photoCount - a.photoCount);
+  subjectListeners.forEach((l) => l());
+}
+
+/** People found across the album, most photos first (empty until detection finishes). */
+export function useSubjects(): ModelSubject[] {
+  return useSyncExternalStore(
+    (cb) => {
+      subjectListeners.add(cb);
+      return () => subjectListeners.delete(cb);
+    },
+    () => subjects,
+    () => subjects,
+  );
+}
+
+export type PersonEntry = {
+  id: string;
+  name: string;
+  count: number;
+  /** Key-face image URL; undefined while placeholder data is shown. */
+  face?: string;
+  category?: ModelSubject["category"];
+};
+
+/** Subjects as display entries; falls back to placeholder counts before detection completes. */
+export function toPeople(list: ModelSubject[]): PersonEntry[] {
+  if (list.length === 0)
+    return MOCK_SUBJECT_COUNTS.map((count, i) => ({ id: `p${i + 1}`, name: `Person ${i + 1}`, count }));
+  return list.map((s, i) => ({
+    id: `p${s.id}`,
+    name: `Person ${i + 1}`,
+    count: s.photoCount,
+    face: s.keyFaceDataUrl,
+    category: s.category,
+  }));
 }
 
 /** True while detection is still running and this photo has no result yet. */

@@ -1,13 +1,14 @@
 import { useEffect, useRef, useState } from "react";
 import { Check, ChevronDown, Eye } from "lucide-react";
 import type { ActionStatus } from "../action-status";
+import { toPeople, useSubjects } from "../faces";
 
 // Grid-view "AI Retouching" rail tab:
 //   Presets (retouch preset picker) → Subject Sync (faces found across the
 //   album) → Smart Object Removal (distraction checklist).
 
 const RETOUCH_PRESETS = ["Student Portraits", "Natural Retouch", "Soft Glow"];
-const SUBJECT_COUNTS = [562, 560, 200, 200];
+const SUBJECT_SHOWN = 4; // top people by photo count
 const DISTRACTIONS = [
   { id: "exit-signs", label: "Exit Signs", count: 30 },
   { id: "fire-alarms", label: "Fire Alarms", count: 80 },
@@ -29,6 +30,8 @@ export function AIRetouchingPanel(_props: { status: ActionStatus; onRunRetouch: 
 // combined Edit & Retouch panel.
 export function RetouchingContent() {
   const [preset, setPreset] = useState<string | null>(null);
+  const people = toPeople(useSubjects());
+  const topPeople = people.slice(0, SUBJECT_SHOWN);
   const [checked, setChecked] = useState<Set<string>>(new Set());
 
   const toggle = (id: string) =>
@@ -54,17 +57,22 @@ export function RetouchingContent() {
           Apply presets on subjects identified across the entire album
         </p>
         <div className="mt-1 flex items-start justify-between">
-          {SUBJECT_COUNTS.map((n, i) => (
-            <button key={i} type="button" className="flex flex-col items-center gap-1">
-              <span className="h-10 w-10 rounded-full bg-gradient-to-br from-[#6b5a50] to-[#3a302b] ring-1 ring-inset ring-white/10 hover:ring-white/30" />
-              <span className="text-[10px] text-neutral-500">{n}</span>
+          {topPeople.map((p) => (
+            <button key={p.id} type="button" title={p.name} className="flex flex-col items-center gap-1">
+              <span
+                className="h-12 w-12 rounded-full bg-gradient-to-br from-[#6b5a50] to-[#3a302b] bg-cover bg-center ring-1 ring-inset ring-white/10 hover:ring-white/30"
+                style={p.face ? { backgroundImage: `url(${p.face})` } : undefined}
+              />
+              <span className="text-[10px] text-neutral-500">{p.count}</span>
             </button>
           ))}
           <button type="button" className="flex flex-col items-center gap-1">
-            <span className="flex h-10 w-10 items-center justify-center rounded-full bg-[#262626] text-neutral-400 hover:text-white">
+            <span className="flex h-12 w-12 items-center justify-center rounded-full bg-[#262626] text-neutral-400 hover:text-white">
               <Eye className="h-4 w-4" strokeWidth={1.5} />
             </span>
-            <span className="text-[10px] text-neutral-500">View More</span>
+            <span className="text-[10px] text-neutral-500">
+              {people.length > SUBJECT_SHOWN ? `+${people.length - SUBJECT_SHOWN} More` : "View More"}
+            </span>
           </button>
         </div>
       </section>

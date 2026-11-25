@@ -1,6 +1,7 @@
 import { useEffect, useId, useRef, useState } from "react";
 import { Check, ChevronDown, Flag, Star } from "lucide-react";
 import { Divider } from "./primitives";
+import { toPeople, useSubjects } from "./faces";
 import { COLOR_NAME_TO_RATING, type ColorName } from "./rating";
 
 // Filled star with the rating digit knocked out of its center via a mask,
@@ -180,21 +181,19 @@ const SWATCH_LABEL: Record<ColorName, string> = {
   purple: "Purple",
 };
 
-const PEOPLE = [
-  { id: "p1", name: "Person 1", count: 562, tint: "#8a6b5c" },
-  { id: "p2", name: "Person 2", count: 560, tint: "#6f5a4e" },
-  { id: "p3", name: "Person 3", count: 200, tint: "#9b7d68" },
-  { id: "p4", name: "Person 4", count: 200, tint: "#7d6658" },
-];
 
-function Avatar({ tint, size = 18 }: { tint: string; size?: number }) {
+const PERSON_TINTS = ["#8a6b5c", "#6f5a4e", "#9b7d68", "#7d6658"];
+
+function Avatar({ tint, face, size = 18 }: { tint: string; face?: string; size?: number }) {
   return (
     <span
-      className="block shrink-0 rounded-full ring-1 ring-[#1a1a1a]"
+      className="block shrink-0 rounded-full bg-cover bg-center ring-1 ring-[#1a1a1a]"
       style={{
         width: size,
         height: size,
-        background: `radial-gradient(circle at 50% 38%, #e2c2a8 0 26%, ${tint} 27%)`,
+        background: face
+          ? `center / cover url(${face})`
+          : `radial-gradient(circle at 50% 38%, #e2c2a8 0 26%, ${tint} 27%)`,
       }}
     />
   );
@@ -235,6 +234,7 @@ export function FilterControls({
 }) {
   const [flag, setFlag] = useState<FlagState>("none");
   const [people, setPeople] = useState<Set<string>>(new Set());
+  const PEOPLE = toPeople(useSubjects());
   // Local fallback when used uncontrolled.
   const [localRatings, setLocalRatings] = useState<Set<number>>(new Set());
   const ratings = ratingFilter ?? localRatings;
@@ -336,7 +336,7 @@ export function FilterControls({
             <span className="flex">
               {PEOPLE.slice(0, 3).map((p, i) => (
                 <span key={p.id} style={{ marginLeft: i ? -6 : 0 }}>
-                  <Avatar tint={p.tint} />
+                  <Avatar tint={PERSON_TINTS[i % 4]} face={p.face} />
                 </span>
               ))}
             </span>
@@ -346,7 +346,7 @@ export function FilterControls({
         width="200px"
       >
         <div className="py-1">
-          {PEOPLE.map((p) => (
+          {PEOPLE.map((p, i) => (
             <CheckRow
               key={p.id}
               on={people.has(p.id)}
@@ -359,7 +359,7 @@ export function FilterControls({
                 })
               }
             >
-              <Avatar tint={p.tint} size={22} />
+              <Avatar tint={PERSON_TINTS[i % 4]} face={p.face} size={22} />
               {p.name}
               <span className="text-neutral-500">{p.count}</span>
             </CheckRow>
