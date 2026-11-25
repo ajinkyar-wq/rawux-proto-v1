@@ -1,8 +1,8 @@
 import { useState } from "react";
 import { GradientSlider } from "../loupe/slider-primitives";
 import { Eye, EyeOff, ScanFace, ScanLine } from "lucide-react";
-import { photoUrl } from "../cull-data";
-import { FOCUS_COLOR, FOCUS_LABEL, faceCount, faceScore, facePos, faceRect, useFaceData } from "../faces";
+import { photoAspect, photoUrl } from "../cull-data";
+import { FOCUS_COLOR, FOCUS_LABEL, faceCount, facesLoading, faceScore, facePos, faceRect, useFaceData } from "../faces";
 import { IconTooltip } from "../IconTooltip";
 import { Caret } from "./Caret";
 
@@ -34,26 +34,31 @@ export type FaceControls = {
 export const FACE_SIZE_MIN = 56;
 export const FACE_SIZE_MAX = 150;
 const CROP = 4; // face crops show 1/4 of the photo's width
-// Face crops are zoomed in 61% by default (tighter on the face).
-const FACE_ZOOM_DEFAULT = 1.61; // 1.4 × 1.15
+// Crop window = this × the tight face box (includes forehead/hair + a margin).
+const SKELETON_COUNT = 2;
+const FACE_FRAME = 1.9 / 1.7; // 1.7× tighter than the 1.9× base frame
 
 // Background styling that crops a face card to the detected rect (real data)
 // or to the placeholder spot (mock data).
 function faceCrop(image: number, k: number): React.CSSProperties {
   const url = `url(${photoUrl(image, 900)})`;
   const clamp = (v: number) => Math.max(0, Math.min(100, v));
-  // Visible window as a fraction of the photo's width, centred on the face.
   const r = faceRect(image, k);
-  const w = Math.min(1, (r ? r.w : 1 / CROP) / FACE_ZOOM_DEFAULT);
+  const ar = r?.ar ?? photoAspect(image);
+  // Square window, sized from the tight face box (in photo-width units) with
+  // headroom, centred a touch above the box centre so hair/forehead isn't cut.
+  const faceW = r?.fw ?? 1 / (CROP * 1.6);
+  const faceH = r?.fh !== undefined ? (r.fh * 1) / ar : faceW; // in width units
+  const side = Math.max(faceW, faceH) * FACE_FRAME;
   const { x, y } = facePos(image, k);
-  // Square card: the window's height fraction follows its width fraction
-  // (rect.h is already in photo-height units for real data).
-  const h = Math.min(1, (r ? r.h : 1 / CROP) / FACE_ZOOM_DEFAULT);
+  const w = Math.min(1, side); // window width, fraction of photo width
+  const h = Math.min(1, side * ar); // window height, fraction of photo height
+  const cy = r?.fh !== undefined ? y - r.fh * 0.08 : y;
   return {
     backgroundImage: url,
     backgroundSize: `${100 / w}% auto`,
     backgroundPosition: `${w >= 1 ? 50 : clamp(((x - w / 2) / (1 - w)) * 100)}% ${
-      h >= 1 ? 50 : clamp(((y - h / 2) / (1 - h)) * 100)
+      h >= 1 ? 50 : clamp(((cy - h / 2) / (1 - h)) * 100)
     }%`,
   };
 }
@@ -66,7 +71,8 @@ export function KeyFacesGrid({
   controls?: FaceControls;
 }) {
   useFaceData(); // re-render as real detections stream in
-  const count = faceCount(selectedGridTile);
+  const isLoading = facesLoading(selectedGridTile);
+  const count = isLoading ? SKELETON_COUNT : faceCount(selectedGridTile);
 
   const [expanded, setExpanded] = useState(true);
   // Grid / loupe panels have no external controls, so they own the size +
@@ -88,7 +94,7 @@ export function KeyFacesGrid({
           className="flex shrink-0 items-center gap-2 text-[13px] font-medium text-white"
         >
           <Caret open={expanded} />
-          Key Faces ({count})
+          Key Faces{isLoading ? "" : ` (${count})`}
         </button>
         {expanded && (
           <div className="ml-auto flex items-center gap-2">
@@ -129,7 +135,9 @@ export function KeyFacesGrid({
           }}
         >
           {Array.from({ length: count }).map((_, k) =>
-            controls ? (
+            isLoading ? (
+              <div key={k} className="face-shimmer aspect-square" aria-hidden />
+            ) : controls ? (
               <FaceCard key={k} image={selectedGridTile} k={k} controls={controls} />
             ) : (
               <PanelFaceCard key={k} image={selectedGridTile} k={k} scores={scoresOn} />

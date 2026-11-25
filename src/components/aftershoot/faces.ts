@@ -2,7 +2,8 @@
 // pipeline (RetinaFace → ArcFace, see src/lib/faceDetection) once
 // <FaceDetectionRunner /> has processed the sample photos; until then (and for
 // photos where it finds nothing yet) they fall back to placeholder data.
-// Eyes-open / sharpness scores are still mock.
+// Eyes-open / sharpness come from the worker's measurements (sharpness =
+// Laplacian variance, eyes = contrast around the eye landmarks).
 //
 // Face scores follow the Survey Mode prototype:
 //   eyes: open | closed      focus: g = sharp, y = slightly soft, r = blurry
@@ -22,6 +23,18 @@ export function setDetectedFaces(next: Map<number, FaceRect[]>) {
   version++;
   listeners.forEach((l) => l());
 }
+
+let loading = false;
+/** Called by FaceDetectionRunner: true while the model loads / photos are processed. */
+export function setFacesLoading(v: boolean) {
+  if (loading === v) return;
+  loading = v;
+  version++;
+  listeners.forEach((l) => l());
+}
+
+/** True while detection is still running and this photo has no result yet. */
+export const facesLoading = (image: number) => loading && !realFaces(image);
 
 /** Subscribe a component to detection results so it re-renders as they arrive. */
 export function useFaceData() {
@@ -57,7 +70,7 @@ function rnd(n: number) {
 /** Where face k sits in the photo, as fractions (0-1) of its width / height. */
 export function facePos(image: number, k: number) {
   const r = faceRect(image, k);
-  if (r) return { x: r.x + r.w / 2, y: r.y + r.h / 2 };
+  if (r) return r.fx !== undefined ? { x: r.fx + r.fw! / 2, y: r.fy! + r.fh! / 2 } : { x: r.x + r.w / 2, y: r.y + r.h / 2 };
   return {
     x: 0.18 + rnd(image * 12.9898 + k * 78.233) * 0.64,
     y: 0.2 + rnd(image * 3.17 + k * 9.73) * 0.5,
@@ -66,8 +79,20 @@ export function facePos(image: number, k: number) {
 
 export type FaceFocus = "g" | "y" | "r";
 
-/** Eyes-open and sharpness score of face k. */
+// Thresholds on the worker's measurements (tuned on the sample album).
+const SHARP_GOOD = 120; // Laplacian variance ≥ this → sharp
+const SHARP_SOFT = 40; //  ≥ this → slightly soft, below → out of focus
+const EYE_OPEN_MIN = 0.2; // eye-patch contrast ≥ this → eyes open
+
+/** Eyes-open and sharpness score of face k (real when detected, else mock). */
 export function faceScore(image: number, k: number): { eyesOpen: boolean; focus: FaceFocus } {
+  const r = faceRect(image, k);
+  if (r && r.sharp !== undefined && r.eyeContrast !== undefined) {
+    return {
+      eyesOpen: r.eyeContrast >= EYE_OPEN_MIN,
+      focus: r.sharp >= SHARP_GOOD ? "g" : r.sharp >= SHARP_SOFT ? "y" : "r",
+    };
+  }
   const r1 = Math.floor(rnd(image * 9.1 + k * 4.7) * 100);
   const r2 = Math.floor(rnd(image * 5.3 + k * 11.9) * 100);
   return {

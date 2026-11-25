@@ -433,6 +433,33 @@ function sharpnessCrop(bitmap: ImageBitmap, r: PixelRect): ImageData {
   return ctx.getImageData(0, 0, w, h);
 }
 
+
+// Eye-openness proxy: luminance contrast (stddev / mean) of a small patch around
+// each eye landmark. An open eye has dark iris/pupil against sclera + skin; a
+// closed or blurred eye is a smooth lid. Returns the larger of the two eyes so
+// a single winking/occluded eye doesn't read as closed. Heuristic, not a model.
+function eyeContrast(bitmap: ImageBitmap, det: DetectedFace): number {
+  if (!det.landmarks) return 0;
+  const side = Math.max(8, (det.x2 - det.x1) * 0.22);
+  const N = 24;
+  let best = 0;
+  for (const [ex, ey] of det.landmarks.slice(0, 2)) {
+    const c = makeCanvas(N, N);
+    const ctx = c.getContext("2d", { willReadFrequently: true })!;
+    ctx.drawImage(bitmap, ex - side, ey - side * 0.7, side * 2, side * 1.4, 0, 0, N, N);
+    const d = ctx.getImageData(0, 0, N, N).data;
+    let sum = 0, sum2 = 0;
+    for (let i = 0; i < N * N; i++) {
+      const g = 0.299 * d[i * 4] + 0.587 * d[i * 4 + 1] + 0.114 * d[i * 4 + 2];
+      sum += g; sum2 += g * g;
+    }
+    const mean = sum / (N * N);
+    const sd = Math.sqrt(Math.max(0, sum2 / (N * N) - mean * mean));
+    best = Math.max(best, mean > 1 ? sd / mean : 0);
+  }
+  return best;
+}
+
 // ── Per-image processing ──────────────────────────────────────────────────────
 async function processImage(index: number, bitmap: ImageBitmap) {
   const dets = await detectFaces(bitmap);
@@ -442,22 +469,28 @@ async function processImage(index: number, bitmap: ImageBitmap) {
     if (det.score < VIS_THRESH || !det.landmarks) continue;
     const r = cropRect(bitmap, det);
 
-    // Blur gate: filter out-of-focus faces from BOTH the displayed key faces
-    // and clustering. One sharpness measure, computed on a small focus crop.
+    // One sharpness measure on a small focus crop. Blurry faces are still
+    // reported (so the UI can flag them) but excluded from clustering below.
     const sharp = computeSharpness(sharpnessCrop(bitmap, r));
-    if (sharp < SHARPNESS_MIN) {
-      blurred++;
-      continue;
-    }
-    // Store the rect as fractions of the image so the panel can crop it out of
-    // the full-resolution photo without any quality loss.
+    const isBlurred = sharp < SHARPNESS_MIN;
+    if (isBlurred) blurred++;
+    // Fractions of the image so the panel can crop the full-res photo itself.
+    // x/y/w/h = padded head+chest crop; fx/fy/fw/fh = the tight face box.
     rects.push({
       x: r.sx / bitmap.width,
       y: r.sy / bitmap.height,
       w: r.sw / bitmap.width,
       h: r.sh / bitmap.height,
+      fx: det.x1 / bitmap.width,
+      fy: det.y1 / bitmap.height,
+      fw: (det.x2 - det.x1) / bitmap.width,
+      fh: (det.y2 - det.y1) / bitmap.height,
+      ar: bitmap.width / bitmap.height,
+      sharp,
+      eyeContrast: eyeContrast(bitmap, det),
     });
 
+    if (isBlurred) continue;
     if (det.score < MIN_EMBED_SCORE) continue;
     const aligned = alignFace(bitmap, det.landmarks);
     let embedding: Float32Array;

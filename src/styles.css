@@ -638,3 +638,13 @@ button:focus-visible,
 [role="checkbox"]:focus-visible {
   outline: none;
 }
+
+/* Shimmering wipe placeholder for key faces while the model loads. */
+.face-shimmer {
+  background: linear-gradient(100deg, #1f1f1f 30%, #3a3a3a 50%, #1f1f1f 70%) 0 0 / 250% 100%;
+  animation: face-shimmer 1.4s linear infinite;
+}
+@keyframes face-shimmer {
+  from { background-position: 100% 0; }
+  to { background-position: -100% 0; }
+}
