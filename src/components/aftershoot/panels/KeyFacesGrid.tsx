@@ -29,12 +29,15 @@ export type FaceControls = {
   onSize: (v: number) => void;
   scores: boolean;
   onScores: (v: boolean) => void;
+  /** Loupe: keep the grid-panel card design (badges bottom-left) but clickable. */
+  panelStyle?: boolean;
 };
 
 export const FACE_SIZE_MIN = 56;
 export const FACE_SIZE_MAX = 150;
 const CROP = 4; // face crops show 1/4 of the photo's width
 // Crop window = this × the tight face box (includes forehead/hair + a margin).
+const FACE_COLS_MAX = 5;
 const SKELETON_COUNT = 2;
 const FACE_FRAME = 1.9 / 1.7; // 1.7× tighter than the 1.9× base frame
 
@@ -81,11 +84,15 @@ export function KeyFacesGrid({
   const [size, setSize] = useState(110);
   const [scores, setScores] = useState(true);
   const GAP = 4;
+  // Slider: 5 faces per row at the left, 1 per row (full panel width) at the right.
 
   const sizeValue = controls?.size ?? size;
   const onSize = controls?.onSize ?? setSize;
   const scoresOn = controls?.scores ?? scores;
   const onScores = controls?.onScores ?? setScores;
+  const cols = Math.round(
+    FACE_COLS_MAX - ((sizeValue - FACE_SIZE_MIN) / (FACE_SIZE_MAX - FACE_SIZE_MIN)) * (FACE_COLS_MAX - 1),
+  );
 
   return (
     <div className="flex flex-col gap-3">
@@ -131,17 +138,24 @@ export function KeyFacesGrid({
         <div
           className="grid"
           style={{
-            gridTemplateColumns: `repeat(auto-fill, minmax(${sizeValue}px, 1fr))`,
+            gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))`,
             gap: `${controls ? GAP + 2 : GAP}px`,
           }}
         >
           {Array.from({ length: count }).map((_, k) =>
             isLoading ? (
               <div key={k} className="face-shimmer aspect-square" aria-hidden />
-            ) : controls ? (
+            ) : controls && !controls.panelStyle ? (
               <FaceCard key={k} image={selectedGridTile} k={k} controls={controls} />
             ) : (
-              <PanelFaceCard key={k} image={selectedGridTile} k={k} scores={scoresOn} />
+              <PanelFaceCard
+                key={k}
+                image={selectedGridTile}
+                k={k}
+                scores={scoresOn}
+                active={controls ? controls.active === k : false}
+                onClick={() => (controls ? controls.onSelect(k) : openFace(k))}
+              />
             ),
           )}
         </div>
@@ -151,18 +165,32 @@ export function KeyFacesGrid({
 }
 
 // Plain (grid-view) face card: a crop of the face with eyes / focus badges.
-function PanelFaceCard({ image, k, scores }: { image: number; k: number; scores: boolean }) {
+function PanelFaceCard({
+  image,
+  k,
+  scores,
+  active,
+  onClick,
+}: {
+  image: number;
+  k: number;
+  scores: boolean;
+  active: boolean;
+  onClick: () => void;
+}) {
   const { eyesOpen, focus } = faceScore(image, k);
   return (
     <div
       role="button"
+      aria-pressed={active}
       aria-label={`Face ${k + 1}. Zoom to this face`}
-      onClick={() => openFace(k)}
+      onClick={onClick}
       style={faceCrop(image, k)}
       onMouseEnter={() => setHoveredFace(k)}
       onMouseLeave={() => setHoveredFace(null)}
-      className="relative aspect-square cursor-zoom-in rounded-[4px] bg-[#2d2d2d] outline outline-1 -outline-offset-1 outline-transparent hover:outline-white/40"
-    >
+      className={`relative aspect-square cursor-pointer rounded-[4px] bg-[#2d2d2d] outline outline-1 -outline-offset-1 ${
+        active ? "outline-white" : "outline-transparent"
+      }`}>
       {scores && (
         <span className="absolute bottom-1 left-1 flex gap-1">
           <span
@@ -215,7 +243,7 @@ function FaceCard({ image, k, controls }: { image: number; k: number; controls: 
       onMouseLeave={() => setHoveredFace(null)}
       onBlur={() => setHoveredFace(null)}
       style={faceCrop(image, k)}
-      className={`relative aspect-square cursor-zoom-in rounded-[4px] bg-[#1f1f1f] outline outline-1 -outline-offset-1 ${
+      className={`relative aspect-square cursor-pointer rounded-[4px] bg-[#1f1f1f] outline outline-1 -outline-offset-1 ${
         on ? "outline-white" : "outline-transparent hover:outline-white/40"
       }`}
     >

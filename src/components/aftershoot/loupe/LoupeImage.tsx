@@ -25,6 +25,7 @@ export function LoupeImage({
   onActualZoomChange,
   onPullToSurvey,
   focus,
+  onPickFace,
   badge,
 }: {
   image: number;
@@ -52,6 +53,8 @@ export function LoupeImage({
   onPullToSurvey?: () => void;
   /** Photo point (fractions) to centre while zoomed — e.g. a clicked key face. */
   focus?: { x: number; y: number } | null;
+  /** Face boxes on the photo become click targets that call this with the face index. */
+  onPickFace?: (k: number) => void;
   badge?: React.ReactNode;
 }) {
   const canvasRef = useRef<HTMLDivElement>(null);
@@ -88,12 +91,15 @@ export function LoupeImage({
 
   // Centre `focus` (clamped so the photo's edges never pull inside the frame).
   const pan = (() => {
-    if (!focus || crop || scale <= 1) return { x: 0, y: 0 };
+    if (!focus || scale <= 1) return { x: 0, y: 0 };
     const lim = (f: number) => ((scale - 1) * f) / 2;
     const c = (v: number, l: number) => Math.max(-l, Math.min(l, v));
+    // Photo fractions → fractions of the (possibly cropped) frame.
+    const fx = crop ? (focus.x - crop.x / 100) / (crop.w / 100) : focus.x;
+    const fy = crop ? (focus.y - crop.y / 100) / (crop.h / 100) : focus.y;
     return {
-      x: c(-(focus.x - 0.5) * fitW * scale, lim(fitW)),
-      y: c(-(focus.y - 0.5) * fitH * scale, lim(fitH)),
+      x: c(-(fx - 0.5) * fitW * scale, lim(fitW)),
+      y: c(-(fy - 0.5) * fitH * scale, lim(fitH)),
     };
   })();
 
@@ -251,7 +257,7 @@ export function LoupeImage({
             }}
             className="absolute inset-0 h-full w-full max-w-none object-cover"
           />
-          <FaceBoxOverlay image={image} />
+          <FaceBoxOverlay image={image} onPick={onPickFace} scale={scale * (crop ? 1 : 1)} />
         </div>
         {overlay}
       </div>

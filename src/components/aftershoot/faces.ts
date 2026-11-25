@@ -10,7 +10,7 @@
 
 import { useSyncExternalStore } from "react";
 import type { FaceRect } from "@/types/detection";
-import { SAMPLE_COUNT } from "./cull-data";
+import { SAMPLE_COUNT, photoAspect } from "./cull-data";
 
 // ---- real detection results, keyed by sample-photo index ----
 let detected = new Map<number, FaceRect[]>();
@@ -112,6 +112,18 @@ export function facePos(image: number, k: number) {
     x: 0.18 + rnd(image * 12.9898 + k * 78.233) * 0.64,
     y: 0.2 + rnd(image * 3.17 + k * 9.73) * 0.5,
   };
+}
+
+/** Face centre as fractions of a frame that letterboxes the photo (object-contain). */
+export function framePos(image: number, k: number, frameAspect: number) {
+  const { x, y } = facePos(image, k);
+  const ar = faceRect(image, k)?.ar ?? photoAspect(image);
+  if (ar > frameAspect) {
+    const sh = frameAspect / ar;
+    return { x, y: (1 - sh) / 2 + y * sh };
+  }
+  const sw = ar / frameAspect;
+  return { x: (1 - sw) / 2 + x * sw, y };
 }
 
 export type FaceFocus = "g" | "y" | "r";

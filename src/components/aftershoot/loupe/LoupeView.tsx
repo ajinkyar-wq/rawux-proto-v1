@@ -115,7 +115,7 @@ export function LoupeView({
   const [actualZoom, setActualZoom] = useState<number | null>(null);
   // Key Faces: clicking a face zooms the canvas to it (click again to fit).
   const [activeFace, setActiveFace] = useState<number | null>(() => takePendingFace());
-  const [faceSize, setFaceSize] = useState(76);
+  const [faceSize, setFaceSize] = useState(110);
   const [faceScores, setFaceScores] = useState(true);
   const firstRun = useRef(true);
   useEffect(() => {
@@ -141,6 +141,7 @@ export function LoupeView({
     onSize: setFaceSize,
     scores: faceScores,
     onScores: setFaceScores,
+    panelStyle: true,
   };
   // Floating image info card (stays open while you move between photos).
   const [infoOpen, setInfoOpen] = useState(false);
@@ -335,6 +336,7 @@ export function LoupeView({
               rotation={showAfter ? straightenOf(history, selectedIndex) : 0}
               actualZoom={actualZoom}
               focus={faceFocus}
+              onPickFace={activeRail === "ai" ? faceControls.onSelect : undefined}
               onMetrics={handleMetrics}
               onActualZoomChange={setActualZoom}
               onPullToSurvey={

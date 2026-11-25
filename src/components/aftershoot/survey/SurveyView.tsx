@@ -11,7 +11,7 @@ import {
   FOCUS_COLOR,
   FOCUS_LABEL,
   faceCount,
-  facePos,
+  framePos,
   faceScore,
   useFaceData,
   type FaceFocus,
@@ -192,7 +192,7 @@ export function SurveyView({
 
   // ---- key faces: zoom every photo to a face ----
   const faceView = (id: number, k: number): View => {
-    const { x, y } = facePos(imageOf(id), k);
+    const { x, y } = framePos(imageOf(id), k, AR);
     const s = FACE_ZOOM / 100;
     return clampView({ zoom: FACE_ZOOM, x: -s * (x - 0.5), y: -s * (y - 0.5) });
   };
@@ -433,6 +433,7 @@ export function SurveyView({
             onOpenInLoupe={openPhoto}
             onRemove={(i) => removeMember(i)}
             onToggleFlag={toggleFlag}
+            onPickFace={selectFace}
             onReorder={reorder}
           />
           {peek && (
@@ -711,6 +712,7 @@ function SurveyGrid({
   onOpenInLoupe,
   onRemove,
   onToggleFlag,
+  onPickFace,
   onReorder,
 }: {
   // How many photos fit on screen at once; a longer set scrolls in rows.
@@ -728,6 +730,7 @@ function SurveyGrid({
   onOpenInLoupe: (i: number) => void;
   onRemove: (i: number) => void;
   onToggleFlag: (i: number) => void;
+  onPickFace: (k: number) => void;
   onReorder: (from: number, before: number) => void;
 }) {
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -833,6 +836,7 @@ function SurveyGrid({
                 onRemove={() => onRemove(idx)}
                 onRate={(v) => ratings.setRating(idx, v)}
                 onToggleFlag={() => onToggleFlag(idx)}
+                onPickFace={onPickFace}
                 onView={(v) => setViewOf(idx, v)}
                 onDragStart={() => setDragId(idx)}
                 onDragOver={() => setOverId(idx)}
@@ -871,6 +875,7 @@ function SurveyPane({
   onRemove,
   onRate,
   onToggleFlag,
+  onPickFace,
   onView,
   onDragStart,
   onDragOver,
@@ -894,6 +899,7 @@ function SurveyPane({
   onRemove: () => void;
   onRate: (v: number) => void;
   onToggleFlag: () => void;
+  onPickFace: (k: number) => void;
   onView: (v: View) => void;
   onDragStart: () => void;
   onDragOver: () => void;
@@ -1017,7 +1023,12 @@ function SurveyPane({
                   transition: panning ? "none" : "transform 120ms ease-out",
                 }}
               >
-                <FaceBoxOverlay image={imageOf(id)} frameAspect={frameW / frameH} />
+                <FaceBoxOverlay
+                  image={imageOf(id)}
+                  frameAspect={frameW / frameH}
+                  scale={view.zoom / 100}
+                  onPick={onPickFace}
+                />
               </div>
             </div>
 
