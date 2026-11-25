@@ -728,6 +728,7 @@ function Workspace({
                   onRailChange={setLastLoupeRail}
                   onOpenShortcuts={openShortcutsFromLoupe}
                   onOpenSurvey={() => changeView("survey")}
+                  onExit={() => changeView("grid")}
                   cullFiltersVisible={
                     actionStatuses.cull === "complete" && cullMode === "automated"
                   }

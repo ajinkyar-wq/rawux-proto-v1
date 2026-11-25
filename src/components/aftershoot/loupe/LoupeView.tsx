@@ -13,6 +13,8 @@ import {
 import { effectiveCropOf, straightenOf } from "./crop-config";
 import { useWbPickerActive, wbPicker } from "./wb-picker";
 import { BrushToolbar } from "./BrushToolbar";
+import { BrushCanvas, useBrush } from "./BrushLayer";
+import { useActiveMask } from "./mask-selection";
 import { ImageInfoCard } from "./ImageInfoCard";
 import { faceCount, faceZoomPercent, facePos, takePendingFace } from "../faces";
 import type { FaceControls } from "../panels/KeyFacesGrid";
@@ -23,6 +25,7 @@ import { LoupeRail } from "./LoupeRail";
 import { LoupeRailPanel, type LoupeAIState } from "./LoupeRailPanel";
 import { loupeRailInTab, type LoupeRailKey } from "./loupe-rail-config";
 import { useShortcuts } from "../shortcuts/shortcutRegistry";
+import { getZoomPrefs } from "../zoom-prefs";
 import type { Ratings } from "../use-ratings";
 import type { AIAction } from "../panels/ImagePanel";
 import type { AppTab, RailKey as GridRailKey } from "../rail-config";
@@ -57,6 +60,7 @@ export function LoupeView({
   onRailChange,
   onOpenShortcuts,
   onOpenSurvey,
+  onExit,
 }: {
   // Filter row (ViewBar) — sits above the image area only.
   viewBar?: React.ReactNode;
@@ -97,6 +101,8 @@ export function LoupeView({
   // Cull tab only, and only once a cull has produced duplicate stacks: pinching
   // out past fit opens Survey Mode to compare the stack.
   onOpenSurvey?: () => void;
+  /** Esc: leave Loupe and go back to the Grid. */
+  onExit?: () => void;
 }) {
   // Which rail loupe opens on is contextual to how you arrived. See initialRail.
   // Returning to loupe restores the tool the user last had open here.
@@ -126,7 +132,11 @@ export function LoupeView({
       return;
     }
     // Moving to another image (not a duplicate) while zoomed on a face: fit it.
-    if (activeFaceRef.current !== null) setActualZoom(null);
+    // Without Persist zoom, every image opens at Fit.
+    if (activeFaceRef.current !== null || !getZoomPrefs().persistZoom) {
+      setActualZoom(null);
+      setPointFocus(null);
+    }
     setActiveFace(null);
   }, [selectedIndex]);
   const faceControls: FaceControls = {
@@ -188,7 +198,11 @@ export function LoupeView({
   // Crops live in the album history (per image, revert on Undo).
   const history = useAlbumHistoryContext();
   const wbPicking = useWbPickerActive();
-  const handleMetrics = useCallback((m: { fitPercent: number }) => setFitPercent(m.fitPercent), []);
+  const [fillPercent, setFillPercent] = useState(100);
+  const handleMetrics = useCallback((m: { fitPercent: number; fillPercent: number }) => {
+    setFitPercent(m.fitPercent);
+    setFillPercent(m.fillPercent);
+  }, []);
   // Click on the photo: zoom to 100% at that point (click again to fit).
   const [pointFocus, setPointFocus] = useState<{ x: number; y: number } | null>(null);
   useEffect(() => {
@@ -221,7 +235,8 @@ export function LoupeView({
   useEffect(() => {
     if (pendingZoom.current && fitPercent > 0) {
       pendingZoom.current = false;
-      if (activeFace !== null) setActualZoom(fitPercent * (faceZoomPercent(selectedIndex, activeFace) / 100));
+      if (activeFace !== null)
+        setActualZoom(fitPercent * (faceZoomPercent(selectedIndex, activeFace) / 100));
     }
   }, [fitPercent]);
   useEffect(() => {
@@ -249,6 +264,19 @@ export function LoupeView({
   const cullDone = tab === "cull" && ai.actionStatuses.cull === "complete";
   const dupTotal = duplicateCount(selectedIndex);
   const photoId = dupId(selectedIndex, dupIndex);
+  const brush = useBrush(photoId, activeRail === "patch");
+  const clearBrush = brush.clear;
+  const setBrushSize = brush.setSize;
+  // The brush paints in Object Removal, and in Masking while the Brush Mask
+  // entry is the active one in the Masks list.
+  const activeMask = useActiveMask();
+  const brushActive = activeRail === "patch" || (activeRail === "mask" && activeMask === "brush");
+  const brushActiveRef = useRef(brushActive);
+  brushActiveRef.current = brushActive;
+  // Strokes are per image and per tool.
+  useEffect(() => {
+    clearBrush();
+  }, [photoId, activeRail, activeMask, clearBrush]);
   useShortcuts(
     () =>
       cullDone
@@ -342,6 +370,25 @@ export function LoupeView({
     }
   }
 
+  // Esc leaves Loupe for the Grid. Anything else that owns Esc (an open
+  // menu / dialog, a text field, the Crop tool, a brush, the info card) wins.
+  const exitRef = useRef({ onExit, infoOpen, rail: activeRail });
+  exitRef.current = { onExit, infoOpen, rail: activeRail };
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== "Escape" || e.defaultPrevented || e.metaKey || e.ctrlKey || e.altKey) return;
+      const t = e.target as HTMLElement | null;
+      if (t && (t.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName))) return;
+      const x = exitRef.current;
+      if (!x.onExit || x.infoOpen || x.rail === "crop" || brushActiveRef.current) return;
+      if (document.querySelector('[role="dialog"],[role="alertdialog"],[role="menu"],.fixed.inset-0'))
+        return;
+      x.onExit();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
+
   // Space toggles between Fit and the last zoom level (100% by default).
   useShortcuts(
     () => [
@@ -351,6 +398,8 @@ export function LoupeView({
         label: "Toggle Fit / Zoom",
         section: "View",
         run: () => {
+          // With a brush active, Space is the hand tool (hold + drag to pan).
+          if (brushActiveRef.current) return;
           if (activeZoomRef.current !== null) {
             setActualZoom(null);
             return;
@@ -388,7 +437,17 @@ export function LoupeView({
           <div className="flex min-h-0 flex-1 flex-col">
             <LoupeImage
               image={selectedIndex}
-              onScrollStep={(d) => onSelectIndex(Math.max(0, Math.min(selectedIndex + d, ALBUM_LAST)))}
+              onBrushWheel={
+                brushActive
+                  ? (dy) => {
+                      const step = Math.sign(dy) * Math.max(1, Math.round(Math.abs(dy) / 8));
+                      setBrushSize((v) => Math.max(1, Math.min(200, v - step)));
+                    }
+                  : undefined
+              }
+              onScrollStep={(d) =>
+                onSelectIndex(Math.max(0, Math.min(selectedIndex + d, ALBUM_LAST)))
+              }
               // The applied crop — except while the Crop tool is open (full photo
               // + crop box to adjust) and in the Before view (the original).
               crop={
@@ -402,13 +461,18 @@ export function LoupeView({
               actualZoom={actualZoom}
               focus={faceFocus}
               onPointClick={
-                activeRail === "crop" || activeRail === "mask" || activeRail === "patch" || wbPicking
+                activeRail === "crop" ||
+                activeRail === "mask" ||
+                activeRail === "patch" ||
+                wbPicking
                   ? undefined
                   : handlePointClick
               }
               onPickFace={activeRail === "ai" ? faceControls.onSelect : undefined}
+              // Cmd/Ctrl-drag marquee zoom works in every tool (brush tools included);
+              // only the Crop box and the WB eyedropper own the pointer.
               onMarqueeZoom={
-                activeRail === "crop" || activeRail === "mask" || activeRail === "patch" || wbPicking
+                activeRail === "crop" || wbPicking
                   ? undefined
                   : (z) => {
                       setActiveFace(null);
@@ -445,13 +509,19 @@ export function LoupeView({
                     onClick={() => wbPicker.pick()}
                     className="absolute inset-0 z-10 cursor-crosshair"
                   />
+                ) : brushActive ? (
+                  <BrushCanvas brush={brush} removal={activeRail === "patch"} />
                 ) : null
               }
               canvasOverlay={
                 <>
                   {/* Brush toolbar for the brush-based tools: Masking and Object Removal. */}
-                  {(activeRail === "patch" || activeRail === "mask") && (
-                    <BrushToolbar key={activeRail} />
+                  {brushActive && <BrushToolbar brush={brush} />}
+                  {activeRail === "patch" && brush.phase === "removing" && (
+                    <div className="pointer-events-none absolute bottom-4 right-4 z-30 flex items-center gap-2 rounded-lg bg-black/80 px-3 py-1.5">
+                      <div className="h-3.5 w-3.5 shrink-0 animate-spin rounded-full border-2 border-[#ababab] border-t-transparent" />
+                      <span className="text-[12px] text-[#e2e2e2]">Removing</span>
+                    </div>
                   )}
                   {/* Image info floats over the canvas (ⓘ in the bottom bar). */}
                   {infoOpen && (
@@ -495,6 +565,8 @@ export function LoupeView({
             percent: actualZoom ?? fitPercent,
             onFit: () => setActualZoom(null),
             onPercent: setActualZoom,
+            fillPercent,
+            education: true,
           }}
           showAfter={showAfter}
           onToggleAfter={() => setShowAfter((v) => !v)}
@@ -512,7 +584,12 @@ export function LoupeView({
           panels share it (never shown at once). */}
       {panelOpen && (
         <div className="relative flex min-h-0 shrink-0">
-          <LoupeRailPanel activeRail={activeRail} selectedIndex={selectedIndex} ai={ai} faces={faceControls} />
+          <LoupeRailPanel
+            activeRail={activeRail}
+            selectedIndex={selectedIndex}
+            ai={ai}
+            faces={faceControls}
+          />
         </div>
       )}
 
