@@ -162,5 +162,26 @@ export const FOCUS_LABEL: Record<FaceFocus, string> = {
   r: "Out of focus",
 };
 
-/** Zoom used when jumping every photo to a face. */
+/** Fallback zoom (% of fit) when a face has no measured size. */
 export const FACE_ZOOM = 300;
+
+// The face's larger side should fill this share of the photo frame when zoomed.
+const FACE_FILL = 0.35;
+
+/**
+ * Zoom (% of fit) that frames face k at a consistent size: small faces zoom in
+ * far, big faces barely. `frameAspect` is the frame's width/height when it
+ * letterboxes the photo (Survey); omit when the frame is the photo itself.
+ */
+export function faceZoomPercent(image: number, k: number, frameAspect?: number): number {
+  const r = faceRect(image, k);
+  if (!r || r.fw === undefined || r.fh === undefined) return FACE_ZOOM;
+  const ar = r.ar ?? photoAspect(image);
+  let sw = 1, sh = 1;
+  if (frameAspect) {
+    if (ar > frameAspect) sh = frameAspect / ar;
+    else sw = ar / frameAspect;
+  }
+  const size = Math.max(r.fw * sw, r.fh * sh);
+  return Math.round(Math.max(150, Math.min(800, (FACE_FILL / size) * 100)));
+}

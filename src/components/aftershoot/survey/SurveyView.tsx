@@ -7,7 +7,7 @@ import { AlbumFilmstrip } from "../loupe/AlbumFilmstrip";
 import { PhotoContextMenu, PhotoMenuContext } from "../PhotoContextMenu";
 import { IconTooltip } from "../IconTooltip";
 import {
-  FACE_ZOOM,
+  faceZoomPercent,
   FOCUS_COLOR,
   FOCUS_LABEL,
   faceCount,
@@ -193,8 +193,9 @@ export function SurveyView({
   // ---- key faces: zoom every photo to a face ----
   const faceView = (id: number, k: number): View => {
     const { x, y } = framePos(imageOf(id), k, AR);
-    const s = FACE_ZOOM / 100;
-    return clampView({ zoom: FACE_ZOOM, x: -s * (x - 0.5), y: -s * (y - 0.5) });
+    const zoom = faceZoomPercent(imageOf(id), k, AR);
+    const s = zoom / 100;
+    return clampView({ zoom, x: -s * (x - 0.5), y: -s * (y - 0.5) });
   };
   const applyFace = (k: number) => {
     setActiveFace(k);

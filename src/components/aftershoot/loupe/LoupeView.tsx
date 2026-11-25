@@ -14,7 +14,7 @@ import { effectiveCropOf, straightenOf } from "./crop-config";
 import { useWbPickerActive, wbPicker } from "./wb-picker";
 import { BrushToolbar } from "./BrushToolbar";
 import { ImageInfoCard } from "./ImageInfoCard";
-import { FACE_ZOOM, facePos, takePendingFace } from "../faces";
+import { faceZoomPercent, facePos, takePendingFace } from "../faces";
 import type { FaceControls } from "../panels/KeyFacesGrid";
 import { LoupeImage } from "./LoupeImage";
 import { PhotoContextMenu } from "../PhotoContextMenu";
@@ -117,12 +117,16 @@ export function LoupeView({
   const [activeFace, setActiveFace] = useState<number | null>(() => takePendingFace());
   const [faceSize, setFaceSize] = useState(110);
   const [faceScores, setFaceScores] = useState(true);
+  const activeFaceRef = useRef(activeFace);
+  activeFaceRef.current = activeFace;
   const firstRun = useRef(true);
   useEffect(() => {
     if (firstRun.current) {
       firstRun.current = false;
       return;
     }
+    // Moving to another image (not a duplicate) while zoomed on a face: fit it.
+    if (activeFaceRef.current !== null) setActualZoom(null);
     setActiveFace(null);
   }, [selectedIndex]);
   const faceFocus = activeFace === null ? null : facePos(selectedIndex, activeFace);
@@ -134,7 +138,7 @@ export function LoupeView({
         setActualZoom(null);
       } else {
         setActiveFace(k);
-        setActualZoom(fitPercent * (FACE_ZOOM / 100));
+        setActualZoom(fitPercent * (faceZoomPercent(selectedIndex, k) / 100));
       }
     },
     size: faceSize,
@@ -167,7 +171,7 @@ export function LoupeView({
   useEffect(() => {
     if (pendingZoom.current && fitPercent > 0) {
       pendingZoom.current = false;
-      setActualZoom(fitPercent * (FACE_ZOOM / 100));
+      if (activeFace !== null) setActualZoom(fitPercent * (faceZoomPercent(selectedIndex, activeFace) / 100));
     }
   }, [fitPercent]);
   useEffect(() => {
