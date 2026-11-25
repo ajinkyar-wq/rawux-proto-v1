@@ -1,10 +1,11 @@
 import { useEffect, useRef, useState } from "react";
 import { ArrowsClockwise } from "@phosphor-icons/react";
 import { SprayCanIcon } from "./loupe/loupe-rail-config";
-import { ChevronDown, Eye, Flag, Info, Link2, Link2Off, Minus, Plus } from "lucide-react";
+import { Check, ChevronDown, Eye, Flag, Info, Link2, Link2Off, Minus, Plus } from "lucide-react";
 import { IconTooltip } from "./IconTooltip";
 import { RatingChip } from "./RatingChip";
 import { GradientSlider } from "./loupe/slider-primitives";
+import { setZoomPrefs, useZoomPrefs, ZOOM_PRESETS } from "./zoom-prefs";
 
 // Before/after glyphs from Figma (Compare-Before-Custom / Compare-After-Custom).
 function CompareIcon({ after, className }: { after: boolean; className?: string }) {
@@ -27,7 +28,33 @@ function CompareIcon({ after, className }: { after: boolean; className?: string 
   );
 }
 
-const ZOOM_PRESETS = [25, 50, 100, 200, 300, 400];
+function ZoomRow({
+  selected,
+  onClick,
+  children,
+  role = "option",
+}: {
+  selected: boolean;
+  onClick: () => void;
+  children: React.ReactNode;
+  role?: string;
+}) {
+  return (
+    <button
+      type="button"
+      role={role}
+      aria-selected={role === "option" ? selected : undefined}
+      aria-checked={role === "menuitemcheckbox" ? selected : undefined}
+      onClick={onClick}
+      className={`flex w-full items-center justify-between gap-4 whitespace-nowrap px-3 py-1.5 text-left text-[12px] hover:bg-white/10 ${
+        selected ? "text-white" : "text-[#ababab] hover:text-white"
+      }`}
+    >
+      <span className="tabular-nums">{children}</span>
+      {selected && <Check className="h-3.5 w-3.5 text-[#e2e2e2]" strokeWidth={2.25} />}
+    </button>
+  );
+}
 
 // Loupe-only: "Fit" button + actual-zoom percentage dropdown.
 function ImageZoomControl({
@@ -35,14 +62,41 @@ function ImageZoomControl({
   percent,
   onFit,
   onPercent,
+  education,
+  fillPercent,
 }: {
   fit: boolean;
   percent: number;
   onFit: () => void;
   onPercent: (p: number) => void;
+  /** Show the one-time "new zoom" note (Loupe only). */
+  education?: boolean;
+  /** Zoom at which the photo covers the whole canvas; omit to hide "Fill". */
+  fillPercent?: number;
 }) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
+  const { persistZoom, educationSeen } = useZoomPrefs();
+  // One-time note: appears shortly after the bar mounts, goes away on its own,
+  // on "Got it", or as soon as the user opens the zoom menu.
+  const [note, setNote] = useState(false);
+  useEffect(() => {
+    if (!education || educationSeen) return;
+    const show = window.setTimeout(() => setNote(true), 1200);
+    return () => window.clearTimeout(show);
+  }, [education, educationSeen]);
+  useEffect(() => {
+    if (!note) return;
+    const hide = window.setTimeout(() => dismissNote(), 9000);
+    return () => window.clearTimeout(hide);
+  }, [note]);
+  const dismissNote = () => {
+    setNote(false);
+    setZoomPrefs({ educationSeen: true });
+  };
+  useEffect(() => {
+    if (open && note) dismissNote();
+  }, [open]);
   useEffect(() => {
     if (!open) return;
     const close = (e: MouseEvent) => {
@@ -51,8 +105,28 @@ function ImageZoomControl({
     document.addEventListener("mousedown", close);
     return () => document.removeEventListener("mousedown", close);
   }, [open]);
+  const pick = (fn: () => void) => {
+    fn();
+    setOpen(false);
+  };
+  // Presets split around 100%: below 100 / 100 / above 100 (like Lightroom).
+  const groups = [
+    ZOOM_PRESETS.filter((v) => v < 100),
+    ZOOM_PRESETS.filter((v) => v === 100),
+    ZOOM_PRESETS.filter((v) => v > 100),
+  ].filter((g) => g.length);
   return (
     <div ref={ref} className="relative flex items-center gap-0 text-[12px] font-medium">
+      {note && (
+        <div
+          role="status"
+          onClick={dismissNote}
+          className="absolute bottom-full right-0 z-50 mb-2 cursor-pointer rounded-lg bg-[#f6f6f6] px-2.5 py-2 text-left text-[12px] font-medium leading-4 text-[#474747] shadow-lg animate-in fade-in-0 slide-in-from-bottom-2"
+        >
+          <span className="whitespace-nowrap">Zoom just got a whole lot better</span>
+          <span className="absolute -bottom-[3px] right-7 h-2 w-2 rotate-45 rounded-[1px] bg-[#f6f6f6]" />
+        </div>
+      )}
       <button
         type="button"
         onClick={onFit}
@@ -73,23 +147,46 @@ function ImageZoomControl({
       {open && (
         <div
           role="listbox"
-          className="absolute bottom-full right-0 z-50 mb-2 min-w-[88px] rounded-md border border-white/10 bg-[#262626] py-1 shadow-xl"
+          className="absolute bottom-full right-0 z-50 mb-2 min-w-[132px] overflow-hidden rounded-lg border border-white/10 bg-[#212121] shadow-xl"
         >
-          {ZOOM_PRESETS.map((p) => (
-            <button
-              key={p}
-              type="button"
-              role="option"
-              aria-selected={!fit && Math.round(percent) === p}
-              onClick={() => {
-                onPercent(p);
-                setOpen(false);
-              }}
-              className="block w-full px-3 py-1 text-left text-[12px] text-[#ababab] hover:bg-white/10 hover:text-white"
-            >
-              {p}%
-            </button>
+          <div className="border-b border-white/10 px-3 py-2 text-[11px] font-semibold text-[#ababab]">
+            Zoom
+          </div>
+          {groups.map((g, gi) => (
+            <div key={gi} className="border-b border-white/10 py-1">
+              {g.map((v) => (
+                <ZoomRow
+                  key={v}
+                  selected={!fit && Math.round(percent) === v}
+                  onClick={() => pick(() => onPercent(v))}
+                >
+                  {v}%
+                </ZoomRow>
+              ))}
+            </div>
           ))}
+          <div className="border-b border-white/10 py-1">
+            <ZoomRow selected={fit} onClick={() => pick(onFit)}>
+              Fit
+            </ZoomRow>
+            {fillPercent !== undefined && (
+              <ZoomRow
+                selected={!fit && Math.abs(percent - fillPercent) < 0.5}
+                onClick={() => pick(() => onPercent(fillPercent))}
+              >
+                Fill
+              </ZoomRow>
+            )}
+          </div>
+          <div className="py-1">
+            <ZoomRow
+              selected={persistZoom}
+              role="menuitemcheckbox"
+              onClick={() => setZoomPrefs({ persistZoom: !persistZoom })}
+            >
+              Persist zoom
+            </ZoomRow>
+          </div>
         </div>
       )}
     </div>
@@ -151,6 +248,9 @@ export function BottomBar({
     percent: number;
     onFit: () => void;
     onPercent: (p: number) => void;
+    /** Show the one-time "new zoom" note (Loupe only). */
+    education?: boolean;
+    fillPercent?: number;
   };
   /** Anything pinned to the true centre of the bar (Survey: photos-in-view slider). */
   center?: React.ReactNode;

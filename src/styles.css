@@ -605,7 +605,8 @@
 
 /* Rail icons: after the hover animation finishes (--rf-delay, set on the button
    from the icon's animation length) the outline icon cross-fades to its
-   Phosphor filled glyph. Un-hovering swaps back right away. */
+   Phosphor filled glyph. Un-hovering swaps back right away. A selected (active) icon stays filled,
+   fading in after the same animation delay. */
 .rail-filled {
   opacity: 0;
 }
@@ -613,17 +614,21 @@
 .rail-filled {
   transition: opacity 0.12s ease;
 }
-.group:hover .rail-filled {
+.group:hover .rail-filled,
+.group[data-active="true"] .rail-filled {
   opacity: 1;
   transition-delay: var(--rf-delay, 0ms);
 }
-.group:hover .rail-outline {
+.group:hover .rail-outline,
+.group[data-active="true"] .rail-outline {
   opacity: 0;
   transition-delay: var(--rf-delay, 0ms);
 }
 @media (prefers-reduced-motion: reduce) {
   .group:hover .rail-filled,
-  .group:hover .rail-outline {
+  .group:hover .rail-outline,
+  .group[data-active="true"] .rail-filled,
+  .group[data-active="true"] .rail-outline {
     transition-delay: 0ms;
   }
 }
@@ -647,4 +652,32 @@ button:focus-visible,
 @keyframes face-shimmer {
   from { background-position: 100% 0; }
   to { background-position: -100% 0; }
+}
+
+/* Brush cursor (Figma "Cursor"): translucent disc + hairline ring, optional inner
+   feather ring (16/22 of the radius), and a + / − glyph once it is big enough. */
+.brush-cursor {
+  background: rgb(0 0 0 / 0.2);
+  box-shadow: inset 0 0 0 var(--hair, 0.5px) rgb(226 226 226 / 0.6);
+  container-type: inline-size;
+}
+.brush-cursor-feather {
+  position: absolute;
+  inset: 14.2%;
+  border-radius: 9999px;
+  box-shadow: inset 0 0 0 var(--hair, 0.5px) #e2e2e2;
+}
+.brush-cursor-glyph {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 6px;
+  height: 6px;
+  transform: translate(-50%, -50%) scale(calc(1 / var(--k, 1)));
+  display: none;
+}
+@container (min-width: 16px) {
+  .brush-cursor-glyph {
+    display: block;
+  }
 }

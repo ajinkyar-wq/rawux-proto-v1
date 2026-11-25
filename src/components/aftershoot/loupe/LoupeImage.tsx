@@ -2,6 +2,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { photoUrl } from "../cull-data";
 import { FaceBoxOverlay } from "../FaceBoxOverlay";
 import type { CropRect } from "./crop-config";
+import { MAX_ZOOM } from "../zoom-prefs";
 
 // Loupe canvas. `zoom` (0-100) scales the image from fit (1x) up to 3x.
 //
@@ -25,6 +26,7 @@ export function LoupeImage({
   onActualZoomChange,
   onPullToSurvey,
   onScrollStep,
+  onBrushWheel,
   focus,
   onPickFace,
   onPointClick,
@@ -49,13 +51,15 @@ export function LoupeImage({
   /** Actual image zoom in % of the photo's natural pixels; null = fit. */
   actualZoom?: number | null;
   /** Reports the % at which the photo currently "fits" the canvas. */
-  onMetrics?: (m: { fitPercent: number }) => void;
+  onMetrics?: (m: { fitPercent: number; fillPercent: number }) => void;
   /** Pinch / ctrl+wheel zoom requests, as actual % of natural pixels. */
   onActualZoomChange?: (percent: number) => void;
   /** Cull tab: pinching out past fit pulls into Survey Mode. */
   onPullToSurvey?: () => void;
   /** Plain wheel / two-finger scroll while at fit: -1 = previous photo, 1 = next. */
   onScrollStep?: (dir: -1 | 1) => void;
+  /** While a brush is active the wheel resizes it instead of zooming / stepping. */
+  onBrushWheel?: (deltaY: number) => void;
   /** Photo point (fractions) to centre while zoomed — e.g. a clicked key face. */
   focus?: { x: number; y: number } | null;
   /** Face boxes on the photo become click targets that call this with the face index. */
@@ -121,8 +125,8 @@ export function LoupeImage({
   // Pinch to zoom. Trackpad pinch arrives as wheel events with ctrlKey set;
   // touch screens use a two-pointer pinch. Both scale the current actual zoom.
   const currentPercent = fitPercent * scale;
-  const live = useRef({ currentPercent, fitPercent, onActualZoomChange, onPullToSurvey, onScrollStep, pan, limX, limY, userPan });
-  live.current = { currentPercent, fitPercent, onActualZoomChange, onPullToSurvey, onScrollStep, pan, limX, limY, userPan };
+  const live = useRef({ currentPercent, fitPercent, onActualZoomChange, onPullToSurvey, onScrollStep, onBrushWheel, pan, limX, limY, userPan });
+  live.current = { currentPercent, fitPercent, onActualZoomChange, onPullToSurvey, onScrollStep, onBrushWheel, pan, limX, limY, userPan };
   const stepRef = useRef({ last: 0, prev: 0, decay: 0, stepped: false });
   // Pull-to-survey progress (0-1), driving the ring pill.
   const [pull, setPull] = useState(0);
@@ -161,7 +165,7 @@ export function LoupeImage({
         onPullToSurvey: pullCb,
       } = live.current;
       // With Survey available, fit is the floor; otherwise allow 25% of fit.
-      const next = Math.min(800, Math.max(pullCb ? fit : fit * 0.25, cur * factor));
+      const next = Math.min(MAX_ZOOM, Math.max(pullCb ? fit : fit * 0.25, cur * factor));
       cb?.(next);
     };
     // Keep pinching out while already at fit: fill the ring, then open Survey.
@@ -203,6 +207,19 @@ export function LoupeImage({
       return true;
     };
     const onWheel = (e: WheelEvent) => {
+      // Option (Mac) / Alt (Windows) + scroll zooms the photo, like pinch.
+      if (e.altKey && !e.ctrlKey && !e.metaKey) {
+        e.preventDefault();
+        const d = (e.deltaY || e.deltaX) * (e.deltaMode === 1 ? 16 : 1);
+        if (!pullWheel({ deltaY: d, deltaMode: 0 } as WheelEvent)) apply(Math.exp(-d * 0.01));
+        return;
+      }
+      const bw = live.current.onBrushWheel;
+      if (bw) {
+        e.preventDefault();
+        bw(e.deltaY * (e.deltaMode === 1 ? 16 : 1));
+        return;
+      }
       if (!e.ctrlKey) {
         e.preventDefault();
         const L = live.current;
@@ -272,7 +289,22 @@ export function LoupeImage({
         y1: cl(e.clientY, r.top, r.bottom) - r.top,
       };
     };
+    let spaceDown = false;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.code === "Space") spaceDown = e.type === "keydown";
+    };
+    const onBlur = () => {
+      spaceDown = false;
+    };
+    window.addEventListener("keydown", onKey);
+    window.addEventListener("keyup", onKey);
+    window.addEventListener("blur", onBlur);
     const onDown = (e: PointerEvent) => {
+      // Floating UI over the canvas (brush toolbar, etc.) must not pan/zoom the photo.
+      // The brush layer is the exception for Cmd/Ctrl-drag, which still marquee-zooms.
+      // Space-drag (hand tool) pans through it too.
+      const ui = (e.target as Element | null)?.closest?.<HTMLElement>("[data-loupe-ui]");
+      if (ui && !(ui.dataset.loupeUi === "brush" && (e.metaKey || e.ctrlKey || spaceDown))) return;
       if (e.button === 0 && (e.metaKey || e.ctrlKey) && marqueeCb.current.onMarqueeZoom) {
         mq = { id: e.pointerId, sx: e.clientX, sy: e.clientY };
         draggedRef.current = true; // swallow the click
@@ -349,7 +381,7 @@ export function LoupeImage({
           cb({
             x: cr ? cr.x / 100 + clamp(fx) * (cr.w / 100) : clamp(fx),
             y: cr ? cr.y / 100 + clamp(fy) * (cr.h / 100) : clamp(fy),
-            percent: Math.min(800, Math.max(L.fitPercent, L.currentPercent * k)),
+            percent: Math.min(MAX_ZOOM, Math.max(L.fitPercent, L.currentPercent * k)),
           });
         }
         return;
@@ -364,6 +396,9 @@ export function LoupeImage({
     el.addEventListener("pointerup", onUp);
     el.addEventListener("pointercancel", onUp);
     return () => {
+      window.removeEventListener("keydown", onKey);
+      window.removeEventListener("keyup", onKey);
+      window.removeEventListener("blur", onBlur);
       el.removeEventListener("wheel", onWheel);
       el.removeEventListener("pointerdown", onDown);
       el.removeEventListener("pointermove", onMove);
@@ -373,8 +408,10 @@ export function LoupeImage({
   }, []);
 
   useEffect(() => {
-    if (fitPercent > 0) onMetrics?.({ fitPercent });
-  }, [fitPercent, onMetrics]);
+    // Fill: the zoom at which the photo covers the whole canvas.
+    const fillPercent = fitW > 0 && fitH > 0 ? fitPercent * Math.max(box.w / fitW, box.h / fitH) : fitPercent;
+    if (fitPercent > 0) onMetrics?.({ fitPercent, fillPercent });
+  }, [fitPercent, fitW, fitH, box.w, box.h, onMetrics]);
 
   return (
     <div

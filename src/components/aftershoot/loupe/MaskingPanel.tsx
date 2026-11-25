@@ -1,11 +1,13 @@
 import { useState } from "react";
-import { ArrowsOutSimple, Eye, PlusCircle } from "@phosphor-icons/react";
+import { ArrowsOutSimple, Eye, PaintBrush, PlusCircle } from "@phosphor-icons/react";
 import { Checkbox } from "../primitives";
 import { IconTooltip } from "../IconTooltip";
 import { SliderRow } from "./slider-primitives";
 import { Section } from "./EditPanel";
+import { maskSelection, useActiveMask, type MaskEntryId } from "./mask-selection";
 
-const MASKS = [
+const MASKS: { id: MaskEntryId; label: string }[] = [
+  { id: "brush", label: "Brush Mask" },
   { id: "subject", label: "Subject Mask" },
   { id: "background", label: "Background Mask" },
 ];
@@ -50,6 +52,7 @@ export function MaskingPanel() {
 /* ---------------- MASKS list ---------------- */
 
 function MasksList() {
+  const activeMask = useActiveMask();
   return (
     <section className="flex flex-col gap-3">
       <div className="flex h-6 items-center justify-between">
@@ -68,23 +71,53 @@ function MasksList() {
 
       <div className="flex flex-col gap-2">
         {MASKS.map((m) => (
-          <MaskRow key={m.id} label={m.label} />
+          <MaskRow
+            key={m.id}
+            id={m.id}
+            label={m.label}
+            active={activeMask === m.id}
+            onSelect={() => maskSelection.set(m.id)}
+          />
         ))}
       </div>
     </section>
   );
 }
 
-function MaskRow({ label }: { label: string }) {
+function MaskRow({
+  id,
+  label,
+  active,
+  onSelect,
+}: {
+  id: MaskEntryId;
+  label: string;
+  active: boolean;
+  onSelect: () => void;
+}) {
   return (
-    <div className="flex items-center gap-3">
+    <div
+      role="button"
+      tabIndex={0}
+      aria-pressed={active}
+      onClick={onSelect}
+      onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && onSelect()}
+      className={`-mx-1.5 flex cursor-pointer items-center gap-3 rounded px-1.5 py-1 ${
+        active ? "bg-white/[0.08]" : "hover:bg-white/[0.04]"
+      }`}
+    >
       <div className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded bg-black">
-        <div className="h-4 w-5 rounded-t-full bg-white/70" />
+        {id === "brush" ? (
+          <PaintBrush size={18} weight="light" className="text-white/70" />
+        ) : (
+          <div className="h-4 w-5 rounded-t-full bg-white/70" />
+        )}
       </div>
       <span className="flex-1 text-[12px] text-white">{label}</span>
       <IconTooltip label="Isolate mask">
         <button
           type="button"
+          onClick={(e) => e.stopPropagation()}
           className="rounded p-0.5 text-neutral-500 hover:bg-white/5 hover:text-white"
         >
           <ArrowsOutSimple size={16} weight="light" />
@@ -93,6 +126,7 @@ function MaskRow({ label }: { label: string }) {
       <IconTooltip label="Toggle visibility">
         <button
           type="button"
+          onClick={(e) => e.stopPropagation()}
           className="rounded p-0.5 text-neutral-500 hover:bg-white/5 hover:text-white"
         >
           <Eye size={16} weight="light" />

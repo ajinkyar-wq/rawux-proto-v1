@@ -152,6 +152,7 @@ export function RailIconButton({
       <TooltipTrigger asChild>
         <button
           onClick={onClick}
+          data-active={active ? "true" : undefined}
           style={{ "--rf-delay": `${animationMs}ms` } as React.CSSProperties}
           className={`group flex size-9 items-center justify-center rounded border-[0.5px] p-2 transition-colors data-[state=delayed-open]:rounded-l-none data-[state=delayed-open]:border-l-transparent data-[state=instant-open]:rounded-l-none data-[state=instant-open]:border-l-transparent ${
             active

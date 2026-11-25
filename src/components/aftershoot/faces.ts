@@ -202,5 +202,5 @@ export function faceZoomPercent(image: number, k: number, frameAspect?: number):
     else sw = ar / frameAspect;
   }
   const size = Math.max(r.fw * sw, r.fh * sh);
-  return Math.round(Math.max(150, Math.min(800, (FACE_FILL / size) * 100)));
+  return Math.round(Math.max(150, Math.min(1600, (FACE_FILL / size) * 100)));
 }
