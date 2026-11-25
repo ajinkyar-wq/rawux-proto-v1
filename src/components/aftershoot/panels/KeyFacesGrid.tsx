@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { GradientSlider } from "../loupe/slider-primitives";
 import { Eye, EyeOff, ScanFace, ScanLine } from "lucide-react";
 import { photoAspect, photoUrl } from "../cull-data";
-import { FOCUS_COLOR, FOCUS_LABEL, faceCount, facesLoading, faceScore, facePos, faceRect, setHoveredFace, useFaceData } from "../faces";
+import { FOCUS_COLOR, FOCUS_LABEL, faceCount, facesLoading, faceScore, facePos, faceRect, openFace, setHoveredFace, useFaceData } from "../faces";
 import { IconTooltip } from "../IconTooltip";
 import { Caret } from "./Caret";
 
@@ -155,10 +155,13 @@ function PanelFaceCard({ image, k, scores }: { image: number; k: number; scores:
   const { eyesOpen, focus } = faceScore(image, k);
   return (
     <div
+      role="button"
+      aria-label={`Face ${k + 1}. Zoom to this face`}
+      onClick={() => openFace(k)}
       style={faceCrop(image, k)}
       onMouseEnter={() => setHoveredFace(k)}
       onMouseLeave={() => setHoveredFace(null)}
-      className="relative aspect-square bg-[#2d2d2d]"
+      className="relative aspect-square cursor-zoom-in rounded-[4px] bg-[#2d2d2d] outline outline-1 -outline-offset-1 outline-transparent hover:outline-white/40"
     >
       {scores && (
         <span className="absolute bottom-1 left-1 flex gap-1">
@@ -212,10 +215,8 @@ function FaceCard({ image, k, controls }: { image: number; k: number; controls: 
       onMouseLeave={() => setHoveredFace(null)}
       onBlur={() => setHoveredFace(null)}
       style={faceCrop(image, k)}
-      className={`relative aspect-square bg-[#1f1f1f] ${
-        on
-          ? "outline outline-2 outline-white"
-          : "outline outline-1 outline-white/10 hover:outline-white/40"
+      className={`relative aspect-square cursor-zoom-in rounded-[4px] bg-[#1f1f1f] outline outline-1 -outline-offset-1 ${
+        on ? "outline-white" : "outline-transparent hover:outline-white/40"
       }`}
     >
       {controls.scores && (

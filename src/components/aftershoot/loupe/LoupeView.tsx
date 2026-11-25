@@ -14,7 +14,7 @@ import { effectiveCropOf, straightenOf } from "./crop-config";
 import { useWbPickerActive, wbPicker } from "./wb-picker";
 import { BrushToolbar } from "./BrushToolbar";
 import { ImageInfoCard } from "./ImageInfoCard";
-import { FACE_ZOOM, facePos } from "../faces";
+import { FACE_ZOOM, facePos, takePendingFace } from "../faces";
 import type { FaceControls } from "../panels/KeyFacesGrid";
 import { LoupeImage } from "./LoupeImage";
 import { PhotoContextMenu } from "../PhotoContextMenu";
@@ -114,13 +114,17 @@ export function LoupeView({
   // `actualZoom` is % of the photo's natural pixels; null = fit to canvas.
   const [actualZoom, setActualZoom] = useState<number | null>(null);
   // Key Faces: clicking a face zooms the canvas to it (click again to fit).
-  const [activeFace, setActiveFace] = useState<number | null>(null);
+  const [activeFace, setActiveFace] = useState<number | null>(() => takePendingFace());
   const [faceSize, setFaceSize] = useState(76);
   const [faceScores, setFaceScores] = useState(true);
-  useEffect(() => setActiveFace(null), [selectedIndex]);
+  const firstRun = useRef(true);
   useEffect(() => {
-    if (actualZoom === null) setActiveFace(null);
-  }, [actualZoom]);
+    if (firstRun.current) {
+      firstRun.current = false;
+      return;
+    }
+    setActiveFace(null);
+  }, [selectedIndex]);
   const faceFocus = activeFace === null ? null : facePos(selectedIndex, activeFace);
   const faceControls: FaceControls = {
     active: activeFace,
@@ -157,6 +161,17 @@ export function LoupeView({
   const history = useAlbumHistoryContext();
   const wbPicking = useWbPickerActive();
   const handleMetrics = useCallback((m: { fitPercent: number }) => setFitPercent(m.fitPercent), []);
+  // Opened from a grid face click: zoom in once the fit size is known.
+  const pendingZoom = useRef(activeFace !== null);
+  useEffect(() => {
+    if (pendingZoom.current && fitPercent > 0) {
+      pendingZoom.current = false;
+      setActualZoom(fitPercent * (FACE_ZOOM / 100));
+    }
+  }, [fitPercent]);
+  useEffect(() => {
+    if (actualZoom === null && !pendingZoom.current) setActiveFace(null);
+  }, [actualZoom]);
   const [showDuplicates, setShowDuplicates] = useState(true);
   // The right side panel collapses when you click the already-active rail icon
   // again; clicking it once more (or a different icon) reopens it.

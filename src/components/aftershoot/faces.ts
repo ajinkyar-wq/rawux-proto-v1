@@ -55,6 +55,24 @@ export function useHoveredFace() {
   );
 }
 
+// Grid view has no big canvas to zoom, so a face click there opens the photo in
+// Loupe zoomed to that face: the handler is registered by the route, and the
+// face is handed to LoupeView through `takePendingFace` when it mounts.
+let openFaceHandler: ((k: number) => void) | null = null;
+let pendingFace: number | null = null;
+export const setOpenFaceHandler = (fn: ((k: number) => void) | null) => {
+  openFaceHandler = fn;
+};
+export const openFace = (k: number) => openFaceHandler?.(k);
+export const setPendingFace = (k: number | null) => {
+  pendingFace = k;
+};
+export const takePendingFace = () => {
+  const k = pendingFace;
+  pendingFace = null;
+  return k;
+};
+
 /** Subscribe a component to detection results so it re-renders as they arrive. */
 export function useFaceData() {
   return useSyncExternalStore(
