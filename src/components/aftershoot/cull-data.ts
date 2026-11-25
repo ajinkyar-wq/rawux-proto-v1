@@ -85,6 +85,9 @@ const sampleIndex = (id: number) => ((id % SAMPLE_URLS.length) + SAMPLE_URLS.len
 /** Native width:height of an image's photo (3:2 landscape or 2:3 portrait). */
 export const photoAspect = (id: number) => (PORTRAIT_SAMPLES.has(sampleIndex(imageOf(id))) ? 2 / 3 : 3 / 2);
 
+/** Number of distinct sample photos. */
+export const SAMPLE_COUNT = SAMPLE_URLS.length;
+
 export const sampleUrl = (n: number) => SAMPLE_URLS[((n % SAMPLE_URLS.length) + SAMPLE_URLS.length) % SAMPLE_URLS.length];
 
 // Photo for an image: the same picture every time for the same id. `width` is

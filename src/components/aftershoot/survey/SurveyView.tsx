@@ -13,6 +13,7 @@ import {
   faceCount,
   facePos,
   faceScore,
+  useFaceData,
   type FaceFocus,
 } from "../faces";
 import { GradientSlider } from "../loupe/slider-primitives";
@@ -106,6 +107,7 @@ export function SurveyView({
   ai: LoupeAIState;
   onOpenShortcuts?: (from: LoupeRailKey) => void;
 }) {
+  useFaceData(); // re-render as real face detections arrive
   const [rail, setRail] = useState<LoupeRailKey>("ai");
   const [panelOpen, setPanelOpen] = useState(true);
   const [sprayOn, setSprayOn] = useState(false);

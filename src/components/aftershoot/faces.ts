@@ -1,16 +1,53 @@
-// Key faces (placeholder data). Every album image has a handful of detected
-// faces. The sample pictures have no real faces, so each face gets a stable
-// pseudo-random spot in the photo (used for the panel crop and for "zoom every
-// photo to this face") plus eyes-open / sharpness scores.
+// Key faces. Face counts, positions and crop rects come from the real face
+// pipeline (RetinaFace → ArcFace, see src/lib/faceDetection) once
+// <FaceDetectionRunner /> has processed the sample photos; until then (and for
+// photos where it finds nothing yet) they fall back to placeholder data.
+// Eyes-open / sharpness scores are still mock.
 //
 // Face scores follow the Survey Mode prototype:
 //   eyes: open | closed      focus: g = sharp, y = slightly soft, r = blurry
+
+import { useSyncExternalStore } from "react";
+import type { FaceRect } from "@/types/detection";
+import { SAMPLE_COUNT } from "./cull-data";
+
+// ---- real detection results, keyed by sample-photo index ----
+let detected = new Map<number, FaceRect[]>();
+let version = 0;
+const listeners = new Set<() => void>();
+
+/** Called by FaceDetectionRunner as each sample photo is processed. */
+export function setDetectedFaces(next: Map<number, FaceRect[]>) {
+  detected = next;
+  version++;
+  listeners.forEach((l) => l());
+}
+
+/** Subscribe a component to detection results so it re-renders as they arrive. */
+export function useFaceData() {
+  return useSyncExternalStore(
+    (cb) => {
+      listeners.add(cb);
+      return () => listeners.delete(cb);
+    },
+    () => version,
+  );
+}
+
+const sampleOf = (image: number) => ((image % SAMPLE_COUNT) + SAMPLE_COUNT) % SAMPLE_COUNT;
+const realFaces = (image: number) => {
+  const r = SAMPLE_COUNT ? detected.get(sampleOf(image)) : undefined;
+  return r && r.length > 0 ? r : null;
+};
+
+/** The detected crop rect (fractions of the photo) for face k, if real data exists. */
+export const faceRect = (image: number, k: number): FaceRect | null => realFaces(image)?.[k] ?? null;
 
 const FACE_COUNTS_PER_TILE = [9, 1, 4, 12, 18, 2, 6, 3, 16];
 
 /** Number of key faces detected in an image. */
 export const faceCount = (image: number) =>
-  FACE_COUNTS_PER_TILE[image % FACE_COUNTS_PER_TILE.length];
+  realFaces(image)?.length ?? FACE_COUNTS_PER_TILE[image % FACE_COUNTS_PER_TILE.length];
 
 function rnd(n: number) {
   const a = Math.sin(n) * 43758.5453;
@@ -19,6 +56,8 @@ function rnd(n: number) {
 
 /** Where face k sits in the photo, as fractions (0-1) of its width / height. */
 export function facePos(image: number, k: number) {
+  const r = faceRect(image, k);
+  if (r) return { x: r.x + r.w / 2, y: r.y + r.h / 2 };
   return {
     x: 0.18 + rnd(image * 12.9898 + k * 78.233) * 0.64,
     y: 0.2 + rnd(image * 3.17 + k * 9.73) * 0.5,

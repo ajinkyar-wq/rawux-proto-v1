@@ -62,6 +62,7 @@ import { buildSliderRegistry } from "@/components/aftershoot/shortcuts/sliderReg
 import { useKeyBindings } from "@/components/aftershoot/shortcuts/useKeyBindings";
 import { SpeedEditContext, useSpeedEdit } from "@/components/aftershoot/shortcuts/useSpeedEdit";
 import { SettingsDialog } from "@/components/aftershoot/shortcuts/SettingsDialog";
+import { FaceDetectionRunner } from "@/components/aftershoot/FaceDetectionRunner";
 import { requestShortcutSection } from "@/components/aftershoot/shortcuts/shortcutMap";
 import { readShortcutMode } from "@/components/aftershoot/shortcuts/useShortcutMode";
 import {
@@ -655,6 +656,7 @@ function Workspace({
       <AlbumHistoryContext.Provider value={history}>
         <SpeedEditContext.Provider value={speedEdit.target}>
           <div className="flex h-screen flex-col bg-[#1a1a1a] text-neutral-300 font-sans select-none text-[13px]">
+            {actionStatuses.cull === "complete" && <FaceDetectionRunner />}
             <AppBar
               tab={appTab}
               onChangeTab={changeTab}

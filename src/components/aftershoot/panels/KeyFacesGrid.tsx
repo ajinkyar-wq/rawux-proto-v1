@@ -2,7 +2,7 @@ import { useState } from "react";
 import { GradientSlider } from "../loupe/slider-primitives";
 import { Eye, EyeOff, ScanFace, ScanLine } from "lucide-react";
 import { photoUrl } from "../cull-data";
-import { FOCUS_COLOR, FOCUS_LABEL, faceCount, faceScore, facePos } from "../faces";
+import { FOCUS_COLOR, FOCUS_LABEL, faceCount, faceScore, facePos, faceRect, useFaceData } from "../faces";
 import { IconTooltip } from "../IconTooltip";
 import { Caret } from "./Caret";
 
@@ -34,6 +34,29 @@ export type FaceControls = {
 export const FACE_SIZE_MIN = 56;
 export const FACE_SIZE_MAX = 150;
 const CROP = 4; // face crops show 1/4 of the photo's width
+// Face crops are zoomed in 61% by default (tighter on the face).
+const FACE_ZOOM_DEFAULT = 1.61; // 1.4 × 1.15
+
+// Background styling that crops a face card to the detected rect (real data)
+// or to the placeholder spot (mock data).
+function faceCrop(image: number, k: number): React.CSSProperties {
+  const url = `url(${photoUrl(image, 900)})`;
+  const clamp = (v: number) => Math.max(0, Math.min(100, v));
+  // Visible window as a fraction of the photo's width, centred on the face.
+  const r = faceRect(image, k);
+  const w = Math.min(1, (r ? r.w : 1 / CROP) / FACE_ZOOM_DEFAULT);
+  const { x, y } = facePos(image, k);
+  // Square card: the window's height fraction follows its width fraction
+  // (rect.h is already in photo-height units for real data).
+  const h = Math.min(1, (r ? r.h : 1 / CROP) / FACE_ZOOM_DEFAULT);
+  return {
+    backgroundImage: url,
+    backgroundSize: `${100 / w}% auto`,
+    backgroundPosition: `${w >= 1 ? 50 : clamp(((x - w / 2) / (1 - w)) * 100)}% ${
+      h >= 1 ? 50 : clamp(((y - h / 2) / (1 - h)) * 100)
+    }%`,
+  };
+}
 
 export function KeyFacesGrid({
   selectedGridTile,
@@ -42,6 +65,7 @@ export function KeyFacesGrid({
   selectedGridTile: number;
   controls?: FaceControls;
 }) {
+  useFaceData(); // re-render as real detections stream in
   const count = faceCount(selectedGridTile);
 
   const [expanded, setExpanded] = useState(true);
@@ -119,16 +143,10 @@ export function KeyFacesGrid({
 
 // Plain (grid-view) face card: a crop of the face with eyes / focus badges.
 function PanelFaceCard({ image, k, scores }: { image: number; k: number; scores: boolean }) {
-  const { x, y } = facePos(image, k);
   const { eyesOpen, focus } = faceScore(image, k);
-  const pos = (f: number) => Math.max(0, Math.min(100, ((f * CROP - 0.5) / (CROP - 1)) * 100));
   return (
     <div
-      style={{
-        backgroundImage: `url(${photoUrl(image, 900)})`,
-        backgroundSize: `${CROP * 100}%`,
-        backgroundPosition: `${pos(x)}% ${pos(y)}%`,
-      }}
+      style={faceCrop(image, k)}
       className="relative aspect-square bg-[#2d2d2d]"
     >
       {scores && (
@@ -170,12 +188,8 @@ function FocusDots({ color }: { color: string }) {
 }
 
 function FaceCard({ image, k, controls }: { image: number; k: number; controls: FaceControls }) {
-  const { x, y } = facePos(image, k);
   const { eyesOpen, focus } = faceScore(image, k);
   const on = controls.active === k;
-  // Centre the crop on the face: background-position % is relative to the
-  // overflow, so convert from "face at x of the photo".
-  const pos = (f: number) => Math.max(0, Math.min(100, ((f * CROP - 0.5) / (CROP - 1)) * 100));
   const label = `Face ${k + 1}, eyes ${eyesOpen ? "open" : "closed"}, ${FOCUS_LABEL[focus].toLowerCase()}`;
   return (
     <button
@@ -183,11 +197,7 @@ function FaceCard({ image, k, controls }: { image: number; k: number; controls: 
       aria-label={`${label}. Zoom every photo to this face`}
       aria-pressed={on}
       onClick={() => controls.onSelect(k)}
-      style={{
-        backgroundImage: `url(${photoUrl(image, 900)})`,
-        backgroundSize: `${CROP * 100}%`,
-        backgroundPosition: `${pos(x)}% ${pos(y)}%`,
-      }}
+      style={faceCrop(image, k)}
       className={`relative aspect-square bg-[#1f1f1f] ${
         on
           ? "outline outline-2 outline-white"
