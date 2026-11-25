@@ -1,9 +1,10 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { Eye, EyeOff, Flag, LayoutGrid, Square, X } from "lucide-react";
 import { BottomBar } from "../BottomBar";
 import { photoUrl } from "../cull-data";
 import { dupId, duplicateIds, imageOf, photoName } from "../duplicates";
 import { AlbumFilmstrip } from "../loupe/AlbumFilmstrip";
+import { PhotoContextMenu, PhotoMenuContext } from "../PhotoContextMenu";
 import { IconTooltip } from "../IconTooltip";
 import {
   FACE_ZOOM,
@@ -12,6 +13,7 @@ import {
   faceCount,
   facePos,
   faceScore,
+  useFaceData,
   type FaceFocus,
 } from "../faces";
 import { GradientSlider } from "../loupe/slider-primitives";
@@ -105,6 +107,7 @@ export function SurveyView({
   ai: LoupeAIState;
   onOpenShortcuts?: (from: LoupeRailKey) => void;
 }) {
+  useFaceData(); // re-render as real face detections arrive
   const [rail, setRail] = useState<LoupeRailKey>("ai");
   const [panelOpen, setPanelOpen] = useState(true);
   const [sprayOn, setSprayOn] = useState(false);
@@ -129,7 +132,12 @@ export function SurveyView({
   const [cycleOn, setCycleOn] = useState(true);
   const [shared, setShared] = useState<View>(FIT);
   const [views, setViews] = useState<Record<number, View>>({});
-  const [flags, setFlags] = useState<Record<number, boolean>>({});
+  // Flags are shared with the right-click menu (one set for the whole album).
+  const menuApi = useContext(PhotoMenuContext);
+  const flags = useMemo(
+    () => Object.fromEntries([...(menuApi?.flagged ?? [])].map((i) => [i, true])),
+    [menuApi?.flagged],
+  );
   // Photos in view (1-8): the rest of a long set is further rows, reached by
   // scrolling the grid.
   const [nv, setNv] = useState(4);
@@ -283,7 +291,7 @@ export function SurveyView({
     ratings.setRating(sel, ar === 5 ? 0 : ar);
     ratings.setRating(active, 5);
   };
-  const toggleFlag = (id: number) => setFlags((p) => ({ ...p, [id]: !p[id] }));
+  const toggleFlag = (id: number) => menuApi?.toggleFlag([id]);
 
   // ---- sync lock ----
   const toggleSync = () => {
@@ -653,7 +661,7 @@ function SurveyPeek({
               transform: `translate(${view.x * frameW}px, ${view.y * frameH}px) scale(${view.zoom / 100})`,
               transition: panning ? "none" : "transform 120ms ease-out",
             }}
-            className="pointer-events-none h-full w-full select-none object-cover"
+            className="pointer-events-none h-full w-full select-none object-contain"
           />
         </div>
       </div>
@@ -963,86 +971,88 @@ function SurveyPane({
     >
       {/* The canvas fills the cell; the photo is fitted inside and clipped when zoomed. */}
       <div className="flex min-h-0 flex-1">
-        <div
-          onClick={onClick}
-          onDoubleClick={(e) => {
-            if (e.metaKey || e.ctrlKey) return;
-            onOpenInLoupe();
-          }}
-          onPointerDown={onPointerDown}
-          onPointerMove={onPointerMove}
-          onPointerUp={onPointerUp}
-          onPointerCancel={onPointerUp}
-          className={`relative flex min-w-0 flex-1 items-center justify-center overflow-hidden bg-[#1b1b1b] ${
-            !isActive
-              ? "cursor-pointer"
-              : zoomed
-                ? panning
-                  ? "cursor-grabbing"
-                  : "cursor-grab"
-                : "cursor-zoom-in"
-          }`}
-        >
+        <PhotoContextMenu id={id} surface="survey">
           <div
-            ref={frameRef}
-            data-frame
-            style={{ width: frameW, height: frameH }}
-            className="relative shrink-0"
+            onClick={onClick}
+            onDoubleClick={(e) => {
+              if (e.metaKey || e.ctrlKey) return;
+              onOpenInLoupe();
+            }}
+            onPointerDown={onPointerDown}
+            onPointerMove={onPointerMove}
+            onPointerUp={onPointerUp}
+            onPointerCancel={onPointerUp}
+            className={`relative flex min-w-0 flex-1 items-center justify-center overflow-hidden bg-[#1b1b1b] ${
+              !isActive
+                ? "cursor-pointer"
+                : zoomed
+                  ? panning
+                    ? "cursor-grabbing"
+                    : "cursor-grab"
+                  : "cursor-zoom-in"
+            }`}
           >
-            <img
-              src={photoUrl(id, 1200)}
-              alt={imgName(id)}
-              draggable={false}
-              style={{
-                transform: `translate(${view.x * frameW}px, ${view.y * frameH}px) scale(${view.zoom / 100})`,
-                transition: panning ? "none" : "transform 120ms ease-out",
-              }}
-              className="pointer-events-none h-full w-full select-none object-cover"
-            />
-          </div>
-
-          {flagged && (
-            <span className="pointer-events-none absolute left-1.5 top-1.5 flex h-5 w-5 items-center justify-center rounded bg-black/60 text-white">
-              <Flag className="h-3 w-3 fill-current" strokeWidth={1.75} />
-            </span>
-          )}
-          {/* While zoomed to a key face: that face's eyes / focus score. */}
-          {face && (
-            <span
-              role="status"
-              aria-label={`Eyes ${face.eyesOpen ? "open" : "closed"}, ${FOCUS_LABEL[face.focus].toLowerCase()}`}
-              className={`pointer-events-none absolute top-1.5 flex items-center gap-1.5 rounded-md bg-[#161616]/90 px-1.5 py-1 ${
-                flagged ? "left-9" : "left-1.5"
-              }`}
+            <div
+              ref={frameRef}
+              data-frame
+              style={{ width: frameW, height: frameH }}
+              className="relative shrink-0"
             >
-              {face.eyesOpen ? (
-                <Eye className="h-4 w-4 text-[#4cc38a]" strokeWidth={1.75} />
-              ) : (
-                <EyeOff className="h-4 w-4 text-[#e2c044]" strokeWidth={1.75} />
-              )}
-              <span
-                className="h-2 w-2 rounded-full"
-                style={{ backgroundColor: FOCUS_COLOR[face.focus] }}
-              />
-            </span>
-          )}
-          {canRemove && (
-            <IconTooltip label="Hide from view" shortcut={["⌘", "Click"]} side="bottom">
-              <button
-                type="button"
-                aria-label={`Remove ${imgName(id)} from view`}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onRemove();
+              <img
+                src={photoUrl(id, 1200)}
+                alt={imgName(id)}
+                draggable={false}
+                style={{
+                  transform: `translate(${view.x * frameW}px, ${view.y * frameH}px) scale(${view.zoom / 100})`,
+                  transition: panning ? "none" : "transform 120ms ease-out",
                 }}
-                onPointerDown={(e) => e.stopPropagation()}
-                className="absolute right-1.5 top-1.5 hidden h-6 w-6 items-center justify-center rounded bg-black/60 text-neutral-200 hover:bg-black/80 group-hover:flex"
+                className="pointer-events-none h-full w-full select-none object-contain"
+              />
+            </div>
+
+            {flagged && (
+              <span className="pointer-events-none absolute left-1.5 top-1.5 flex h-5 w-5 items-center justify-center rounded bg-black/60 text-white">
+                <Flag className="h-3 w-3 fill-current" strokeWidth={1.75} />
+              </span>
+            )}
+            {/* While zoomed to a key face: that face's eyes / focus score. */}
+            {face && (
+              <span
+                role="status"
+                aria-label={`Eyes ${face.eyesOpen ? "open" : "closed"}, ${FOCUS_LABEL[face.focus].toLowerCase()}`}
+                className={`pointer-events-none absolute top-1.5 flex items-center gap-1.5 rounded-md bg-[#161616]/90 px-1.5 py-1 ${
+                  flagged ? "left-9" : "left-1.5"
+                }`}
               >
-                <X className="h-3.5 w-3.5" strokeWidth={2} />
-              </button>
-            </IconTooltip>
-          )}
-        </div>
+                {face.eyesOpen ? (
+                  <Eye className="h-4 w-4 text-[#4cc38a]" strokeWidth={1.75} />
+                ) : (
+                  <EyeOff className="h-4 w-4 text-[#e2c044]" strokeWidth={1.75} />
+                )}
+                <span
+                  className="h-2 w-2 rounded-full"
+                  style={{ backgroundColor: FOCUS_COLOR[face.focus] }}
+                />
+              </span>
+            )}
+            {canRemove && (
+              <IconTooltip label="Hide from view" shortcut={["⌘", "Click"]} side="bottom">
+                <button
+                  type="button"
+                  aria-label={`Remove ${imgName(id)} from view`}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onRemove();
+                  }}
+                  onPointerDown={(e) => e.stopPropagation()}
+                  className="absolute right-1.5 top-1.5 hidden h-6 w-6 items-center justify-center rounded bg-black/60 text-neutral-200 hover:bg-black/80 group-hover:flex"
+                >
+                  <X className="h-3.5 w-3.5" strokeWidth={2} />
+                </button>
+              </IconTooltip>
+            )}
+          </div>
+        </PhotoContextMenu>
       </div>
 
       {/* Under the photo: name on the left (drag handle), rating + flag right. */}

@@ -1,4 +1,4 @@
-import { PHOTO_ASPECT, cropAspect, type CropRect } from "./crop-config";
+import { cropAspect, type CropRect } from "./crop-config";
 
 // Shows only the cropped part of a 3:2 photo, filling its box. The box must
 // already have the crop's shape (filmstrip / duplicates strip tiles), or use
@@ -41,6 +41,7 @@ export function FittedCroppedPhoto({
   crop,
   className = "",
   frameClassName = "",
+  image,
 }: {
   src: string;
   crop: CropRect;
@@ -48,12 +49,15 @@ export function FittedCroppedPhoto({
   className?: string;
   /** The fitted photo frame (rounding etc.). */
   frameClassName?: string;
+  /** Album image id, for the photo's native aspect. */
+  image: number;
 }) {
-  const a = cropAspect(crop);
+  const a = cropAspect(crop, image);
+  const BOX = 3 / 2;
   const size =
-    a >= PHOTO_ASPECT
-      ? { width: "100%", height: `${(PHOTO_ASPECT / a) * 100}%` }
-      : { width: `${(a / PHOTO_ASPECT) * 100}%`, height: "100%" };
+    a >= BOX
+      ? { width: "100%", height: `${(BOX / a) * 100}%` }
+      : { width: `${(a / BOX) * 100}%`, height: "100%" };
   return (
     <div className={`flex aspect-[3/2] w-full items-center justify-center ${className}`}>
       <CroppedPhoto src={src} crop={crop} className={frameClassName} style={size} />

@@ -43,7 +43,7 @@ export function CropOverlay() {
   );
   // Lightroom-style: while straightened, the box shown (and applied) is the
   // stored box shrunk to fit inside the rotated photo — never empty corners.
-  const rect: Rect = fitCropToRotation(crop.value, straightenOf(history, where?.image ?? 0));
+  const rect: Rect = fitCropToRotation(crop.value, straightenOf(history, where?.image ?? 0), where?.image ?? 0);
   const setRect = crop.onChange;
   const dragRef = useRef<DragMode | null>(null);
 

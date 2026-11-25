@@ -69,6 +69,27 @@ export const CULL_IMAGES: CullImage[] = (() => {
   }));
 })();
 
-// Placeholder photo for an image: the same picture every time for the same id.
-export const photoUrl = (id: number, width = 1200) =>
-  `https://picsum.photos/seed/aftershoot-${imageOf(id) % CULL_IMAGES.length}/${width}/${Math.round((width * 2) / 3)}`;
+// The sample album's photos (src/assets/samples), sorted by filename. Every
+// image in the prototype is one of these; ids wrap around when there are more
+// tiles than photos. All are 3:2.
+const SAMPLE_URLS = Object.entries(
+  import.meta.glob("../../assets/samples/*.webp", { eager: true, query: "?url", import: "default" }),
+)
+  .sort(([a], [b]) => a.localeCompare(b))
+  .map(([, url]) => url as string);
+
+// Samples that are shot in portrait (4:6) — by sorted index; the rest are 3:2 landscape.
+const PORTRAIT_SAMPLES = new Set([5, 10, 13, 14, 16, 17, 18, 19, 20, 21, 22, 23, 25, 27, 31]);
+const sampleIndex = (id: number) => ((id % SAMPLE_URLS.length) + SAMPLE_URLS.length) % SAMPLE_URLS.length;
+
+/** Native width:height of an image's photo (3:2 landscape or 2:3 portrait). */
+export const photoAspect = (id: number) => (PORTRAIT_SAMPLES.has(sampleIndex(imageOf(id))) ? 2 / 3 : 3 / 2);
+
+/** Number of distinct sample photos. */
+export const SAMPLE_COUNT = SAMPLE_URLS.length;
+
+export const sampleUrl = (n: number) => SAMPLE_URLS[((n % SAMPLE_URLS.length) + SAMPLE_URLS.length) % SAMPLE_URLS.length];
+
+// Photo for an image: the same picture every time for the same id. `width` is
+// kept for call-site compatibility; the sample files are used at full size.
+export const photoUrl = (id: number, _width = 1200) => sampleUrl(imageOf(id));

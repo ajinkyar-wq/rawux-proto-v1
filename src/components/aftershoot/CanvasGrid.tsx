@@ -1,10 +1,11 @@
-import { useEffect, useRef } from "react";
+import { useContext, useEffect, useRef } from "react";
 import { Flag } from "lucide-react";
 import { CULL_IMAGES, photoUrl } from "./cull-data";
 import { RatingChip } from "./RatingChip";
 import { useAlbumHistoryContext } from "./history/album-history";
 import { FittedCroppedPhoto } from "./loupe/CroppedPhoto";
 import { cropOf } from "./loupe/crop-config";
+import { PhotoContextMenu, PhotoMenuContext } from "./PhotoContextMenu";
 import type { Ratings } from "./use-ratings";
 
 // Clickable image tile grid in the main canvas. Columns are driven by the
@@ -68,6 +69,7 @@ export function CanvasGrid({
   // Crops live in the album history (per image).
   const history = useAlbumHistoryContext();
   const filterActive = !!ratingFilter && ratingFilter.size > 0;
+  const flagged = useContext(PhotoMenuContext)?.flagged;
 
   return (
     // Scroller fills the canvas; the grid inside only takes the height its
@@ -84,41 +86,47 @@ export function CanvasGrid({
           // When a rating filter is active, hide tiles that don't match.
           if (filterActive && !ratingFilter!.has(rating)) return null;
           return (
-            <div
-              key={img.id}
-              data-tile-id={img.id}
-              onClick={(e) =>
-                onSelect(
-                  img.id,
-                  e.shiftKey ? "range" : e.metaKey || e.ctrlKey ? "toggle" : "single",
-                )
-              }
-              onDoubleClick={() => onOpenInLoupe?.(img.id)}
-              className={`flex cursor-pointer flex-col gap-1.5 border-b border-r border-white/[0.06] bg-[#1a1a1a] p-2 text-left transition-colors hover:bg-white/[0.02] ${
-                isSelected
-                  ? isPrimary
-                    ? "bg-white/[0.05] ring-1 ring-inset ring-white/60"
-                    : "bg-white/[0.04] ring-1 ring-inset ring-white/30"
-                  : ""
-              }`}
-            >
-              {/* Filename */}
-              <span className="truncate text-[11px] text-neutral-400">{img.name}</span>
+            <PhotoContextMenu key={img.id} id={img.id} surface="grid">
+              <div
+                data-tile-id={img.id}
+                onClick={(e) =>
+                  onSelect(
+                    img.id,
+                    e.shiftKey ? "range" : e.metaKey || e.ctrlKey ? "toggle" : "single",
+                  )
+                }
+                onDoubleClick={() => onOpenInLoupe?.(img.id)}
+                className={`flex cursor-pointer flex-col gap-1.5 border-b border-r border-white/[0.06] bg-[#1a1a1a] p-2 text-left transition-colors hover:bg-white/[0.02] ${
+                  isSelected
+                    ? isPrimary
+                      ? "bg-white/[0.05] ring-1 ring-inset ring-white/60"
+                      : "bg-white/[0.04] ring-1 ring-inset ring-white/30"
+                    : ""
+                }`}
+              >
+                {/* Filename */}
+                <span className="truncate text-[11px] text-neutral-400">{img.name}</span>
 
-              {/* Photo: the tile keeps its 3:2 size; the cropped photo is
+                {/* Photo: the tile keeps its 3:2 size; the cropped photo is
                   fitted inside it (portrait crops narrow, wide crops short). */}
-              <FittedCroppedPhoto
-                src={photoUrl(img.id, 480)}
-                crop={cropOf(history, img.id)}
-                frameClassName="bg-[#2a2a2a]"
-              />
+                <FittedCroppedPhoto
+                  src={photoUrl(img.id, 480)}
+                  crop={cropOf(history, img.id)}
+                  frameClassName="bg-[#2a2a2a]"
+                  image={img.id}
+                />
 
-              {/* Status footer: rating chip (clickable stars) + flag */}
-              <div className="flex items-center justify-center gap-2 pt-0.5">
-                <RatingChip rating={rating} onRate={(v) => setRating(img.id, v)} />
-                <Flag className="h-3.5 w-3.5 shrink-0 text-neutral-500" strokeWidth={1.75} />
+                {/* Status footer: rating chip (clickable stars) + flag */}
+                <div className="flex items-center justify-center gap-2 pt-0.5">
+                  <RatingChip rating={rating} onRate={(v) => setRating(img.id, v)} />
+                  <Flag
+                    className={`h-3.5 w-3.5 shrink-0 ${flagged?.has(img.id) ? "text-white" : "text-neutral-500"}`}
+                    fill={flagged?.has(img.id) ? "currentColor" : "none"}
+                    strokeWidth={1.75}
+                  />
+                </div>
               </div>
-            </div>
+            </PhotoContextMenu>
           );
         })}
       </div>
