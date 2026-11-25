@@ -15,6 +15,7 @@ import { useWbPickerActive, wbPicker } from "./wb-picker";
 import { BrushToolbar } from "./BrushToolbar";
 import { ImageInfoCard } from "./ImageInfoCard";
 import { LoupeImage } from "./LoupeImage";
+import { PhotoContextMenu } from "../PhotoContextMenu";
 import { useCullStore } from "@/features/import/store/useCullStore";
 import { LoupeRail } from "./LoupeRail";
 import { LoupeRailPanel, type LoupeAIState } from "./LoupeRailPanel";
@@ -271,67 +272,71 @@ export function LoupeView({
     <div className="flex min-h-0 min-w-0 flex-1">
       <div className="flex min-h-0 min-w-0 flex-1 flex-col">
         {viewBar}
-        <LoupeImage
-          image={selectedIndex}
-          // The applied crop — except while the Crop tool is open (full photo
-          // + crop box to adjust) and in the Before view (the original).
-          crop={
-            activeRail === "crop" || !showAfter
-              ? undefined
-              : effectiveCropOf(history, selectedIndex)
-          }
-          cropBox={activeRail === "crop" ? effectiveCropOf(history, selectedIndex) : undefined}
-          // Straightening (Crop panel; 0–100 slider, centre = 0°, ±45°).
-          rotation={showAfter ? straightenOf(history, selectedIndex) : 0}
-          actualZoom={actualZoom}
-          onMetrics={handleMetrics}
-          onActualZoomChange={setActualZoom}
-          onPullToSurvey={
-            tab === "cull" && ai.actionStatuses.cull === "complete" ? onOpenSurvey : undefined
-          }
-          badge={
-            <>
-              {!showAfter && (
-                <span className="pointer-events-none absolute left-6 top-6 rounded bg-black/60 px-2 py-0.5 text-[11px] font-medium text-white">
-                  Before
-                </span>
-              )}
-            </>
-          }
-          overlay={
-            activeRail === "crop" ? (
-              <SliderHistoryContext.Provider value={{ image: selectedIndex, tool: "crop" }}>
-                <SliderScopeContext.Provider value="Crop">
-                  <CropOverlay />
-                </SliderScopeContext.Provider>
-              </SliderHistoryContext.Provider>
-            ) : wbPicking ? (
-              // White balance eyedropper: click a neutral spot on the photo.
-              <button
-                type="button"
-                aria-label="Pick white balance from the photo"
-                onClick={() => wbPicker.pick()}
-                className="absolute inset-0 z-10 cursor-crosshair"
-              />
-            ) : null
-          }
-          canvasOverlay={
-            <>
-              {/* Brush toolbar for the brush-based tools: Masking and Object Removal. */}
-              {(activeRail === "patch" || activeRail === "mask") && (
-                <BrushToolbar key={activeRail} />
-              )}
-              {/* Image info floats over the canvas (ⓘ in the bottom bar). */}
-              {infoOpen && (
-                <ImageInfoCard
-                  image={photoId}
-                  name={photoName(photoId)}
-                  onClose={() => setInfoOpen(false)}
-                />
-              )}
-            </>
-          }
-        />
+        <PhotoContextMenu id={selectedIndex} surface="loupe">
+          <div className="flex min-h-0 flex-1 flex-col">
+            <LoupeImage
+              image={selectedIndex}
+              // The applied crop — except while the Crop tool is open (full photo
+              // + crop box to adjust) and in the Before view (the original).
+              crop={
+                activeRail === "crop" || !showAfter
+                  ? undefined
+                  : effectiveCropOf(history, selectedIndex)
+              }
+              cropBox={activeRail === "crop" ? effectiveCropOf(history, selectedIndex) : undefined}
+              // Straightening (Crop panel; 0–100 slider, centre = 0°, ±45°).
+              rotation={showAfter ? straightenOf(history, selectedIndex) : 0}
+              actualZoom={actualZoom}
+              onMetrics={handleMetrics}
+              onActualZoomChange={setActualZoom}
+              onPullToSurvey={
+                tab === "cull" && ai.actionStatuses.cull === "complete" ? onOpenSurvey : undefined
+              }
+              badge={
+                <>
+                  {!showAfter && (
+                    <span className="pointer-events-none absolute left-6 top-6 rounded bg-black/60 px-2 py-0.5 text-[11px] font-medium text-white">
+                      Before
+                    </span>
+                  )}
+                </>
+              }
+              overlay={
+                activeRail === "crop" ? (
+                  <SliderHistoryContext.Provider value={{ image: selectedIndex, tool: "crop" }}>
+                    <SliderScopeContext.Provider value="Crop">
+                      <CropOverlay />
+                    </SliderScopeContext.Provider>
+                  </SliderHistoryContext.Provider>
+                ) : wbPicking ? (
+                  // White balance eyedropper: click a neutral spot on the photo.
+                  <button
+                    type="button"
+                    aria-label="Pick white balance from the photo"
+                    onClick={() => wbPicker.pick()}
+                    className="absolute inset-0 z-10 cursor-crosshair"
+                  />
+                ) : null
+              }
+              canvasOverlay={
+                <>
+                  {/* Brush toolbar for the brush-based tools: Masking and Object Removal. */}
+                  {(activeRail === "patch" || activeRail === "mask") && (
+                    <BrushToolbar key={activeRail} />
+                  )}
+                  {/* Image info floats over the canvas (ⓘ in the bottom bar). */}
+                  {infoOpen && (
+                    <ImageInfoCard
+                      image={photoId}
+                      name={photoName(photoId)}
+                      onClose={() => setInfoOpen(false)}
+                    />
+                  )}
+                </>
+              }
+            />
+          </div>
+        </PhotoContextMenu>
 
         {/* Duplicates strip: contextual to culling — appears only while the AI
             Actions panel is open after a cull has run. Its own collapse tab is

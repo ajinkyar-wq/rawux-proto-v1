@@ -4,6 +4,7 @@ import { ratingColorHex } from "../rating";
 import { useAlbumHistoryContext } from "../history/album-history";
 import { cropAspect, cropOf } from "./crop-config";
 import { CroppedPhoto } from "./CroppedPhoto";
+import { PhotoContextMenu } from "../PhotoContextMenu";
 
 // Horizontal filmstrip of all images in the album, Lightroom style: every
 // thumbnail is the same height and as wide as its photo's (cropped) shape, so
@@ -154,39 +155,40 @@ export function AlbumFilmstrip({
           const crop = cropOf(history, i);
           const width = Math.round(tileHeight * cropAspect(crop));
           return (
-            <button
-              key={i}
-              ref={i === selectedIndex ? selectedRef : undefined}
-              onClick={(e) => onSelect(i, e)}
-              style={{ width }}
-              className="flex shrink-0 flex-col items-center gap-1"
-            >
-              {/* Thumbnail: only the cropped area of the photo, at its shape. */}
-              <div
-                style={{ height: tileHeight, width }}
-                className={`relative overflow-hidden rounded-[3px] bg-[#242424] ${
-                  i === selectedIndex
-                    ? "outline outline-[1.5px] outline-white"
-                    : inSet?.has(i)
-                      ? "outline outline-[1.5px] -outline-offset-1 outline-white/50"
-                      : "outline outline-1 -outline-offset-1 outline-[#303030]"
-                }`}
+            <PhotoContextMenu key={i} id={i} surface="film">
+              <button
+                ref={i === selectedIndex ? selectedRef : undefined}
+                onClick={(e) => onSelect(i, e)}
+                style={{ width }}
+                className="flex shrink-0 flex-col items-center gap-1"
               >
-                <CroppedPhoto src={photoUrl(i, 240)} crop={crop} className="h-full w-full" />
-              </div>
-              {/* Status pill below the image — the image's rating color once
+                {/* Thumbnail: only the cropped area of the photo, at its shape. */}
+                <div
+                  style={{ height: tileHeight, width }}
+                  className={`relative overflow-hidden rounded-[3px] bg-[#242424] ${
+                    i === selectedIndex
+                      ? "outline outline-[1.5px] outline-white"
+                      : inSet?.has(i)
+                        ? "outline outline-[1.5px] -outline-offset-1 outline-white/50"
+                        : "outline outline-1 -outline-offset-1 outline-[#303030]"
+                  }`}
+                >
+                  <CroppedPhoto src={photoUrl(i, 240)} crop={crop} className="h-full w-full" />
+                </div>
+                {/* Status pill below the image — the image's rating color once
                 cull has run, grey/unrated before that. */}
-              {cullComplete && (
-                <span
-                  className="h-1 rounded-full"
-                  style={{
-                    backgroundColor: ratingColorHex(tileRating(i)),
-                    // Never wider than its thumbnail, so pills don't run together.
-                    width: Math.min(28, width - 8),
-                  }}
-                />
-              )}
-            </button>
+                {cullComplete && (
+                  <span
+                    className="h-1 rounded-full"
+                    style={{
+                      backgroundColor: ratingColorHex(tileRating(i)),
+                      // Never wider than its thumbnail, so pills don't run together.
+                      width: Math.min(28, width - 8),
+                    }}
+                  />
+                )}
+              </button>
+            </PhotoContextMenu>
           );
         })}
       </div>

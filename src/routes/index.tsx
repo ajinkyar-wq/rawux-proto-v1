@@ -4,6 +4,11 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { BottomBar } from "@/components/aftershoot/BottomBar";
 import { CanvasGrid, zoomToCols } from "@/components/aftershoot/CanvasGrid";
 import { Rail } from "@/components/aftershoot/Rail";
+import {
+  PhotoMenuContext,
+  type MenuTab,
+  type PhotoMenuApi,
+} from "@/components/aftershoot/PhotoContextMenu";
 import { AppBar, ViewBar, type ViewMode } from "@/components/aftershoot/Toolbar";
 import {
   ACTION_RUN_DURATION_MS,
@@ -579,161 +584,214 @@ function Workspace({
     />
   );
 
+  // ---- Right-click photo menu (same menu in every tab and view) ----
+  const showToast = useCullStore((st) => st.showToast);
+  const [flagged, setFlagged] = useState<Set<number>>(() => new Set());
+  const [copiedEdits, setCopiedEdits] = useState<number | null>(null);
+  const retouching =
+    activeRail === "retouch" ||
+    (lastLoupeRail !== null && ["retouch", "background", "patch"].includes(lastLoupeRail));
+  const menuTab: MenuTab = appTab === "cull" ? "Culling" : retouching ? "Retouching" : "Editing";
+  const photos = (ids: number[]) => (ids.length === 1 ? "1 photo" : `${ids.length} photos`);
+  const photoMenu: PhotoMenuApi = {
+    tab: menuTab,
+    view: viewMode,
+    selection: gridSelection,
+    flagged,
+    busy: Object.values(actionStatuses).some((st) => st === "running"),
+    surveyAvailable: actionStatuses.cull === "complete",
+    canPaste: copiedEdits !== null,
+    prepare: (id) => {
+      if (!gridSelection.has(id)) selectInGrid(id, "single");
+    },
+    rate: rateImages,
+    toggleFlag: (ids) =>
+      setFlagged((prev) => {
+        const next = new Set(prev);
+        const all = ids.every((i) => prev.has(i));
+        ids.forEach((i) => (all ? next.delete(i) : next.add(i)));
+        return next;
+      }),
+    openLoupe: (id) => openInLoupe(imageOf(id)),
+    openSurvey: (id) => {
+      changeView("survey");
+      setSelectedGridTile(imageOf(id));
+    },
+    rotate: (ids, dir) => showToast(`Rotated ${photos(ids)} ${dir}`),
+    copyEdits: (id) => {
+      setCopiedEdits(id);
+      showToast("Edit settings copied");
+    },
+    pasteEdits: (ids) => showToast(`Edit settings pasted to ${photos(ids)}`),
+    exportTo: (ids, target) => showToast(`Exporting ${photos(ids)} to ${target}`),
+    reveal: () => showToast("Revealed in Finder"),
+    setAlbumCover: () => showToast("Album cover updated"),
+    editCaptureTime: () => showToast("Edit Capture Time"),
+    reportIssue: () => showToast(`Report AI issues · ${menuTab}`),
+    remove: (ids) => showToast(`Delete ${photos(ids)}`),
+  };
+
   return (
-    <AlbumHistoryContext.Provider value={history}>
-      <SpeedEditContext.Provider value={speedEdit.target}>
-        <div className="flex h-screen flex-col bg-[#1a1a1a] text-neutral-300 font-sans select-none text-[13px]">
-          <AppBar
-            tab={appTab}
-            onChangeTab={changeTab}
-            onHome={onHome}
-            albumName={albumName}
-            onAdd={onAdd}
-            onOpenSettings={() => setSettingsOpen(true)}
-          />
-
-          <div className="relative flex min-h-0 flex-1 overflow-hidden">
-            {/* Speed edit HUD anchor: floats above the bottom bar, any view. */}
-            <div
-              data-quick-edit-hud-host
-              className="pointer-events-none absolute inset-x-0 bottom-13 z-30 h-10"
+    <PhotoMenuContext.Provider value={photoMenu}>
+      <AlbumHistoryContext.Provider value={history}>
+        <SpeedEditContext.Provider value={speedEdit.target}>
+          <div className="flex h-screen flex-col bg-[#1a1a1a] text-neutral-300 font-sans select-none text-[13px]">
+            <AppBar
+              tab={appTab}
+              onChangeTab={changeTab}
+              onHome={onHome}
+              albumName={albumName}
+              onAdd={onAdd}
+              onOpenSettings={() => setSettingsOpen(true)}
             />
-            {viewMode === "grid" && (
-              <GridView
-                viewBar={viewBar}
-                layout={layout}
-                tab={appTab}
-                activeRail={activeRail}
-                onSelectRail={selectGridRail}
-                panelOpen={gridPanelOpen}
-                selectedGridTile={selectedGridTile}
-                gridSelection={gridSelection}
-                onSelectInGrid={selectInGrid}
-                gridScrollTarget={gridScrollTarget}
-                actionStatuses={actionStatuses}
-                zoom={zoom}
-                setZoom={setZoom}
-                onAction={setActiveModal}
-                onStartAction={startAction}
-                onResetAction={resetAction}
-                onOpenInLoupe={openInLoupe}
-                ratingFilter={ratingFilter}
-                onToggleRating={toggleRatingFilter}
-                ratings={ratings}
-                cullMode={cullMode}
+
+            <div className="relative flex min-h-0 flex-1 overflow-hidden">
+              {/* Speed edit HUD anchor: floats above the bottom bar, any view. */}
+              <div
+                data-quick-edit-hud-host
+                className="pointer-events-none absolute inset-x-0 bottom-13 z-30 h-10"
               />
-            )}
-            {viewMode === "loupe" && (
-              <LoupeView
-                viewBar={viewBar}
-                key={appTab}
-                tab={appTab}
-                selectedIndex={selectedGridTile}
-                onSelectIndex={changeImage}
-                dupIndex={dupIndex}
-                onSelectDup={(k) => setDupState({ image: selectedGridTile, dup: k })}
-                onSelectPhoto={selectPhoto}
-                railRequest={railRequest}
-                lastRail={lastLoupeRail}
-                onRailChange={setLastLoupeRail}
-                onOpenShortcuts={openShortcutsFromLoupe}
-                onOpenSurvey={() => changeView("survey")}
-                cullFiltersVisible={actionStatuses.cull === "complete" && cullMode === "automated"}
-                ai={{
-                  actionStatuses,
-                  activeResultsTab,
-                  onSelectResultsTab: setActiveResultsTab,
-                  onAction: setActiveModal,
-                  ratingFilter,
-                  onToggleRating: toggleRatingFilter,
-                  cullFiltersVisible:
-                    actionStatuses.cull === "complete" && cullMode === "automated",
+              {viewMode === "grid" && (
+                <GridView
+                  viewBar={viewBar}
+                  layout={layout}
+                  tab={appTab}
+                  activeRail={activeRail}
+                  onSelectRail={selectGridRail}
+                  panelOpen={gridPanelOpen}
+                  selectedGridTile={selectedGridTile}
+                  gridSelection={gridSelection}
+                  onSelectInGrid={selectInGrid}
+                  gridScrollTarget={gridScrollTarget}
+                  actionStatuses={actionStatuses}
+                  zoom={zoom}
+                  setZoom={setZoom}
+                  onAction={setActiveModal}
+                  onStartAction={startAction}
+                  onResetAction={resetAction}
+                  onOpenInLoupe={openInLoupe}
+                  ratingFilter={ratingFilter}
+                  onToggleRating={toggleRatingFilter}
+                  ratings={ratings}
+                  cullMode={cullMode}
+                />
+              )}
+              {viewMode === "loupe" && (
+                <LoupeView
+                  viewBar={viewBar}
+                  key={appTab}
+                  tab={appTab}
+                  selectedIndex={selectedGridTile}
+                  onSelectIndex={changeImage}
+                  dupIndex={dupIndex}
+                  onSelectDup={(k) => setDupState({ image: selectedGridTile, dup: k })}
+                  onSelectPhoto={selectPhoto}
+                  railRequest={railRequest}
+                  lastRail={lastLoupeRail}
+                  onRailChange={setLastLoupeRail}
+                  onOpenShortcuts={openShortcutsFromLoupe}
+                  onOpenSurvey={() => changeView("survey")}
+                  cullFiltersVisible={
+                    actionStatuses.cull === "complete" && cullMode === "automated"
+                  }
+                  ai={{
+                    actionStatuses,
+                    activeResultsTab,
+                    onSelectResultsTab: setActiveResultsTab,
+                    onAction: setActiveModal,
+                    ratingFilter,
+                    onToggleRating: toggleRatingFilter,
+                    cullFiltersVisible:
+                      actionStatuses.cull === "complete" && cullMode === "automated",
+                  }}
+                  entryRail={activeRail}
+                  ratings={ratings}
+                />
+              )}
+              {viewMode === "survey" && (
+                <SurveyView
+                  viewBar={viewBar}
+                  selectedIndex={selectedGridTile}
+                  dupIndex={dupIndex}
+                  onSelectPhoto={selectPhoto}
+                  onOpenInLoupe={openInLoupe}
+                  zoom={zoom}
+                  onZoomChange={setZoom}
+                  cullComplete={actionStatuses.cull === "complete"}
+                  cullFiltersVisible={
+                    actionStatuses.cull === "complete" && cullMode === "automated"
+                  }
+                  ratings={ratings}
+                  onOpenShortcuts={openShortcutsFromLoupe}
+                  ai={{
+                    actionStatuses,
+                    activeResultsTab,
+                    onSelectResultsTab: setActiveResultsTab,
+                    onAction: setActiveModal,
+                    ratingFilter,
+                    onToggleRating: toggleRatingFilter,
+                    cullFiltersVisible:
+                      actionStatuses.cull === "complete" && cullMode === "automated",
+                  }}
+                />
+              )}
+            </div>
+
+            {activeModal === "cull" && (
+              <CullSettingsModal
+                onClose={() => setActiveModal(null)}
+                onStart={(mode) => {
+                  setCullMode(mode);
+                  startAction("cull");
                 }}
-                entryRail={activeRail}
-                ratings={ratings}
               />
             )}
-            {viewMode === "survey" && (
-              <SurveyView
-                viewBar={viewBar}
-                selectedIndex={selectedGridTile}
-                dupIndex={dupIndex}
-                onSelectPhoto={selectPhoto}
-                onOpenInLoupe={openInLoupe}
-                zoom={zoom}
-                onZoomChange={setZoom}
-                cullComplete={actionStatuses.cull === "complete"}
-                cullFiltersVisible={actionStatuses.cull === "complete" && cullMode === "automated"}
-                ratings={ratings}
-                onOpenShortcuts={openShortcutsFromLoupe}
-                ai={{
-                  actionStatuses,
-                  activeResultsTab,
-                  onSelectResultsTab: setActiveResultsTab,
-                  onAction: setActiveModal,
-                  ratingFilter,
-                  onToggleRating: toggleRatingFilter,
-                  cullFiltersVisible:
-                    actionStatuses.cull === "complete" && cullMode === "automated",
-                }}
+            {activeModal === "edit" && (
+              <EditSettingsModal
+                onClose={() => setActiveModal(null)}
+                onStart={() => startAction("edit")}
               />
             )}
+            {activeModal === "retouch" && (
+              <RetouchSettingsModal
+                onClose={() => setActiveModal(null)}
+                onStart={() => startAction("retouch")}
+              />
+            )}
+
+            {shortcutsOpen && (
+              <KeyBindingsPanel
+                open
+                onClose={closeShortcuts}
+                sliderDefs={buildSliderRegistry(editSettings, setEditSettings, [])}
+                bindings={bindings}
+                onSetBinding={setBinding}
+                onResetDefaults={resetDefaults}
+                onReplaceBindings={replaceAll}
+                shortcutMode={shortcutMode}
+                cull={appTab === "cull"}
+              />
+            )}
+            <QuickEditHud
+              visible={!!speedEdit.hud?.visible}
+              label={speedEdit.hud?.label ?? ""}
+              keyHint={speedEdit.activeId ? bindings[speedEdit.activeId] : undefined}
+              value={speedEdit.hud?.value ?? 0}
+              min={speedEdit.hud?.min ?? 0}
+              max={speedEdit.hud?.max ?? 100}
+              defaultValue={speedEdit.hud?.defaultValue ?? 0}
+            />
+            <SettingsDialog
+              open={settingsOpen}
+              onClose={() => setSettingsOpen(false)}
+              onOpenShortcuts={openShortcutsFromSettings}
+            />
+
+            <UndoToast item={toast} onDone={clearToast} />
           </div>
-
-          {activeModal === "cull" && (
-            <CullSettingsModal
-              onClose={() => setActiveModal(null)}
-              onStart={(mode) => {
-                setCullMode(mode);
-                startAction("cull");
-              }}
-            />
-          )}
-          {activeModal === "edit" && (
-            <EditSettingsModal
-              onClose={() => setActiveModal(null)}
-              onStart={() => startAction("edit")}
-            />
-          )}
-          {activeModal === "retouch" && (
-            <RetouchSettingsModal
-              onClose={() => setActiveModal(null)}
-              onStart={() => startAction("retouch")}
-            />
-          )}
-
-          {shortcutsOpen && (
-            <KeyBindingsPanel
-              open
-              onClose={closeShortcuts}
-              sliderDefs={buildSliderRegistry(editSettings, setEditSettings, [])}
-              bindings={bindings}
-              onSetBinding={setBinding}
-              onResetDefaults={resetDefaults}
-              onReplaceBindings={replaceAll}
-              shortcutMode={shortcutMode}
-              cull={appTab === "cull"}
-            />
-          )}
-          <QuickEditHud
-            visible={!!speedEdit.hud?.visible}
-            label={speedEdit.hud?.label ?? ""}
-            keyHint={speedEdit.activeId ? bindings[speedEdit.activeId] : undefined}
-            value={speedEdit.hud?.value ?? 0}
-            min={speedEdit.hud?.min ?? 0}
-            max={speedEdit.hud?.max ?? 100}
-            defaultValue={speedEdit.hud?.defaultValue ?? 0}
-          />
-          <SettingsDialog
-            open={settingsOpen}
-            onClose={() => setSettingsOpen(false)}
-            onOpenShortcuts={openShortcutsFromSettings}
-          />
-
-          <UndoToast item={toast} onDone={clearToast} />
-        </div>
-      </SpeedEditContext.Provider>
-    </AlbumHistoryContext.Provider>
+        </SpeedEditContext.Provider>
+      </AlbumHistoryContext.Provider>
+    </PhotoMenuContext.Provider>
   );
 }
 
