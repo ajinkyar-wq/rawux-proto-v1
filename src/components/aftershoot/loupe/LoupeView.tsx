@@ -14,6 +14,8 @@ import { effectiveCropOf, straightenOf } from "./crop-config";
 import { useWbPickerActive, wbPicker } from "./wb-picker";
 import { BrushToolbar } from "./BrushToolbar";
 import { ImageInfoCard } from "./ImageInfoCard";
+import { FACE_ZOOM, facePos } from "../faces";
+import type { FaceControls } from "../panels/KeyFacesGrid";
 import { LoupeImage } from "./LoupeImage";
 import { PhotoContextMenu } from "../PhotoContextMenu";
 import { useCullStore } from "@/features/import/store/useCullStore";
@@ -111,6 +113,31 @@ export function LoupeView({
   // Image zoom (0 = fit) — loupe-only, so it never changes the grid's columns.
   // `actualZoom` is % of the photo's natural pixels; null = fit to canvas.
   const [actualZoom, setActualZoom] = useState<number | null>(null);
+  // Key Faces: clicking a face zooms the canvas to it (click again to fit).
+  const [activeFace, setActiveFace] = useState<number | null>(null);
+  const [faceSize, setFaceSize] = useState(76);
+  const [faceScores, setFaceScores] = useState(true);
+  useEffect(() => setActiveFace(null), [selectedIndex]);
+  useEffect(() => {
+    if (actualZoom === null) setActiveFace(null);
+  }, [actualZoom]);
+  const faceFocus = activeFace === null ? null : facePos(selectedIndex, activeFace);
+  const faceControls: FaceControls = {
+    active: activeFace,
+    onSelect: (k) => {
+      if (activeFace === k) {
+        setActiveFace(null);
+        setActualZoom(null);
+      } else {
+        setActiveFace(k);
+        setActualZoom(fitPercent * (FACE_ZOOM / 100));
+      }
+    },
+    size: faceSize,
+    onSize: setFaceSize,
+    scores: faceScores,
+    onScores: setFaceScores,
+  };
   // Floating image info card (stays open while you move between photos).
   const [infoOpen, setInfoOpen] = useState(false);
   useEffect(() => {
@@ -292,6 +319,7 @@ export function LoupeView({
               // Straightening (Crop panel; 0–100 slider, centre = 0°, ±45°).
               rotation={showAfter ? straightenOf(history, selectedIndex) : 0}
               actualZoom={actualZoom}
+              focus={faceFocus}
               onMetrics={handleMetrics}
               onActualZoomChange={setActualZoom}
               onPullToSurvey={
@@ -388,7 +416,7 @@ export function LoupeView({
           panels share it (never shown at once). */}
       {panelOpen && (
         <div className="relative flex min-h-0 shrink-0">
-          <LoupeRailPanel activeRail={activeRail} selectedIndex={selectedIndex} ai={ai} />
+          <LoupeRailPanel activeRail={activeRail} selectedIndex={selectedIndex} ai={ai} faces={faceControls} />
         </div>
       )}
 

@@ -1,8 +1,8 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { GradientSlider } from "../loupe/slider-primitives";
 import { Eye, EyeOff, ScanFace, ScanLine } from "lucide-react";
 import { photoAspect, photoUrl } from "../cull-data";
-import { FOCUS_COLOR, FOCUS_LABEL, faceCount, facesLoading, faceScore, facePos, faceRect, useFaceData } from "../faces";
+import { FOCUS_COLOR, FOCUS_LABEL, faceCount, facesLoading, faceScore, facePos, faceRect, setHoveredFace, useFaceData } from "../faces";
 import { IconTooltip } from "../IconTooltip";
 import { Caret } from "./Caret";
 
@@ -70,6 +70,7 @@ export function KeyFacesGrid({
   selectedGridTile: number;
   controls?: FaceControls;
 }) {
+  useEffect(() => () => setHoveredFace(null), []);
   useFaceData(); // re-render as real detections stream in
   const isLoading = facesLoading(selectedGridTile);
   const count = isLoading ? SKELETON_COUNT : faceCount(selectedGridTile);
@@ -155,6 +156,8 @@ function PanelFaceCard({ image, k, scores }: { image: number; k: number; scores:
   return (
     <div
       style={faceCrop(image, k)}
+      onMouseEnter={() => setHoveredFace(k)}
+      onMouseLeave={() => setHoveredFace(null)}
       className="relative aspect-square bg-[#2d2d2d]"
     >
       {scores && (
@@ -205,6 +208,9 @@ function FaceCard({ image, k, controls }: { image: number; k: number; controls: 
       aria-label={`${label}. Zoom every photo to this face`}
       aria-pressed={on}
       onClick={() => controls.onSelect(k)}
+      onMouseEnter={() => setHoveredFace(k)}
+      onMouseLeave={() => setHoveredFace(null)}
+      onBlur={() => setHoveredFace(null)}
       style={faceCrop(image, k)}
       className={`relative aspect-square bg-[#1f1f1f] ${
         on

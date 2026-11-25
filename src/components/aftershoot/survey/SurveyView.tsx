@@ -21,6 +21,7 @@ import { LoupeRail } from "../loupe/LoupeRail";
 import { LoupeRailPanel, type LoupeAIState } from "../loupe/LoupeRailPanel";
 import type { LoupeRailKey } from "../loupe/loupe-rail-config";
 import { useCullStore } from "@/features/import/store/useCullStore";
+import { FaceBoxOverlay } from "../FaceBoxOverlay";
 import { FACE_SIZE_MIN, FACE_SIZE_MAX, type FaceControls } from "../panels/KeyFacesGrid";
 import { RatingChip } from "../RatingChip";
 import type { Ratings } from "../use-ratings";
@@ -1008,6 +1009,16 @@ function SurveyPane({
                 }}
                 className="pointer-events-none h-full w-full select-none object-contain"
               />
+              {/* Same transform as the photo so the box tracks zoom / pan. */}
+              <div
+                className="pointer-events-none absolute inset-0"
+                style={{
+                  transform: `translate(${view.x * frameW}px, ${view.y * frameH}px) scale(${view.zoom / 100})`,
+                  transition: panning ? "none" : "transform 120ms ease-out",
+                }}
+              >
+                <FaceBoxOverlay image={imageOf(id)} frameAspect={frameW / frameH} />
+              </div>
             </div>
 
             {flagged && (

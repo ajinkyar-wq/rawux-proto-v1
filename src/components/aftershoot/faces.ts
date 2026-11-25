@@ -36,6 +36,25 @@ export function setFacesLoading(v: boolean) {
 /** True while detection is still running and this photo has no result yet. */
 export const facesLoading = (image: number) => loading && !realFaces(image);
 
+// Face card currently hovered in the Key Faces panel (index within a photo).
+let hoveredFace: number | null = null;
+const hoverListeners = new Set<() => void>();
+export function setHoveredFace(k: number | null) {
+  if (hoveredFace === k) return;
+  hoveredFace = k;
+  hoverListeners.forEach((l) => l());
+}
+export function useHoveredFace() {
+  return useSyncExternalStore(
+    (cb) => {
+      hoverListeners.add(cb);
+      return () => hoverListeners.delete(cb);
+    },
+    () => hoveredFace,
+    () => null,
+  );
+}
+
 /** Subscribe a component to detection results so it re-renders as they arrive. */
 export function useFaceData() {
   return useSyncExternalStore(

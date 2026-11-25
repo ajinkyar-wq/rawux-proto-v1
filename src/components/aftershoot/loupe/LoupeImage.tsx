@@ -1,5 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { photoUrl } from "../cull-data";
+import { FaceBoxOverlay } from "../FaceBoxOverlay";
 import type { CropRect } from "./crop-config";
 
 // Loupe canvas. `zoom` (0-100) scales the image from fit (1x) up to 3x.
@@ -23,6 +24,7 @@ export function LoupeImage({
   onMetrics,
   onActualZoomChange,
   onPullToSurvey,
+  focus,
   badge,
 }: {
   image: number;
@@ -48,6 +50,8 @@ export function LoupeImage({
   onActualZoomChange?: (percent: number) => void;
   /** Cull tab: pinching out past fit pulls into Survey Mode. */
   onPullToSurvey?: () => void;
+  /** Photo point (fractions) to centre while zoomed — e.g. a clicked key face. */
+  focus?: { x: number; y: number } | null;
   badge?: React.ReactNode;
 }) {
   const canvasRef = useRef<HTMLDivElement>(null);
@@ -81,6 +85,17 @@ export function LoupeImage({
   const fitPercent = frameNaturalW > 0 ? (fitW / frameNaturalW) * 100 : 100;
   const scale =
     actualZoom != null && fitPercent > 0 ? actualZoom / fitPercent : 1 + (zoom / 100) * 2;
+
+  // Centre `focus` (clamped so the photo's edges never pull inside the frame).
+  const pan = (() => {
+    if (!focus || crop || scale <= 1) return { x: 0, y: 0 };
+    const lim = (f: number) => ((scale - 1) * f) / 2;
+    const c = (v: number, l: number) => Math.max(-l, Math.min(l, v));
+    return {
+      x: c(-(focus.x - 0.5) * fitW * scale, lim(fitW)),
+      y: c(-(focus.y - 0.5) * fitH * scale, lim(fitH)),
+    };
+  })();
 
   // Pinch to zoom. Trackpad pinch arrives as wheel events with ctrlKey set;
   // touch screens use a two-pointer pinch. Both scale the current actual zoom.
@@ -197,7 +212,12 @@ export function LoupeImage({
     >
       <div
         className={`relative shrink-0 ${cropBox ? "" : "overflow-hidden"}`}
-        style={{ width: fitW, height: fitH, transform: `scale(${scale})` }}
+        style={{
+          width: fitW,
+          height: fitH,
+          transform: `translate(${pan.x}px, ${pan.y}px) scale(${scale})`,
+          transition: "transform 160ms ease-out",
+        }}
       >
         {/* The whole photo, placed so the frame shows the crop, rotated about
             the photo's own centre at its normal size (never zoomed). The crop
@@ -231,6 +251,7 @@ export function LoupeImage({
             }}
             className="absolute inset-0 h-full w-full max-w-none object-cover"
           />
+          <FaceBoxOverlay image={image} />
         </div>
         {overlay}
       </div>
