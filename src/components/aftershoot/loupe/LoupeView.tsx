@@ -129,7 +129,6 @@ export function LoupeView({
     if (activeFaceRef.current !== null) setActualZoom(null);
     setActiveFace(null);
   }, [selectedIndex]);
-  const faceFocus = activeFace === null ? null : facePos(selectedIndex, activeFace);
   const faceControls: FaceControls = {
     active: activeFace,
     onSelect: (k) => {
@@ -166,6 +165,23 @@ export function LoupeView({
   const history = useAlbumHistoryContext();
   const wbPicking = useWbPickerActive();
   const handleMetrics = useCallback((m: { fitPercent: number }) => setFitPercent(m.fitPercent), []);
+  // Click on the photo: zoom to 100% at that point (click again to fit).
+  const [pointFocus, setPointFocus] = useState<{ x: number; y: number } | null>(null);
+  useEffect(() => {
+    if (actualZoom === null) setPointFocus(null);
+  }, [actualZoom]);
+  const zoomedIn = actualZoom !== null && actualZoom > fitPercent * 1.01;
+  const handlePointClick = (p: { x: number; y: number }) => {
+    if (zoomedIn) {
+      setActualZoom(null);
+      return;
+    }
+    if (fitPercent >= 100) return; // already at/above 100% at fit
+    setActiveFace(null);
+    setPointFocus(p);
+    setActualZoom(100);
+  };
+  const faceFocus = activeFace === null ? pointFocus : facePos(selectedIndex, activeFace);
   // Opened from a grid face click: zoom in once the fit size is known.
   const pendingZoom = useRef(activeFace !== null);
   useEffect(() => {
@@ -340,6 +356,11 @@ export function LoupeView({
               rotation={showAfter ? straightenOf(history, selectedIndex) : 0}
               actualZoom={actualZoom}
               focus={faceFocus}
+              onPointClick={
+                activeRail === "crop" || activeRail === "mask" || activeRail === "patch" || wbPicking
+                  ? undefined
+                  : handlePointClick
+              }
               onPickFace={activeRail === "ai" ? faceControls.onSelect : undefined}
               onMetrics={handleMetrics}
               onActualZoomChange={setActualZoom}

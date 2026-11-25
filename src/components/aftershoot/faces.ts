@@ -166,7 +166,7 @@ export const FOCUS_LABEL: Record<FaceFocus, string> = {
 export const FACE_ZOOM = 300;
 
 // The face's larger side should fill this share of the photo frame when zoomed.
-const FACE_FILL = 0.35;
+const FACE_FILL = 0.65;
 
 /**
  * Zoom (% of fit) that frames face k at a consistent size: small faces zoom in

@@ -26,6 +26,7 @@ export function LoupeImage({
   onPullToSurvey,
   focus,
   onPickFace,
+  onPointClick,
   badge,
 }: {
   image: number;
@@ -55,6 +56,8 @@ export function LoupeImage({
   focus?: { x: number; y: number } | null;
   /** Face boxes on the photo become click targets that call this with the face index. */
   onPickFace?: (k: number) => void;
+  /** Click on the photo: the point (fractions of the photo). Omit to leave clicks alone. */
+  onPointClick?: (p: { x: number; y: number }) => void;
   badge?: React.ReactNode;
 }) {
   const canvasRef = useRef<HTMLDivElement>(null);
@@ -217,7 +220,23 @@ export function LoupeImage({
       className="relative flex min-h-0 flex-1 items-center justify-center overflow-hidden bg-[#1c1c1c] p-4"
     >
       <div
-        className={`relative shrink-0 ${cropBox ? "" : "overflow-hidden"}`}
+        onClick={
+          onPointClick
+            ? (e) => {
+                // The frame is transformed, so its rect already includes zoom + pan.
+                const r = e.currentTarget.getBoundingClientRect();
+                const fx = (e.clientX - r.left) / r.width;
+                const fy = (e.clientY - r.top) / r.height;
+                onPointClick({
+                  x: crop ? crop.x / 100 + fx * (crop.w / 100) : fx,
+                  y: crop ? crop.y / 100 + fy * (crop.h / 100) : fy,
+                });
+              }
+            : undefined
+        }
+        className={`relative shrink-0 ${cropBox ? "" : "overflow-hidden"} ${
+          onPointClick ? (scale > 1.01 ? "cursor-zoom-out" : "cursor-zoom-in") : ""
+        }`}
         style={{
           width: fitW,
           height: fitH,
