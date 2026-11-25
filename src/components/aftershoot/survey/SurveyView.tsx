@@ -7,11 +7,11 @@ import { AlbumFilmstrip } from "../loupe/AlbumFilmstrip";
 import { PhotoContextMenu, PhotoMenuContext } from "../PhotoContextMenu";
 import { IconTooltip } from "../IconTooltip";
 import {
-  FACE_ZOOM,
+  faceZoomPercent,
   FOCUS_COLOR,
   FOCUS_LABEL,
   faceCount,
-  facePos,
+  framePos,
   faceScore,
   useFaceData,
   type FaceFocus,
@@ -21,6 +21,7 @@ import { LoupeRail } from "../loupe/LoupeRail";
 import { LoupeRailPanel, type LoupeAIState } from "../loupe/LoupeRailPanel";
 import type { LoupeRailKey } from "../loupe/loupe-rail-config";
 import { useCullStore } from "@/features/import/store/useCullStore";
+import { FaceBoxOverlay } from "../FaceBoxOverlay";
 import { FACE_SIZE_MIN, FACE_SIZE_MAX, type FaceControls } from "../panels/KeyFacesGrid";
 import { RatingChip } from "../RatingChip";
 import type { Ratings } from "../use-ratings";
@@ -191,9 +192,10 @@ export function SurveyView({
 
   // ---- key faces: zoom every photo to a face ----
   const faceView = (id: number, k: number): View => {
-    const { x, y } = facePos(imageOf(id), k);
-    const s = FACE_ZOOM / 100;
-    return clampView({ zoom: FACE_ZOOM, x: -s * (x - 0.5), y: -s * (y - 0.5) });
+    const { x, y } = framePos(imageOf(id), k, AR);
+    const zoom = faceZoomPercent(imageOf(id), k, AR);
+    const s = zoom / 100;
+    return clampView({ zoom, x: -s * (x - 0.5), y: -s * (y - 0.5) });
   };
   const applyFace = (k: number) => {
     setActiveFace(k);
@@ -432,6 +434,7 @@ export function SurveyView({
             onOpenInLoupe={openPhoto}
             onRemove={(i) => removeMember(i)}
             onToggleFlag={toggleFlag}
+            onPickFace={selectFace}
             onReorder={reorder}
           />
           {peek && (
@@ -710,6 +713,7 @@ function SurveyGrid({
   onOpenInLoupe,
   onRemove,
   onToggleFlag,
+  onPickFace,
   onReorder,
 }: {
   // How many photos fit on screen at once; a longer set scrolls in rows.
@@ -727,6 +731,7 @@ function SurveyGrid({
   onOpenInLoupe: (i: number) => void;
   onRemove: (i: number) => void;
   onToggleFlag: (i: number) => void;
+  onPickFace: (k: number) => void;
   onReorder: (from: number, before: number) => void;
 }) {
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -832,6 +837,7 @@ function SurveyGrid({
                 onRemove={() => onRemove(idx)}
                 onRate={(v) => ratings.setRating(idx, v)}
                 onToggleFlag={() => onToggleFlag(idx)}
+                onPickFace={onPickFace}
                 onView={(v) => setViewOf(idx, v)}
                 onDragStart={() => setDragId(idx)}
                 onDragOver={() => setOverId(idx)}
@@ -870,6 +876,7 @@ function SurveyPane({
   onRemove,
   onRate,
   onToggleFlag,
+  onPickFace,
   onView,
   onDragStart,
   onDragOver,
@@ -893,6 +900,7 @@ function SurveyPane({
   onRemove: () => void;
   onRate: (v: number) => void;
   onToggleFlag: () => void;
+  onPickFace: (k: number) => void;
   onView: (v: View) => void;
   onDragStart: () => void;
   onDragOver: () => void;
@@ -1008,6 +1016,21 @@ function SurveyPane({
                 }}
                 className="pointer-events-none h-full w-full select-none object-contain"
               />
+              {/* Same transform as the photo so the box tracks zoom / pan. */}
+              <div
+                className="pointer-events-none absolute inset-0"
+                style={{
+                  transform: `translate(${view.x * frameW}px, ${view.y * frameH}px) scale(${view.zoom / 100})`,
+                  transition: panning ? "none" : "transform 120ms ease-out",
+                }}
+              >
+                <FaceBoxOverlay
+                  image={imageOf(id)}
+                  frameAspect={frameW / frameH}
+                  scale={view.zoom / 100}
+                  onPick={onPickFace}
+                />
+              </div>
             </div>
 
             {flagged && (

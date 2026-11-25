@@ -1,8 +1,9 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { GradientSlider } from "../loupe/slider-primitives";
-import { Eye, EyeOff, ScanFace, ScanLine } from "lucide-react";
-import { photoUrl } from "../cull-data";
-import { FOCUS_COLOR, FOCUS_LABEL, faceCount, faceScore, facePos, faceRect, useFaceData } from "../faces";
+import { Check, ChevronDown, Eye, EyeOff, ScanFace, ScanLine } from "lucide-react";
+import * as DM from "@radix-ui/react-dropdown-menu";
+import { photoAspect, photoUrl } from "../cull-data";
+import { FOCUS_COLOR, FOCUS_LABEL, faceCount, facesLoading, faceScore, facePos, faceRect, openFace, setHoveredFace, setScoresOnImage, useFaceData, useScoresOnImage } from "../faces";
 import { IconTooltip } from "../IconTooltip";
 import { Caret } from "./Caret";
 
@@ -29,31 +30,39 @@ export type FaceControls = {
   onSize: (v: number) => void;
   scores: boolean;
   onScores: (v: boolean) => void;
+  /** Loupe: keep the grid-panel card design (badges bottom-left) but clickable. */
+  panelStyle?: boolean;
 };
 
 export const FACE_SIZE_MIN = 56;
 export const FACE_SIZE_MAX = 150;
 const CROP = 4; // face crops show 1/4 of the photo's width
-// Face crops are zoomed in 61% by default (tighter on the face).
-const FACE_ZOOM_DEFAULT = 1.61; // 1.4 × 1.15
+// Crop window = this × the tight face box (includes forehead/hair + a margin).
+const FACE_COLS_MAX = 5;
+const SKELETON_COUNT = 2;
+const FACE_FRAME = 1.9 / 1.7; // 1.7× tighter than the 1.9× base frame
 
 // Background styling that crops a face card to the detected rect (real data)
 // or to the placeholder spot (mock data).
 function faceCrop(image: number, k: number): React.CSSProperties {
   const url = `url(${photoUrl(image, 900)})`;
   const clamp = (v: number) => Math.max(0, Math.min(100, v));
-  // Visible window as a fraction of the photo's width, centred on the face.
   const r = faceRect(image, k);
-  const w = Math.min(1, (r ? r.w : 1 / CROP) / FACE_ZOOM_DEFAULT);
+  const ar = r?.ar ?? photoAspect(image);
+  // Square window, sized from the tight face box (in photo-width units) with
+  // headroom, centred a touch above the box centre so hair/forehead isn't cut.
+  const faceW = r?.fw ?? 1 / (CROP * 1.6);
+  const faceH = r?.fh !== undefined ? (r.fh * 1) / ar : faceW; // in width units
+  const side = Math.max(faceW, faceH) * FACE_FRAME;
   const { x, y } = facePos(image, k);
-  // Square card: the window's height fraction follows its width fraction
-  // (rect.h is already in photo-height units for real data).
-  const h = Math.min(1, (r ? r.h : 1 / CROP) / FACE_ZOOM_DEFAULT);
+  const w = Math.min(1, side); // window width, fraction of photo width
+  const h = Math.min(1, side * ar); // window height, fraction of photo height
+  const cy = r?.fh !== undefined ? y - r.fh * 0.08 : y;
   return {
     backgroundImage: url,
     backgroundSize: `${100 / w}% auto`,
     backgroundPosition: `${w >= 1 ? 50 : clamp(((x - w / 2) / (1 - w)) * 100)}% ${
-      h >= 1 ? 50 : clamp(((y - h / 2) / (1 - h)) * 100)
+      h >= 1 ? 50 : clamp(((cy - h / 2) / (1 - h)) * 100)
     }%`,
   };
 }
@@ -65,20 +74,27 @@ export function KeyFacesGrid({
   selectedGridTile: number;
   controls?: FaceControls;
 }) {
+  useEffect(() => () => setHoveredFace(null), []);
   useFaceData(); // re-render as real detections stream in
-  const count = faceCount(selectedGridTile);
+  const isLoading = facesLoading(selectedGridTile);
+  const count = isLoading ? SKELETON_COUNT : faceCount(selectedGridTile);
 
+  const onImage = useScoresOnImage();
   const [expanded, setExpanded] = useState(true);
   // Grid / loupe panels have no external controls, so they own the size +
   // scores state; Survey passes its own via `controls`.
   const [size, setSize] = useState(110);
   const [scores, setScores] = useState(true);
   const GAP = 4;
+  // Slider: 5 faces per row at the left, 1 per row (full panel width) at the right.
 
   const sizeValue = controls?.size ?? size;
   const onSize = controls?.onSize ?? setSize;
   const scoresOn = controls?.scores ?? scores;
   const onScores = controls?.onScores ?? setScores;
+  const cols = Math.round(
+    FACE_COLS_MAX - ((sizeValue - FACE_SIZE_MIN) / (FACE_SIZE_MAX - FACE_SIZE_MIN)) * (FACE_COLS_MAX - 1),
+  );
 
   return (
     <div className="flex flex-col gap-3">
@@ -88,7 +104,7 @@ export function KeyFacesGrid({
           className="flex shrink-0 items-center gap-2 text-[13px] font-medium text-white"
         >
           <Caret open={expanded} />
-          Key Faces ({count})
+          Key Faces{isLoading ? "" : ` (${count})`}
         </button>
         {expanded && (
           <div className="ml-auto flex items-center gap-2">
@@ -117,6 +133,32 @@ export function KeyFacesGrid({
                 <ScanFace className="h-4 w-4" strokeWidth={1.5} />
               </button>
             </IconTooltip>
+            <DM.Root>
+              <DM.Trigger
+                aria-label="Key face score options"
+                className="-ml-1 flex h-7 w-5 items-center justify-center rounded text-[#ababab] outline-none hover:text-white data-[state=open]:text-white"
+              >
+                <ChevronDown className="h-3.5 w-3.5" strokeWidth={1.5} />
+              </DM.Trigger>
+              <DM.Portal>
+                <DM.Content
+                  align="end"
+                  sideOffset={6}
+                  className="z-[200] flex flex-col gap-0.5 rounded-lg border border-[#474747] bg-[#242424] p-1 font-[Geist,-apple-system,BlinkMacSystemFont,'Segoe_UI',sans-serif] shadow-2xl"
+                >
+                  <DM.CheckboxItem
+                    checked={onImage}
+                    onCheckedChange={setScoresOnImage}
+                    className="flex cursor-default select-none items-center justify-between gap-6 rounded px-2 py-2 text-[12px] font-medium leading-4 text-[#ababab] outline-none data-[highlighted]:bg-[rgba(226,226,226,0.1)] data-[highlighted]:text-[#e2e2e2]"
+                  >
+                    Show Scores on Image
+                    <DM.ItemIndicator>
+                      <Check className="h-3.5 w-3.5" strokeWidth={1.5} />
+                    </DM.ItemIndicator>
+                  </DM.CheckboxItem>
+                </DM.Content>
+              </DM.Portal>
+            </DM.Root>
           </div>
         )}
       </div>
@@ -124,15 +166,24 @@ export function KeyFacesGrid({
         <div
           className="grid"
           style={{
-            gridTemplateColumns: `repeat(auto-fill, minmax(${sizeValue}px, 1fr))`,
+            gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))`,
             gap: `${controls ? GAP + 2 : GAP}px`,
           }}
         >
           {Array.from({ length: count }).map((_, k) =>
-            controls ? (
+            isLoading ? (
+              <div key={k} className="face-shimmer aspect-square" aria-hidden />
+            ) : controls && !controls.panelStyle ? (
               <FaceCard key={k} image={selectedGridTile} k={k} controls={controls} />
             ) : (
-              <PanelFaceCard key={k} image={selectedGridTile} k={k} scores={scoresOn} />
+              <PanelFaceCard
+                key={k}
+                image={selectedGridTile}
+                k={k}
+                scores={scoresOn}
+                active={controls ? controls.active === k : false}
+                onClick={() => (controls ? controls.onSelect(k) : openFace(k))}
+              />
             ),
           )}
         </div>
@@ -142,13 +193,32 @@ export function KeyFacesGrid({
 }
 
 // Plain (grid-view) face card: a crop of the face with eyes / focus badges.
-function PanelFaceCard({ image, k, scores }: { image: number; k: number; scores: boolean }) {
+function PanelFaceCard({
+  image,
+  k,
+  scores,
+  active,
+  onClick,
+}: {
+  image: number;
+  k: number;
+  scores: boolean;
+  active: boolean;
+  onClick: () => void;
+}) {
   const { eyesOpen, focus } = faceScore(image, k);
   return (
     <div
+      role="button"
+      aria-pressed={active}
+      aria-label={`Face ${k + 1}. Zoom to this face`}
+      onClick={onClick}
       style={faceCrop(image, k)}
-      className="relative aspect-square bg-[#2d2d2d]"
-    >
+      onMouseEnter={() => setHoveredFace(k)}
+      onMouseLeave={() => setHoveredFace(null)}
+      className={`relative aspect-square cursor-pointer rounded-[4px] bg-[#2d2d2d] outline outline-1 -outline-offset-1 ${
+        active ? "outline-white" : "outline-transparent"
+      }`}>
       {scores && (
         <span className="absolute bottom-1 left-1 flex gap-1">
           <span
@@ -156,7 +226,7 @@ function PanelFaceCard({ image, k, scores }: { image: number; k: number; scores:
             title={eyesOpen ? "Eyes open" : "Eyes closed"}
           >
             {eyesOpen ? (
-              <Eye className="h-3.5 w-3.5 text-[#e2c044]" strokeWidth={1.75} />
+              <Eye className="h-3.5 w-3.5 text-[#4cc38a]" strokeWidth={1.75} />
             ) : (
               <EyeOff className="h-3.5 w-3.5 text-[#e5484d]" strokeWidth={1.75} />
             )}
@@ -174,7 +244,7 @@ function PanelFaceCard({ image, k, scores }: { image: number; k: number; scores:
 }
 
 // 4×4 dot grid, rounded to a circle — the "focus sharpness" badge.
-function FocusDots({ color }: { color: string }) {
+export function FocusDots({ color }: { color: string }) {
   const pts = [-3, -1, 1, 3];
   return (
     <svg viewBox="-5 -5 10 10" className="h-3.5 w-3.5" aria-hidden>
@@ -197,11 +267,12 @@ function FaceCard({ image, k, controls }: { image: number; k: number; controls: 
       aria-label={`${label}. Zoom every photo to this face`}
       aria-pressed={on}
       onClick={() => controls.onSelect(k)}
+      onMouseEnter={() => setHoveredFace(k)}
+      onMouseLeave={() => setHoveredFace(null)}
+      onBlur={() => setHoveredFace(null)}
       style={faceCrop(image, k)}
-      className={`relative aspect-square bg-[#1f1f1f] ${
-        on
-          ? "outline outline-2 outline-white"
-          : "outline outline-1 outline-white/10 hover:outline-white/40"
+      className={`relative aspect-square cursor-pointer rounded-[4px] bg-[#1f1f1f] outline outline-1 -outline-offset-1 ${
+        on ? "outline-white" : "outline-transparent hover:outline-white/40"
       }`}
     >
       {controls.scores && (
@@ -209,7 +280,7 @@ function FaceCard({ image, k, controls }: { image: number; k: number; controls: 
           {eyesOpen ? (
             <Eye className="h-3.5 w-3.5 text-[#4cc38a]" strokeWidth={1.75} />
           ) : (
-            <EyeOff className="h-3.5 w-3.5 text-[#e2c044]" strokeWidth={1.75} />
+            <EyeOff className="h-3.5 w-3.5 text-[#e5484d]" strokeWidth={1.75} />
           )}
           <span
             className="h-2 w-2 rounded-full"

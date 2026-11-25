@@ -5,6 +5,14 @@ export type SubjectCategory = 'Masculine' | 'Feminine' | 'Elderly' | 'Child';
 // than a re-encoded thumbnail. Framed head-to-chest with margin on all sides.
 export interface FaceRect {
   x: number; y: number; w: number; h: number;
+  /** Tight face box (fractions of the photo). */
+  fx?: number; fy?: number; fw?: number; fh?: number;
+  /** Photo width / height. */
+  ar?: number;
+  /** Laplacian variance of the face crop (higher = sharper). */
+  sharp?: number;
+  /** Luminance contrast around the eyes (higher = eyes visible/open). */
+  eyeContrast?: number;
 }
 
 export interface ModelSubject {

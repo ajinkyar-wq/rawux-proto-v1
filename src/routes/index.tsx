@@ -62,6 +62,7 @@ import { buildSliderRegistry } from "@/components/aftershoot/shortcuts/sliderReg
 import { useKeyBindings } from "@/components/aftershoot/shortcuts/useKeyBindings";
 import { SpeedEditContext, useSpeedEdit } from "@/components/aftershoot/shortcuts/useSpeedEdit";
 import { SettingsDialog } from "@/components/aftershoot/shortcuts/SettingsDialog";
+import { setOpenFaceHandler, setPendingFace } from "@/components/aftershoot/faces";
 import { FaceDetectionRunner } from "@/components/aftershoot/FaceDetectionRunner";
 import { requestShortcutSection } from "@/components/aftershoot/shortcuts/shortcutMap";
 import { readShortcutMode } from "@/components/aftershoot/shortcuts/useShortcutMode";
@@ -591,6 +592,19 @@ function Workspace({
     setSelectedGridTile(i);
     setViewMode("loupe");
   };
+
+  // Key Faces clicked in the grid panel → Loupe on that photo, zoomed to the face.
+  const openInLoupeRef = useRef(openInLoupe);
+  openInLoupeRef.current = openInLoupe;
+  const gridTileRef = useRef(selectedGridTile);
+  gridTileRef.current = selectedGridTile;
+  useEffect(() => {
+    setOpenFaceHandler((k) => {
+      setPendingFace(k);
+      openInLoupeRef.current(gridTileRef.current);
+    });
+    return () => setOpenFaceHandler(null);
+  }, []);
 
   // Filter row, rendered inside each view above the image area.
   const viewBar = (
