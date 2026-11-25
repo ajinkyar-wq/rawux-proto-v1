@@ -55,6 +55,25 @@ export function useHoveredFace() {
   );
 }
 
+// "Show Scores on Image": eyes / focus badges on the face boxes of the photo.
+let scoresOnImage = false;
+const scoresOnImageListeners = new Set<() => void>();
+export function setScoresOnImage(v: boolean) {
+  if (scoresOnImage === v) return;
+  scoresOnImage = v;
+  scoresOnImageListeners.forEach((l) => l());
+}
+export function useScoresOnImage() {
+  return useSyncExternalStore(
+    (cb) => {
+      scoresOnImageListeners.add(cb);
+      return () => scoresOnImageListeners.delete(cb);
+    },
+    () => scoresOnImage,
+    () => false,
+  );
+}
+
 // Grid view has no big canvas to zoom, so a face click there opens the photo in
 // Loupe zoomed to that face: the handler is registered by the route, and the
 // face is handed to LoupeView through `takePendingFace` when it mounts.
@@ -129,8 +148,8 @@ export function framePos(image: number, k: number, frameAspect: number) {
 export type FaceFocus = "g" | "y" | "r";
 
 // Thresholds on the worker's measurements (tuned on the sample album).
-const SHARP_GOOD = 120; // Laplacian variance ≥ this → sharp
-const SHARP_SOFT = 40; //  ≥ this → slightly soft, below → out of focus
+const SHARP_GOOD = 180; // Laplacian variance ≥ this → sharp
+const SHARP_SOFT = 70; //  ≥ this → slightly soft, below → out of focus
 const EYE_OPEN_MIN = 0.2; // eye-patch contrast ≥ this → eyes open
 
 /** Eyes-open and sharpness score of face k (real when detected, else mock). */

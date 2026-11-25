@@ -1,8 +1,9 @@
 import { useEffect, useState } from "react";
 import { GradientSlider } from "../loupe/slider-primitives";
-import { Eye, EyeOff, ScanFace, ScanLine } from "lucide-react";
+import { Check, ChevronDown, Eye, EyeOff, ScanFace, ScanLine } from "lucide-react";
+import * as DM from "@radix-ui/react-dropdown-menu";
 import { photoAspect, photoUrl } from "../cull-data";
-import { FOCUS_COLOR, FOCUS_LABEL, faceCount, facesLoading, faceScore, facePos, faceRect, openFace, setHoveredFace, useFaceData } from "../faces";
+import { FOCUS_COLOR, FOCUS_LABEL, faceCount, facesLoading, faceScore, facePos, faceRect, openFace, setHoveredFace, setScoresOnImage, useFaceData, useScoresOnImage } from "../faces";
 import { IconTooltip } from "../IconTooltip";
 import { Caret } from "./Caret";
 
@@ -78,6 +79,7 @@ export function KeyFacesGrid({
   const isLoading = facesLoading(selectedGridTile);
   const count = isLoading ? SKELETON_COUNT : faceCount(selectedGridTile);
 
+  const onImage = useScoresOnImage();
   const [expanded, setExpanded] = useState(true);
   // Grid / loupe panels have no external controls, so they own the size +
   // scores state; Survey passes its own via `controls`.
@@ -131,6 +133,32 @@ export function KeyFacesGrid({
                 <ScanFace className="h-4 w-4" strokeWidth={1.5} />
               </button>
             </IconTooltip>
+            <DM.Root>
+              <DM.Trigger
+                aria-label="Key face score options"
+                className="-ml-1 flex h-7 w-5 items-center justify-center rounded text-[#ababab] outline-none hover:text-white data-[state=open]:text-white"
+              >
+                <ChevronDown className="h-3.5 w-3.5" strokeWidth={1.5} />
+              </DM.Trigger>
+              <DM.Portal>
+                <DM.Content
+                  align="end"
+                  sideOffset={6}
+                  className="z-[200] flex flex-col gap-0.5 rounded-lg border border-[#474747] bg-[#242424] p-1 font-[Geist,-apple-system,BlinkMacSystemFont,'Segoe_UI',sans-serif] shadow-2xl"
+                >
+                  <DM.CheckboxItem
+                    checked={onImage}
+                    onCheckedChange={setScoresOnImage}
+                    className="flex cursor-default select-none items-center justify-between gap-6 rounded px-2 py-2 text-[12px] font-medium leading-4 text-[#ababab] outline-none data-[highlighted]:bg-[rgba(226,226,226,0.1)] data-[highlighted]:text-[#e2e2e2]"
+                  >
+                    Show Scores on Image
+                    <DM.ItemIndicator>
+                      <Check className="h-3.5 w-3.5" strokeWidth={1.5} />
+                    </DM.ItemIndicator>
+                  </DM.CheckboxItem>
+                </DM.Content>
+              </DM.Portal>
+            </DM.Root>
           </div>
         )}
       </div>
@@ -198,7 +226,7 @@ function PanelFaceCard({
             title={eyesOpen ? "Eyes open" : "Eyes closed"}
           >
             {eyesOpen ? (
-              <Eye className="h-3.5 w-3.5 text-[#e2c044]" strokeWidth={1.75} />
+              <Eye className="h-3.5 w-3.5 text-[#4cc38a]" strokeWidth={1.75} />
             ) : (
               <EyeOff className="h-3.5 w-3.5 text-[#e5484d]" strokeWidth={1.75} />
             )}
@@ -216,7 +244,7 @@ function PanelFaceCard({
 }
 
 // 4×4 dot grid, rounded to a circle — the "focus sharpness" badge.
-function FocusDots({ color }: { color: string }) {
+export function FocusDots({ color }: { color: string }) {
   const pts = [-3, -1, 1, 3];
   return (
     <svg viewBox="-5 -5 10 10" className="h-3.5 w-3.5" aria-hidden>
@@ -252,7 +280,7 @@ function FaceCard({ image, k, controls }: { image: number; k: number; controls: 
           {eyesOpen ? (
             <Eye className="h-3.5 w-3.5 text-[#4cc38a]" strokeWidth={1.75} />
           ) : (
-            <EyeOff className="h-3.5 w-3.5 text-[#e2c044]" strokeWidth={1.75} />
+            <EyeOff className="h-3.5 w-3.5 text-[#e5484d]" strokeWidth={1.75} />
           )}
           <span
             className="h-2 w-2 rounded-full"

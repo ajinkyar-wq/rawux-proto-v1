@@ -14,7 +14,7 @@ import { effectiveCropOf, straightenOf } from "./crop-config";
 import { useWbPickerActive, wbPicker } from "./wb-picker";
 import { BrushToolbar } from "./BrushToolbar";
 import { ImageInfoCard } from "./ImageInfoCard";
-import { faceZoomPercent, facePos, takePendingFace } from "../faces";
+import { faceCount, faceZoomPercent, facePos, takePendingFace } from "../faces";
 import type { FaceControls } from "../panels/KeyFacesGrid";
 import { LoupeImage } from "./LoupeImage";
 import { PhotoContextMenu } from "../PhotoContextMenu";
@@ -155,11 +155,35 @@ export function LoupeView({
     return () => window.removeEventListener("keydown", onKey);
   }, [infoOpen]);
   const [fitPercent, setFitPercent] = useState(100);
-  // Last zoom level used, so Space can return to it from Fit (default 100%).
-  const lastZoomRef = useRef(100);
+  // Option + Right / Left: zoom to the next / previous key face (wraps around).
   useEffect(() => {
-    if (actualZoom !== null) lastZoomRef.current = actualZoom;
-  }, [actualZoom]);
+    const onKey = (e: KeyboardEvent) => {
+      if (!e.altKey || e.metaKey || e.ctrlKey) return;
+      if (e.key !== "ArrowRight" && e.key !== "ArrowLeft") return;
+      const n = faceCount(selectedIndex);
+      if (n === 0) return;
+      e.preventDefault();
+      e.stopPropagation();
+      const cur = activeFaceRef.current;
+      const dir = e.key === "ArrowRight" ? 1 : -1;
+      const k = cur === null ? (dir === 1 ? 0 : n - 1) : (cur + dir + n) % n;
+      setActiveFace(k);
+      setActualZoom(fitPercent * (faceZoomPercent(selectedIndex, k) / 100));
+    };
+    window.addEventListener("keydown", onKey, true);
+    return () => window.removeEventListener("keydown", onKey, true);
+  }, [selectedIndex, fitPercent]);
+  // Last zoom level used, so Space can return to it from Fit (default 100%).
+  const lastZoomRef = useRef<{
+    zoom: number;
+    face: number | null;
+    point: { x: number; y: number } | null;
+    image: number;
+  }>({ zoom: 100, face: null, point: null, image: -1 });
+  const activeZoomRef = useRef(actualZoom);
+  activeZoomRef.current = actualZoom;
+  const selectedIndexRef = useRef(selectedIndex);
+  selectedIndexRef.current = selectedIndex;
   const [showAfter, setShowAfter] = useState(true);
   // Crops live in the album history (per image, revert on Undo).
   const history = useAlbumHistoryContext();
@@ -181,6 +205,16 @@ export function LoupeView({
     setPointFocus(p);
     setActualZoom(100);
   };
+  // Remember where Space should return to (zoom level + face / clicked point).
+  useEffect(() => {
+    if (actualZoom !== null)
+      lastZoomRef.current = {
+        zoom: actualZoom,
+        face: activeFace,
+        point: pointFocus,
+        image: selectedIndex,
+      };
+  }, [actualZoom, activeFace, pointFocus, selectedIndex]);
   const faceFocus = activeFace === null ? pointFocus : facePos(selectedIndex, activeFace);
   // Opened from a grid face click: zoom in once the fit size is known.
   const pendingZoom = useRef(activeFace !== null);
@@ -316,7 +350,17 @@ export function LoupeView({
         combo: { key: " " },
         label: "Toggle Fit / Zoom",
         section: "View",
-        run: () => setActualZoom((z) => (z === null ? lastZoomRef.current : null)),
+        run: () => {
+          if (activeZoomRef.current !== null) {
+            setActualZoom(null);
+            return;
+          }
+          const l = lastZoomRef.current;
+          const sameImage = l.image === selectedIndexRef.current;
+          setActiveFace(sameImage ? l.face : null);
+          setPointFocus(l.point);
+          setActualZoom(l.zoom);
+        },
       },
     ],
     [],
@@ -344,6 +388,7 @@ export function LoupeView({
           <div className="flex min-h-0 flex-1 flex-col">
             <LoupeImage
               image={selectedIndex}
+              onScrollStep={(d) => onSelectIndex(Math.max(0, Math.min(selectedIndex + d, ALBUM_LAST)))}
               // The applied crop — except while the Crop tool is open (full photo
               // + crop box to adjust) and in the Before view (the original).
               crop={
@@ -362,6 +407,15 @@ export function LoupeView({
                   : handlePointClick
               }
               onPickFace={activeRail === "ai" ? faceControls.onSelect : undefined}
+              onMarqueeZoom={
+                activeRail === "crop" || activeRail === "mask" || activeRail === "patch" || wbPicking
+                  ? undefined
+                  : (z) => {
+                      setActiveFace(null);
+                      setPointFocus({ x: z.x, y: z.y });
+                      setActualZoom(z.percent);
+                    }
+              }
               onMetrics={handleMetrics}
               onActualZoomChange={setActualZoom}
               onPullToSurvey={
