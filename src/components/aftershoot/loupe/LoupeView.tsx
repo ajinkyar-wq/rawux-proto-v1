@@ -1,7 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { editLookOf } from "./edit-preview";
 import { BottomBar } from "../BottomBar";
-import { dupId, duplicateCount, photoName } from "../duplicates";
+import { dupId, duplicateCount, photoName, stackOrder } from "../duplicates";
+import { useDupStripPrefs } from "./dup-strip-prefs";
+import { ratingColorHex } from "../rating";
 import { DuplicatesStrip } from "../DuplicatesStrip";
 import { AlbumFilmstrip } from "./AlbumFilmstrip";
 import { CropOverlay } from "./CropOverlay";
@@ -26,7 +28,7 @@ import { LoupeRail } from "./LoupeRail";
 import { LoupeRailPanel, type LoupeAIState } from "./LoupeRailPanel";
 import { loupeRailInTab, type LoupeRailKey } from "./loupe-rail-config";
 import { useShortcuts } from "../shortcuts/shortcutRegistry";
-import { getZoomPrefs } from "../zoom-prefs";
+import { getZoomPrefs, persistZoomKey, type ZoomMode } from "../zoom-prefs";
 import type { Ratings } from "../use-ratings";
 import type { AIAction } from "../panels/ImagePanel";
 import type { AppTab, RailKey as GridRailKey } from "../rail-config";
@@ -126,6 +128,10 @@ export function LoupeView({
   const [faceScores, setFaceScores] = useState(true);
   const activeFaceRef = useRef(activeFace);
   activeFaceRef.current = activeFace;
+  // Cull tab uses the Cull Persist zoom setting; Edit / Retouch use their own.
+  const zoomMode: ZoomMode = tab === "cull" ? "cull" : "edit";
+  const zoomModeRef = useRef(zoomMode);
+  zoomModeRef.current = zoomMode;
   const firstRun = useRef(true);
   useEffect(() => {
     if (firstRun.current) {
@@ -134,7 +140,7 @@ export function LoupeView({
     }
     // Moving to another image (not a duplicate) while zoomed on a face: fit it.
     // Without Persist zoom, every image opens at Fit.
-    if (activeFaceRef.current !== null || !getZoomPrefs().persistZoom) {
+    if (activeFaceRef.current !== null || !getZoomPrefs()[persistZoomKey(zoomModeRef.current)]) {
       setActualZoom(null);
       setPointFocus(null);
     }
@@ -278,48 +284,59 @@ export function LoupeView({
   useEffect(() => {
     clearBrush();
   }, [photoId, activeRail, activeMask, clearBrush]);
+  // The stack's order as the duplicates strip shows it (Sort by Importance).
+  const stripPrefs = useDupStripPrefs();
+  const orderOf = (image: number) =>
+    stackOrder(image, ratings.ratingOf, stripPrefs.sortByImportance);
+  const stepDup = (dir: 1 | -1, wrap: boolean) => {
+    const order = orderOf(selectedIndex);
+    const pos = order.indexOf(dupIndex);
+    const next = pos + dir;
+    if (next >= 0 && next < order.length) return onSelectDup(order[next]);
+    if (wrap && order.length > 1) return onSelectDup(order[(next + order.length) % order.length]);
+    const image = selectedIndex + dir;
+    if (image < 0 || image > ALBUM_LAST) return;
+    const o = orderOf(image);
+    onSelectPhoto(dupId(image, dir === 1 ? o[0] : o[o.length - 1]));
+  };
   useShortcuts(
     () =>
       cullDone
         ? [
+            // , / . step through the stack in the strip's order. With Cycle
+            // through Duplicates on they wrap inside the stack (a single photo
+            // just moves on); off, they flow into the neighbouring image's stack.
             {
               id: "loupe.dup.next",
               combo: { key: "." },
               label: "Next in duplicate set",
               section: "Cull",
-              run: () =>
-                dupIndex + 1 < dupTotal
-                  ? onSelectDup(dupIndex + 1)
-                  : selectedIndex < ALBUM_LAST && onSelectPhoto(dupId(selectedIndex + 1, 0)),
+              run: () => stepDup(1, stripPrefs.cycle),
             },
             {
               id: "loupe.dup.prev",
               combo: { key: "," },
               label: "Previous in duplicate set",
               section: "Cull",
-              run: () =>
-                dupIndex > 0
-                  ? onSelectDup(dupIndex - 1)
-                  : selectedIndex > 0 &&
-                    onSelectPhoto(dupId(selectedIndex - 1, duplicateCount(selectedIndex - 1) - 1)),
+              run: () => stepDup(-1, stripPrefs.cycle),
             },
-            // Duplicates filmstrip open on a stack: ↑ / ↓ cycle through it
+            // Duplicates strip open + Cycle on: ↑ / ↓ cycle through the stack
             // (wrapping), staying on this image's stack.
-            ...(showDuplicatesStrip && dupTotal > 1
+            ...(showDuplicatesStrip && dupTotal > 1 && stripPrefs.cycle
               ? [
                   {
                     id: "loupe.dup.cycleDown",
                     combo: { key: "arrowdown" },
                     label: "Next photo in duplicate stack",
                     section: "Cull",
-                    run: () => onSelectDup((dupIndex + 1) % dupTotal),
+                    run: () => stepDup(1, true),
                   },
                   {
                     id: "loupe.dup.cycleUp",
                     combo: { key: "arrowup" },
                     label: "Previous photo in duplicate stack",
                     section: "Cull",
-                    run: () => onSelectDup((dupIndex - 1 + dupTotal) % dupTotal),
+                    run: () => stepDup(-1, true),
                   },
                 ]
               : []),
@@ -348,6 +365,8 @@ export function LoupeView({
       onSelectDup,
       onSelectIndex,
       onSelectPhoto,
+      stripPrefs,
+      ratings.ratingOf,
     ],
   );
 
@@ -435,7 +454,7 @@ export function LoupeView({
       <div className="flex min-h-0 min-w-0 flex-1 flex-col">
         {viewBar}
         <PhotoContextMenu id={selectedIndex} surface="loupe">
-          <div className="flex min-h-0 flex-1 flex-col">
+          <div className="relative flex min-h-0 flex-1 flex-col">
             <LoupeImage
               image={selectedIndex}
               onBrushWheel={
@@ -537,6 +556,15 @@ export function LoupeView({
                 </>
               }
             />
+            {/* Show color border (duplicates strip gear): a 5px frame round the
+                canvas in the current photo's rating colour. */}
+            {stripPrefs.colorBorder && cullDone && ratings.ratingOf(photoId) > 0 && (
+              <div
+                aria-hidden
+                className="pointer-events-none absolute inset-0 z-20 border-[5px]"
+                style={{ borderColor: ratingColorHex(ratings.ratingOf(photoId)) }}
+              />
+            )}
           </div>
         </PhotoContextMenu>
 
@@ -551,6 +579,8 @@ export function LoupeView({
             activeDup={dupIndex}
             onSelectDup={onSelectDup}
             size="compact"
+            ratingOf={ratings.ratingOf}
+            withMenu
           />
         )}
 
@@ -570,6 +600,7 @@ export function LoupeView({
             onPercent: setActualZoom,
             fillPercent,
             education: true,
+            mode: zoomMode,
           }}
           showAfter={showAfter}
           onToggleAfter={() => setShowAfter((v) => !v)}

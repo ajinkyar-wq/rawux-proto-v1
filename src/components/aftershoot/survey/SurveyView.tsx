@@ -1,4 +1,12 @@
-import { useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
+import {
+  useCallback,
+  useContext,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { Eye, EyeOff, Flag, LayoutGrid, Square, X } from "lucide-react";
 import { BottomBar } from "../BottomBar";
 import { photoUrl } from "../cull-data";
@@ -164,6 +172,15 @@ export function SurveyView({
       if (c.zoom <= 100) setActiveFace(null);
       if (sync) setShared(c);
       else setViews((p) => ({ ...p, [id]: c }));
+    },
+    [sync],
+  );
+  // Like setViewOf, but built on the LATEST view: wheel / pinch events arrive
+  // faster than renders, so reading the rendered view would drop deltas (jitter).
+  const updateViewOf = useCallback(
+    (id: number, fn: (v: View) => View) => {
+      if (sync) setShared((p) => clampView(fn(p)));
+      else setViews((p) => ({ ...p, [id]: clampView(fn(p[id] ?? FIT)) }));
     },
     [sync],
   );
@@ -430,6 +447,7 @@ export function SurveyView({
             cullComplete={cullComplete}
             viewOf={viewOf}
             setViewOf={setViewOf}
+            updateViewOf={updateViewOf}
             onActivate={onSelectPhoto}
             onOpenInLoupe={openPhoto}
             onRemove={(i) => removeMember(i)}
@@ -709,6 +727,7 @@ function SurveyGrid({
   faceScore,
   viewOf,
   setViewOf,
+  updateViewOf,
   onActivate,
   onOpenInLoupe,
   onRemove,
@@ -727,6 +746,7 @@ function SurveyGrid({
   faceScore: ((id: number) => { eyesOpen: boolean; focus: FaceFocus } | null) | null;
   viewOf: (id: number) => View;
   setViewOf: (id: number, v: View) => void;
+  updateViewOf: (id: number, fn: (v: View) => View) => void;
   onActivate: (i: number) => void;
   onOpenInLoupe: (i: number) => void;
   onRemove: (i: number) => void;
@@ -773,13 +793,13 @@ function SurveyGrid({
   // Pinch (ctrl+wheel) zooms at the cursor; the wheel pans a zoomed photo.
   // Otherwise it scrolls the grid natively. Needs a non-passive listener to
   // stop page scroll while zooming.
-  const live = useRef({ viewOf, setViewOf, onActivate, active });
-  live.current = { viewOf, setViewOf, onActivate, active };
+  const live = useRef({ viewOf, updateViewOf, onActivate, active });
+  live.current = { viewOf, updateViewOf, onActivate, active };
   useEffect(() => {
     const el = scrollRef.current;
     if (!el) return;
     const onWheel = (e: WheelEvent) => {
-      const { viewOf: vo, setViewOf: sv, onActivate: act, active: a } = live.current;
+      const { viewOf: vo, updateViewOf: uv, onActivate: act, active: a } = live.current;
       const paneEl = (e.target as HTMLElement).closest<HTMLElement>("[data-pane]");
       const frame = paneEl?.querySelector<HTMLElement>("[data-frame]");
       const id = paneEl ? Number(paneEl.dataset.pane) : null;
@@ -789,12 +809,15 @@ function SurveyGrid({
         const r = frame.getBoundingClientRect();
         const cx = (e.clientX - r.left) / r.width - 0.5;
         const cy = (e.clientY - r.top) / r.height - 0.5;
-        sv(id, zoomAt(v, v.zoom * Math.exp(-e.deltaY * 0.01), cx, cy));
+        const f = Math.exp(-e.deltaY * 0.01);
+        uv(id, (cur) => zoomAt(cur, cur.zoom * f, cx, cy));
         if (id !== a) act(id);
       } else if (id !== null && v && frame && v.zoom > 100) {
         e.preventDefault();
         const r = frame.getBoundingClientRect();
-        sv(id, { ...v, x: v.x - e.deltaX / r.width, y: v.y - e.deltaY / r.height });
+        const dx = e.deltaX / r.width;
+        const dy = e.deltaY / r.height;
+        uv(id, (cur) => ({ ...cur, x: cur.x - dx, y: cur.y - dy }));
       }
     };
     el.addEventListener("wheel", onWheel, { passive: false });
@@ -912,6 +935,10 @@ function SurveyPane({
   const moved = useRef(false);
   const [panning, setPanning] = useState(false);
   const zoomed = view.zoom > 100;
+  // Ease only real zoom jumps (click to 200%, back to fit, the zoom menu).
+  // Drags, scrolls, pinches — and the synced copies of another photo's pan —
+  // follow 1:1, so they never trail behind and wobble.
+  const transition = useZoomJumpTransition(view.zoom, panning);
 
   const onPointerDown = (e: React.PointerEvent) => {
     moved.current = false;
@@ -1012,7 +1039,7 @@ function SurveyPane({
                 draggable={false}
                 style={{
                   transform: `translate(${view.x * frameW}px, ${view.y * frameH}px) scale(${view.zoom / 100})`,
-                  transition: panning ? "none" : "transform 120ms ease-out",
+                  transition,
                 }}
                 className="pointer-events-none h-full w-full select-none object-contain"
               />
@@ -1021,7 +1048,7 @@ function SurveyPane({
                 className="pointer-events-none absolute inset-0"
                 style={{
                   transform: `translate(${view.x * frameW}px, ${view.y * frameH}px) scale(${view.zoom / 100})`,
-                  transition: panning ? "none" : "transform 120ms ease-out",
+                  transition,
                 }}
               >
                 <FaceBoxOverlay
@@ -1138,4 +1165,17 @@ function layout(count: number, width: number, height: number): { cols: number; r
     if (score > best.score + 1) best = { cols, score };
   }
   return { cols: best.cols, rows: Math.ceil(count / best.cols) };
+}
+
+// Transition for a photo's zoom/pan transform: eases for ~150ms after a zoom
+// jump of 20%+ (or a return to fit), none otherwise.
+function useZoomJumpTransition(zoom: number, panning: boolean): string {
+  const last = useRef(zoom);
+  const until = useRef(0);
+  const now = performance.now();
+  if (Math.abs(zoom - last.current) >= 20) until.current = now + 150;
+  useLayoutEffect(() => {
+    last.current = zoom;
+  });
+  return !panning && now < until.current ? "transform 120ms ease-out" : "none";
 }

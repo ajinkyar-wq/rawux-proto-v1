@@ -16,8 +16,42 @@ function stackHash(image: number) {
   return (h ^ (h >>> 13)) >>> 0;
 }
 
+/** About 70% of album images have duplicates; the rest are single photos. */
+export const isStacked = (image: number) => (stackHash(image) >>> 8) % 10 < 7;
+
 /** Number of photos in an image's duplicate set (the image itself included). */
-export const duplicateCount = (image: number) => STACK_SIZES[stackHash(image) % STACK_SIZES.length];
+export const duplicateCount = (image: number) =>
+  isStacked(image) ? STACK_SIZES[stackHash(image) % STACK_SIZES.length] : 1;
+
+/**
+ * AI cull rating inside a stack: the album image itself (k = 0, the one the
+ * filmstrip shows) is the stack's pick — 5★ / green. Every other duplicate is
+ * strictly lower, 1–4★ (stable per photo).
+ */
+export function stackRating(id: number): number | undefined {
+  const image = imageOf(id);
+  if (duplicateCount(image) < 2) return undefined;
+  const k = dupOf(id);
+  return k === 0 ? 5 : 1 + (stackHash(image * 31 + k) % 4);
+}
+
+/**
+ * The order a stack's photos show in the duplicates strip (and ↑ / ↓ / , / .
+ * cycle through): as shot, or by importance — highest rating first, ties
+ * keeping their shot order.
+ */
+export function stackOrder(
+  image: number,
+  ratingOf: (id: number) => number,
+  byImportance: boolean,
+): number[] {
+  const ks = Array.from({ length: duplicateCount(image) }, (_, k) => k);
+  if (!byImportance) return ks;
+  return ks
+    .map((k) => ({ k, r: ratingOf(dupId(image, k)) }))
+    .sort((a, b) => b.r - a.r || a.k - b.k)
+    .map((x) => x.k);
+}
 
 const VIRTUAL_BASE = 1_000_000;
 const SLOTS = 1000; // max duplicates per image

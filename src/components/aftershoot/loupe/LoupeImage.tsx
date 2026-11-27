@@ -14,6 +14,13 @@ import { MAX_ZOOM } from "../zoom-prefs";
 // With `crop`, the frame takes the crop's shape and shows only that part of
 // the photo (the applied crop). Without it, the whole photo is shown — used
 // while the Crop tool is open so the crop box can be adjusted.
+const IS_MAC =
+  typeof navigator !== "undefined" &&
+  /Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent);
+/** Marquee-zoom modifier: Cmd on a Mac, Ctrl (or Cmd) elsewhere. */
+const isZoomMod = (e: { metaKey: boolean; ctrlKey: boolean }) =>
+  IS_MAC ? e.metaKey : e.metaKey || e.ctrlKey;
+
 export function LoupeImage({
   image,
   rotation = 0,
@@ -139,7 +146,11 @@ export function LoupeImage({
   const draggedRef = useRef(false);
   const frameRef = useRef<HTMLDivElement>(null);
   // Cmd (Mac) / Ctrl (Windows) held → marquee-zoom cursor; drag draws the rectangle.
+  // On a Mac Ctrl is NOT the zoom modifier (Ctrl-click is the system right-click),
+  // so it keeps the normal cursor and click; Ctrl-scroll still zooms.
   const [modHeld, setModHeld] = useState(false);
+  // A Mac Ctrl-click on the photo: swallow the context menu it would open.
+  const macCtrlClick = useRef(false);
   const [marquee, setMarquee] = useState<{ x0: number; y0: number; x1: number; y1: number } | null>(
     null,
   );
@@ -147,7 +158,7 @@ export function LoupeImage({
   marqueeCb.current = { onMarqueeZoom, crop, box };
   useEffect(() => {
     if (!onMarqueeZoom) return;
-    const sync = (e: KeyboardEvent) => setModHeld(e.metaKey || e.ctrlKey);
+    const sync = (e: KeyboardEvent) => setModHeld(isZoomMod(e));
     const off = () => setModHeld(false);
     window.addEventListener("keydown", sync);
     window.addEventListener("keyup", sync);
@@ -210,6 +221,18 @@ export function LoupeImage({
       setPull(Math.max(0.03, p));
       return true;
     };
+    // The physical Ctrl key. Trackpad pinches also arrive with ctrlKey set but
+    // never press the key, so this tells Ctrl + scroll apart from a pinch.
+    let ctrlDown = false;
+    const onCtrl = (e: KeyboardEvent) => {
+      if (e.key === "Control") ctrlDown = e.type === "keydown";
+    };
+    const onCtrlBlur = () => {
+      ctrlDown = false;
+    };
+    window.addEventListener("keydown", onCtrl);
+    window.addEventListener("keyup", onCtrl);
+    window.addEventListener("blur", onCtrlBlur);
     const onWheel = (e: WheelEvent) => {
       // Option (Mac) / Alt (Windows) + scroll zooms the photo, like pinch.
       if (e.altKey && !e.ctrlKey && !e.metaKey) {
@@ -265,7 +288,9 @@ export function LoupeImage({
         return;
       }
       e.preventDefault();
-      if (pullWheel(e)) return;
+      // Ctrl + scroll zooms but stops at fit: a strong scroll must never pull
+      // through into Survey. Pinch-out past fit still opens it.
+      if (!ctrlDown && pullWheel(e)) return;
       apply(Math.exp(-e.deltaY * 0.01));
     };
     const pointers = new Map<number, { x: number; y: number }>();
@@ -308,8 +333,9 @@ export function LoupeImage({
       // The brush layer is the exception for Cmd/Ctrl-drag, which still marquee-zooms.
       // Space-drag (hand tool) pans through it too.
       const ui = (e.target as Element | null)?.closest?.<HTMLElement>("[data-loupe-ui]");
-      if (ui && !(ui.dataset.loupeUi === "brush" && (e.metaKey || e.ctrlKey || spaceDown))) return;
-      if (e.button === 0 && (e.metaKey || e.ctrlKey) && marqueeCb.current.onMarqueeZoom) {
+      macCtrlClick.current = IS_MAC && e.ctrlKey && e.button === 0;
+      if (ui && !(ui.dataset.loupeUi === "brush" && (isZoomMod(e) || spaceDown))) return;
+      if (e.button === 0 && isZoomMod(e) && marqueeCb.current.onMarqueeZoom) {
         mq = { id: e.pointerId, sx: e.clientX, sy: e.clientY };
         draggedRef.current = true; // swallow the click
         setMarquee({ ...mqRect(e) });
@@ -404,6 +430,9 @@ export function LoupeImage({
       window.removeEventListener("keyup", onKey);
       window.removeEventListener("blur", onBlur);
       el.removeEventListener("wheel", onWheel);
+      window.removeEventListener("keydown", onCtrl);
+      window.removeEventListener("keyup", onCtrl);
+      window.removeEventListener("blur", onCtrlBlur);
       el.removeEventListener("pointerdown", onDown);
       el.removeEventListener("pointermove", onMove);
       el.removeEventListener("pointerup", onUp);
@@ -429,7 +458,17 @@ export function LoupeImage({
             : undefined,
       }}
       onDragStart={(e) => e.preventDefault()}
-      className="relative select-none flex min-h-0 flex-1 items-center justify-center overflow-hidden bg-[#1c1c1c] p-4"
+      // Captured before the photo's right-click menu (an ancestor) sees it.
+      onContextMenuCapture={(e) => {
+        if (!macCtrlClick.current) return;
+        macCtrlClick.current = false;
+        e.preventDefault();
+      }}
+      // Fit is edge to edge: no padding round the photo — except with the Crop
+      // tool open, where the crop box's edge handles need room.
+      className={`relative select-none flex min-h-0 flex-1 items-center justify-center overflow-hidden bg-[#1c1c1c] ${
+        cropBox ? "p-4" : ""
+      }`}
     >
       <div
         ref={frameRef}

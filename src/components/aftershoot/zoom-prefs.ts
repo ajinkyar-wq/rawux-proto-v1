@@ -8,10 +8,17 @@ export const MAX_ZOOM = 1600;
 // Menu presets (Figma zoom menu). Fit and Fill are listed separately.
 export const ZOOM_PRESETS = [6, 12, 25, 33, 50, 66, 100, 200, 300, 400, 800, 1600];
 
-type ZoomPrefs = { persistZoom: boolean; educationSeen: boolean };
+// Persist Zoom is set per workspace: on by default while culling (compare the
+// same detail across frames), off by default in Edit / Retouch (each image
+// opens at Fit).
+export type ZoomMode = "cull" | "edit";
+type ZoomPrefs = { persistZoomCull: boolean; persistZoomEdit: boolean; educationSeen: boolean };
 
-const KEY = "rawux.zoomPrefs.v1";
-const DEFAULTS: ZoomPrefs = { persistZoom: true, educationSeen: false };
+const KEY = "rawux.zoomPrefs.v2";
+const DEFAULTS: ZoomPrefs = { persistZoomCull: true, persistZoomEdit: false, educationSeen: false };
+
+export const persistZoomKey = (mode: ZoomMode) =>
+  mode === "cull" ? "persistZoomCull" : "persistZoomEdit";
 
 function load(): ZoomPrefs {
   try {

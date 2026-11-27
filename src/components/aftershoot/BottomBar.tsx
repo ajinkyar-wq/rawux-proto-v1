@@ -5,7 +5,7 @@ import { Check, ChevronDown, Eye, Flag, Info, Link2, Link2Off, Minus, Plus } fro
 import { IconTooltip } from "./IconTooltip";
 import { RatingChip } from "./RatingChip";
 import { GradientSlider } from "./loupe/slider-primitives";
-import { setZoomPrefs, useZoomPrefs, ZOOM_PRESETS } from "./zoom-prefs";
+import { persistZoomKey, setZoomPrefs, useZoomPrefs, ZOOM_PRESETS, type ZoomMode } from "./zoom-prefs";
 
 // Before/after glyphs from Figma (Compare-Before-Custom / Compare-After-Custom).
 function CompareIcon({ after, className }: { after: boolean; className?: string }) {
@@ -64,6 +64,7 @@ function ImageZoomControl({
   onPercent,
   education,
   fillPercent,
+  mode = "cull",
 }: {
   fit: boolean;
   percent: number;
@@ -73,10 +74,14 @@ function ImageZoomControl({
   education?: boolean;
   /** Zoom at which the photo covers the whole canvas; omit to hide "Fill". */
   fillPercent?: number;
+  /** Which Persist zoom setting the menu toggles (Cull vs Edit / Retouch). */
+  mode?: ZoomMode;
 }) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
-  const { persistZoom, educationSeen } = useZoomPrefs();
+  const zoomPrefs = useZoomPrefs();
+  const { educationSeen } = zoomPrefs;
+  const persistZoom = zoomPrefs[persistZoomKey(mode)];
   // One-time note: appears shortly after the bar mounts, goes away on its own,
   // on "Got it", or as soon as the user opens the zoom menu.
   const [note, setNote] = useState(false);
@@ -182,7 +187,7 @@ function ImageZoomControl({
             <ZoomRow
               selected={persistZoom}
               role="menuitemcheckbox"
-              onClick={() => setZoomPrefs({ persistZoom: !persistZoom })}
+              onClick={() => setZoomPrefs({ [persistZoomKey(mode)]: !persistZoom })}
             >
               Persist zoom
             </ZoomRow>
@@ -251,6 +256,8 @@ export function BottomBar({
     /** Show the one-time "new zoom" note (Loupe only). */
     education?: boolean;
     fillPercent?: number;
+    /** Cull (default) or Edit / Retouch: picks the Persist zoom setting. */
+    mode?: ZoomMode;
   };
   /** Anything pinned to the true centre of the bar (Survey: photos-in-view slider). */
   center?: React.ReactNode;

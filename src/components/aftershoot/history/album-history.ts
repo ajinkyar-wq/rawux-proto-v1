@@ -1,5 +1,5 @@
 import { createContext, useCallback, useContext, useMemo, useRef, useState } from "react";
-import { photoName } from "../duplicates";
+import { duplicateCount, photoName } from "../duplicates";
 import { AI_PROFILE_NAMES, PRESET_NAMES } from "../loupe/BrowsePanels";
 import type { ViewMode } from "../Toolbar";
 import type { LoupeRailKey } from "../loupe/loupe-rail-config";
@@ -235,7 +235,11 @@ function buildSeed(story = true) {
     value: string,
     effects: Effect[],
   ) => entries.push({ id: nextId(), kind: "change", op, value, view, tool, images, effects });
-  const rate = (images: number[], view: ViewMode, stars: number) =>
+  // Stacked images keep their AI pick (5★, rest of the stack lower), so the
+  // scripted re-rates only touch single photos.
+  const rate = (all: number[], view: ViewMode, stars: number) => {
+    const images = all.filter((i) => duplicateCount(i) < 2);
+    if (images.length === 0) return;
     change(
       images,
       view,
@@ -244,6 +248,7 @@ function buildSeed(story = true) {
       ratingLabel(stars),
       images.map((i) => fx(i, RATING_KEY, stars)),
     );
+  };
   const slide = (image: number, tool: Tool, scope: string, label: string, pos: number, max = 100) =>
     change(
       [image],
