@@ -5,6 +5,7 @@ import { RatingChip } from "./RatingChip";
 import { useAlbumHistoryContext } from "./history/album-history";
 import { FittedCroppedPhoto } from "./loupe/CroppedPhoto";
 import { cropOf } from "./loupe/crop-config";
+import { editLookOf } from "./loupe/edit-preview";
 import { PhotoContextMenu, PhotoMenuContext } from "./PhotoContextMenu";
 import type { Ratings } from "./use-ratings";
 
@@ -112,6 +113,7 @@ export function CanvasGrid({
                 <FittedCroppedPhoto
                   src={photoUrl(img.id, 480)}
                   crop={cropOf(history, img.id)}
+                  look={editLookOf(history, img.id)}
                   frameClassName="bg-[#2a2a2a]"
                   image={img.id}
                 />

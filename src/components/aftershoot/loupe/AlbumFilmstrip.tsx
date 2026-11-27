@@ -3,6 +3,7 @@ import { CULL_IMAGES, photoUrl } from "../cull-data";
 import { ratingColorHex } from "../rating";
 import { useAlbumHistoryContext } from "../history/album-history";
 import { cropAspect, cropOf } from "./crop-config";
+import { editLookOf } from "./edit-preview";
 import { CroppedPhoto } from "./CroppedPhoto";
 import { PhotoContextMenu } from "../PhotoContextMenu";
 
@@ -176,7 +177,12 @@ export function AlbumFilmstrip({
                         : "outline outline-1 -outline-offset-1 outline-[#303030]"
                   }`}
                 >
-                  <CroppedPhoto src={photoUrl(i, 240)} crop={crop} className="h-full w-full" />
+                  <CroppedPhoto
+                    src={photoUrl(i, 240)}
+                    crop={crop}
+                    look={editLookOf(history, i)}
+                    className="h-full w-full"
+                  />
                 </div>
                 {/* Status pill below the image — the image's rating color once
                 cull has run, grey/unrated before that. */}

@@ -1,4 +1,5 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { EditWashes, type EditLook } from "./edit-preview";
 import { photoUrl } from "../cull-data";
 import { FaceBoxOverlay } from "../FaceBoxOverlay";
 import type { CropRect } from "./crop-config";
@@ -32,8 +33,11 @@ export function LoupeImage({
   onPointClick,
   onMarqueeZoom,
   badge,
+  look,
 }: {
   image: number;
+  /** Live edit preview (see edit-preview); null/undefined = the original look. */
+  look?: EditLook | null;
   /** Straightening angle in degrees (photo rotates inside the frame). */
   rotation?: number;
   /**
@@ -498,7 +502,9 @@ export function LoupeImage({
               }
             }}
             className="absolute inset-0 h-full w-full max-w-none object-cover"
+            style={{ filter: look?.filter }}
           />
+          <EditWashes look={look} />
           <FaceBoxOverlay image={image} onPick={onPickFace} scale={scale * (crop ? 1 : 1)} />
         </div>
         {overlay}

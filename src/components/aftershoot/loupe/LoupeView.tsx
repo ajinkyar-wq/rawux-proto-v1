@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { editLookOf } from "./edit-preview";
 import { BottomBar } from "../BottomBar";
 import { dupId, duplicateCount, photoName } from "../duplicates";
 import { DuplicatesStrip } from "../DuplicatesStrip";
@@ -458,6 +459,8 @@ export function LoupeView({
               cropBox={activeRail === "crop" ? effectiveCropOf(history, selectedIndex) : undefined}
               // Straightening (Crop panel; 0–100 slider, centre = 0°, ±45°).
               rotation={showAfter ? straightenOf(history, selectedIndex) : 0}
+              // Live edit preview — the Before view shows the original.
+              look={showAfter ? editLookOf(history, selectedIndex) : null}
               actualZoom={actualZoom}
               focus={faceFocus}
               onPointClick={
@@ -589,6 +592,7 @@ export function LoupeView({
             selectedIndex={selectedIndex}
             ai={ai}
             faces={faceControls}
+            selection={selection}
           />
         </div>
       )}

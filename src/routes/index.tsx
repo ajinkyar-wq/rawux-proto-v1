@@ -42,6 +42,8 @@ import {
   type AlbumEntry,
   type UxMode,
 } from "@/components/aftershoot/history/album-history";
+import { syncEffects } from "@/components/aftershoot/history/edit-state";
+import { getSyncSettings, syncMatcher } from "@/components/aftershoot/modals/SyncSettingsModal";
 import { dupId, dupOf, imageOf } from "@/components/aftershoot/duplicates";
 import { UndoToast, type UndoFeedbackItem } from "@/components/aftershoot/history/UndoFeedback";
 import { tabOfLoupeRail, type LoupeRailKey } from "@/components/aftershoot/loupe/loupe-rail-config";
@@ -656,7 +658,24 @@ function Workspace({
       setCopiedEdits(id);
       showToast("Edit settings copied");
     },
-    pasteEdits: (ids) => showToast(`Edit settings pasted to ${photos(ids)}`),
+    // Paste = Sync from the copied photo, with the Sync and Copy Settings.
+    pasteEdits: (ids) => {
+      if (copiedEdits === null) return;
+      const source = imageOf(copiedEdits);
+      const targets = [...new Set(ids.map(imageOf))].filter((i) => i !== source);
+      const effects = syncEffects(history, source, targets, syncMatcher(getSyncSettings()));
+      if (effects.length > 0)
+        history.record({
+          kind: "change",
+          op: "Paste",
+          value: `Settings from ${imageName(source)}`,
+          view: viewMode,
+          tool: "edit",
+          images: targets,
+          effects,
+        });
+      showToast(`Edit settings pasted to ${photos(ids)}`);
+    },
     exportTo: (ids, target) => showToast(`Exporting ${photos(ids)} to ${target}`),
     reveal: () => showToast("Revealed in Finder"),
     setAlbumCover: () => showToast("Album cover updated"),

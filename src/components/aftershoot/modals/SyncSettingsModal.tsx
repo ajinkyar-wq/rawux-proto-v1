@@ -1,54 +1,228 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useSyncExternalStore } from "react";
 import { createPortal } from "react-dom";
 import { Check, Minus, X } from "lucide-react";
+import type { Tool } from "../history/album-history";
+import { toolOfKey } from "../history/edit-state";
 
-// "Sync and Copy Settings": which sliders Sync / Copy carry across images.
-// Opened from the gear next to the loupe footer's Sync button.
+// "Sync and Copy Settings": which of the image's settings Sync / Paste carry
+// across images — every editing slider plus Crop, Masking, Retouching and
+// Background. Opened from the gear next to the loupe footer's Sync button, and
+// by Sync itself (unless "Always use these settings" is on).
 
-type Group = { name: string; children?: string[] };
+/* ---------------- Which stored keys each checkbox covers ---------------- */
+
+// Stored keys are `tool:scope/label` (see sliderKey in album-history).
+type ParsedKey = { tool: Tool | null; scope: string; label: string };
+function parseKey(key: string): ParsedKey {
+  const colon = key.indexOf(":");
+  // Seeded summary keys ("preset", "crop", "mask") have no scope.
+  if (colon < 0)
+    return { tool: toolOfKey(key), scope: "", label: key.charAt(0).toUpperCase() + key.slice(1) };
+  const slash = key.indexOf("/", colon);
+  return {
+    tool: toolOfKey(key),
+    scope: key.slice(colon + 1, slash),
+    label: key.slice(slash + 1),
+  };
+}
+type Match = (k: ParsedKey) => boolean;
+
+/** Whole tool (Crop, Masking). */
+const tool =
+  (t: Tool): Match =>
+  (k) =>
+    k.tool === t;
+/** Everything in these sections, incl. their tabs ("Color Mixer · Hue"). */
+const scope =
+  (t: Tool, ...scopes: string[]): Match =>
+  (k) =>
+    k.tool === t && scopes.some((s) => k.scope === s || k.scope.startsWith(`${s} · `));
+/** These controls in one section (multi-value ones like "Position.x" too). */
+const labels =
+  (t: Tool, sc: string, ...names: string[]): Match =>
+  (k) =>
+    k.tool === t &&
+    k.scope === sc &&
+    names.some((n) => k.label === n || k.label.startsWith(`${n}.`));
+const none: Match = () => false;
+
+type Leaf = { label: string; match: Match };
+type Group = { name: string; match?: Match; children?: Leaf[] };
+
+const WB_PROFILE = labels("edit", "White Balance", "WB Profile");
+const MIXER_ALL = scope("edit", "Color Mixer · All");
+const RETOUCH_SECTIONS = [
+  "Face Blemish",
+  "Face Wrinkles",
+  "Teeth",
+  "Face Skin",
+  "Eyes",
+  "Hair",
+  "Body Skin",
+];
 
 const COLUMNS: Group[][] = [
   [
-    { name: "Color Profile" },
-    { name: "White Balance", children: ["Temperature", "Tint"] },
+    { name: "Color Profile", match: labels("edit", "", "Color Profile") },
+    { name: "AI Profile & Preset", match: labels("edit", "", "AI Profile", "Preset") },
+    {
+      name: "White Balance",
+      children: [
+        // The WB Profile dropdown travels with either slider.
+        {
+          label: "Temperature",
+          match: (k) => labels("edit", "White Balance", "Temperature")(k) || WB_PROFILE(k),
+        },
+        {
+          label: "Tint",
+          match: (k) => labels("edit", "White Balance", "Tint")(k) || WB_PROFILE(k),
+        },
+      ],
+    },
     {
       name: "Light",
-      children: ["Exposure", "Contrast", "Highlights", "Shadows", "Whites", "Blacks"],
+      children: ["Exposure", "Contrast", "Highlights", "Shadows", "Whites", "Blacks"].map((l) => ({
+        label: l,
+        match: labels("edit", "Light", l),
+      })),
     },
-    { name: "Presence", children: ["Texture", "Clarity", "De-Haze", "Vibrance", "Saturation"] },
+    {
+      name: "Presence",
+      children: [
+        { label: "Texture", match: labels("edit", "Presence", "Texture") },
+        { label: "Clarity", match: labels("edit", "Presence", "Clarity") },
+        { label: "De-Haze", match: labels("edit", "Presence", "Dehaze") },
+        { label: "Vibrance", match: labels("edit", "Presence", "Vibrance") },
+        { label: "Saturation", match: labels("edit", "Presence", "Saturation") },
+      ],
+    },
   ],
   [
-    { name: "Curve", children: ["Parametric Curve", "Point Curve"] },
-    { name: "HSL", children: ["Hue", "Saturation", "Luminance"] },
-    { name: "Color Grading" },
-    { name: "Effects", children: ["Vignette", "Grain"] },
-    { name: "Detail", children: ["AI Denoise*", "Sharpening", "Manual Noise Reduction"] },
+    {
+      name: "Curve",
+      children: [
+        { label: "Parametric Curve", match: none },
+        { label: "Point Curve", match: scope("edit", "Curves") },
+      ],
+    },
+    {
+      name: "HSL",
+      // The mixer's ALL tab travels with any of the three.
+      children: ["Hue", "Saturation", "Luminance"].map((l) => ({
+        label: l,
+        match: (k: ParsedKey) => scope("edit", `Color Mixer · ${l}`)(k) || MIXER_ALL(k),
+      })),
+    },
+    { name: "Color Grading", match: scope("edit", "Color Grading") },
+    {
+      name: "Effects",
+      children: [
+        { label: "Vignette", match: none },
+        { label: "Grain", match: none },
+      ],
+    },
+    {
+      name: "Detail",
+      children: [
+        { label: "AI Denoise*", match: none },
+        { label: "Sharpening", match: scope("edit", "Sharpening") },
+        { label: "Manual Noise Reduction", match: scope("edit", "Manual noise reduction") },
+      ],
+    },
   ],
   [
     {
       name: "Lens Corrections",
-      children: ["Remove Chromatic Aberration", "Enable Profile Corrections"],
+      children: [
+        { label: "Remove Chromatic Aberration", match: none },
+        { label: "Enable Profile Corrections", match: none },
+      ],
     },
     {
       name: "Calibration",
-      children: ["Shadows Tint", "Red Primary", "Green Primary", "Blue Primary"],
+      children: [
+        { label: "Shadows Tint", match: scope("edit", "Shadows") },
+        { label: "Red Primary", match: scope("edit", "Red primary") },
+        { label: "Green Primary", match: scope("edit", "Green primary") },
+        { label: "Blue Primary", match: scope("edit", "Blue primary") },
+      ],
     },
-    { name: "Crop & Straighten Angle" },
+    { name: "Crop & Straighten Angle", match: tool("crop") },
+    { name: "Masking", match: tool("mask") },
   ],
-  [{ name: "Masking" }],
+  [
+    {
+      name: "Retouching",
+      children: [
+        { label: "Retouch Preset", match: labels("retouch", "", "Preset") },
+        ...RETOUCH_SECTIONS.map((s) => ({ label: s, match: scope("retouch", s) })),
+      ],
+    },
+    {
+      name: "Background",
+      children: [
+        { label: "Backdrop", match: labels("background", "", "Background") },
+        { label: "Fill & Position", match: labels("background", "", "Fill", "Position") },
+        {
+          label: "Flip & Rotation",
+          match: labels("background", "", "Flip Horizontal", "Flip Vertical", "Rotation"),
+        },
+        { label: "AI Shadows", match: labels("background", "", "AI Shadows", "Intensity") },
+      ],
+    },
+  ],
 ];
 
 const GROUPS = COLUMNS.flat();
 // Leaf ids: "Group/Child", or just "Group" for groups without children.
-const leavesOf = (g: Group) => (g.children ? g.children.map((c) => `${g.name}/${c}`) : [g.name]);
-const ALL_LEAVES = GROUPS.flatMap(leavesOf);
-const OFF_BY_DEFAULT = ["Crop & Straighten Angle", "Masking"];
+const leafIds = (g: Group) =>
+  g.children ? g.children.map((c) => `${g.name}/${c.label}`) : [g.name];
+const ALL_LEAVES = GROUPS.flatMap(leafIds);
+const MATCHERS: [string, Match][] = GROUPS.flatMap((g) =>
+  g.children
+    ? g.children.map((c): [string, Match] => [`${g.name}/${c.label}`, c.match])
+    : [[g.name, g.match ?? none] as [string, Match]],
+);
 
-export const DEFAULT_SYNC_SETTINGS = {
-  selected: new Set(ALL_LEAVES.filter((l) => !OFF_BY_DEFAULT.includes(l))),
+/* ---------------- Settings store (shared by Sync and Paste) ---------------- */
+
+export type SyncSettings = { selected: Set<string>; alwaysUse: boolean };
+// Everything is on by default: Sync carries the whole image.
+export const DEFAULT_SYNC_SETTINGS: SyncSettings = {
+  selected: new Set(ALL_LEAVES),
   alwaysUse: false,
 };
-export type SyncSettings = typeof DEFAULT_SYNC_SETTINGS;
+
+let current = DEFAULT_SYNC_SETTINGS;
+const listeners = new Set<() => void>();
+export function setSyncSettings(s: SyncSettings) {
+  current = s;
+  listeners.forEach((l) => l());
+}
+export const getSyncSettings = () => current;
+export function useSyncSettings(): SyncSettings {
+  return useSyncExternalStore(
+    (l) => {
+      listeners.add(l);
+      return () => listeners.delete(l);
+    },
+    () => current,
+    () => DEFAULT_SYNC_SETTINGS,
+  );
+}
+
+/** Whether a stored key is carried by Sync / Paste under these settings. */
+export function syncMatcher(s: SyncSettings): (key: string) => boolean {
+  const on = MATCHERS.filter(([id]) => s.selected.has(id)).map(([, m]) => m);
+  return (key) => {
+    const k = parseKey(key);
+    return on.some((m) => m(k));
+  };
+}
+
+export const allSettingsSelected = (s: SyncSettings) => ALL_LEAVES.every((l) => s.selected.has(l));
+
+/* ---------------- Modal ---------------- */
 
 type CheckState = "on" | "off" | "mixed";
 const stateOf = (leaves: string[], sel: Set<string>): CheckState => {
@@ -60,10 +234,14 @@ export function SyncSettingsModal({
   initial,
   onClose,
   onSave,
+  sync,
 }: {
   initial: SyncSettings;
   onClose: () => void;
+  /** Saves the settings (and, from Sync, runs the sync with them). */
   onSave: (s: SyncSettings) => void;
+  /** Opened by Sync: the primary button syncs the current image to `count` others. */
+  sync?: { from: string; count: number };
 }) {
   const [selected, setSelected] = useState(() => new Set(initial.selected));
   const [alwaysUse, setAlwaysUse] = useState(initial.alwaysUse);
@@ -84,6 +262,9 @@ export function SyncSettingsModal({
       return next;
     });
 
+  const nothing = selected.size === 0;
+  const photos = sync && (sync.count === 1 ? "1 photo" : `${sync.count} photos`);
+
   return createPortal(
     <div
       className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 p-6"
@@ -93,13 +274,15 @@ export function SyncSettingsModal({
         role="dialog"
         aria-label="Sync and Copy Settings"
         onClick={(e) => e.stopPropagation()}
-        className="flex max-h-full w-[820px] max-w-full flex-col rounded-xl border border-white/15 bg-[#1c1c1c] p-5 shadow-2xl"
+        className="flex max-h-full w-[880px] max-w-full flex-col rounded-xl border border-white/15 bg-[#1c1c1c] p-5 shadow-2xl"
       >
         <div className="flex items-start justify-between">
           <div>
             <h2 className="text-[17px] font-semibold text-white">Sync and Copy Settings</h2>
             <p className="mt-1.5 text-[13px] text-neutral-400">
-              Select all the sliders that you want to use when syncing or copying edits.
+              {sync
+                ? `Select the settings to sync from ${sync.from} to ${photos}.`
+                : "Select all the settings that you want to use when syncing or copying edits."}
             </p>
           </div>
           <button
@@ -123,7 +306,7 @@ export function SyncSettingsModal({
           {COLUMNS.map((col, i) => (
             <div key={i} className="flex flex-col gap-4">
               {col.map((g) => {
-                const leaves = leavesOf(g);
+                const leaves = leafIds(g);
                 return (
                   <div key={g.name} className="flex flex-col gap-2">
                     <CheckRow
@@ -132,11 +315,11 @@ export function SyncSettingsModal({
                       onToggle={() => toggle(leaves)}
                     />
                     {g.children?.map((c) => {
-                      const id = `${g.name}/${c}`;
+                      const id = `${g.name}/${c.label}`;
                       return (
                         <CheckRow
                           key={id}
-                          label={c}
+                          label={c.label}
                           state={selected.has(id) ? "on" : "off"}
                           onToggle={() => toggle([id])}
                           className="pl-7"
@@ -152,19 +335,20 @@ export function SyncSettingsModal({
 
         <div className="mt-10 flex items-center justify-between">
           <CheckRow
-            label="Always use these slider settings"
+            label="Always use these settings"
             state={alwaysUse ? "on" : "off"}
             onToggle={() => setAlwaysUse((v) => !v)}
           />
           <button
             type="button"
+            disabled={!!sync && nothing}
             onClick={() => {
               onSave({ selected, alwaysUse });
               onClose();
             }}
-            className="h-9 rounded-md bg-[#3b5bff] px-5 text-[13px] font-medium text-white hover:bg-[#4a68ff]"
+            className="h-9 rounded-md bg-[#3b5bff] px-5 text-[13px] font-medium text-white hover:bg-[#4a68ff] disabled:cursor-not-allowed disabled:opacity-40"
           >
-            Save
+            {sync ? "Sync" : "Save"}
           </button>
         </div>
       </div>

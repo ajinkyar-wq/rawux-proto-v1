@@ -1,4 +1,5 @@
 import { cropAspect, type CropRect } from "./crop-config";
+import { EditWashes, type EditLook } from "./edit-preview";
 
 // Shows only the cropped part of a 3:2 photo, filling its box. The box must
 // already have the crop's shape (filmstrip / duplicates strip tiles), or use
@@ -8,11 +9,14 @@ export function CroppedPhoto({
   crop,
   className = "",
   style,
+  look,
 }: {
   src: string;
   crop: CropRect;
   className?: string;
   style?: React.CSSProperties;
+  /** Live edit preview (see edit-preview). */
+  look?: EditLook | null;
 }) {
   return (
     <div className={`relative overflow-hidden ${className}`} style={style}>
@@ -27,8 +31,10 @@ export function CroppedPhoto({
           height: `${(100 / crop.h) * 100}%`,
           left: `${(-crop.x / crop.w) * 100}%`,
           top: `${(-crop.y / crop.h) * 100}%`,
+          filter: look?.filter,
         }}
       />
+      <EditWashes look={look} />
     </div>
   );
 }
@@ -42,9 +48,11 @@ export function FittedCroppedPhoto({
   className = "",
   frameClassName = "",
   image,
+  look,
 }: {
   src: string;
   crop: CropRect;
+  look?: EditLook | null;
   /** The outer 3:2 box. */
   className?: string;
   /** The fitted photo frame (rounding etc.). */
@@ -60,7 +68,7 @@ export function FittedCroppedPhoto({
       : { width: `${(a / BOX) * 100}%`, height: "100%" };
   return (
     <div className={`flex aspect-[3/2] w-full items-center justify-center ${className}`}>
-      <CroppedPhoto src={src} crop={crop} className={frameClassName} style={size} />
+      <CroppedPhoto src={src} crop={crop} className={frameClassName} style={size} look={look} />
     </div>
   );
 }

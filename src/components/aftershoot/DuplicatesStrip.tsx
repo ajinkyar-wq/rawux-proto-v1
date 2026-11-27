@@ -4,6 +4,7 @@ import { photoUrl } from "./cull-data";
 import { useAlbumHistoryContext } from "./history/album-history";
 import { CroppedPhoto } from "./loupe/CroppedPhoto";
 import { cropAspect, cropOf } from "./loupe/crop-config";
+import { editLookOf } from "./loupe/edit-preview";
 import { IconTooltip } from "./IconTooltip";
 import { duplicateCount } from "./duplicates";
 
@@ -136,7 +137,9 @@ function FilmstripRow({
   const selectedRef = useRef<HTMLButtonElement>(null);
   // Duplicates are the same picture, so every tile shows this image's crop:
   // same height, as wide as the crop's shape (like the album filmstrip).
-  const crop = cropOf(useAlbumHistoryContext(), image);
+  const history = useAlbumHistoryContext();
+  const crop = cropOf(history, image);
+  const look = editLookOf(history, image);
   const width = Math.round(tileHeight * cropAspect(crop, image)) || tileWidth;
 
   // Scroll the selected tile into view (left-aligned, not center-padded).
@@ -172,7 +175,12 @@ function FilmstripRow({
                 : "outline outline-1 -outline-offset-1 outline-[#303030] hover:outline-white/40"
             }`}
           >
-            <CroppedPhoto src={photoUrl(image, 240)} crop={crop} className="h-full w-full" />
+            <CroppedPhoto
+              src={photoUrl(image, 240)}
+              crop={crop}
+              look={look}
+              className="h-full w-full"
+            />
           </button>
         ))}
       </div>

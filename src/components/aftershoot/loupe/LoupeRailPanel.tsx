@@ -1,8 +1,19 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Settings as SettingsIcon } from "lucide-react";
+import { CaretDown } from "@phosphor-icons/react";
+import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
+import { useCullStore } from "@/features/import/store/useCullStore";
 import type { ActionStatuses } from "../action-status";
 import { ImageHistoryPanel } from "../history/ImageHistoryPanel";
-import { SliderHistoryContext, type Tool } from "../history/album-history";
+import {
+  imageName,
+  SliderHistoryContext,
+  TOOL_LABEL,
+  useAlbumHistoryContext,
+  type Effect,
+  type Tool,
+} from "../history/album-history";
+import { resetEffects, syncEffects } from "../history/edit-state";
 
 const HISTORY_TOOLS: Tool[] = ["edit", "crop", "mask", "retouch", "background", "patch"];
 import type { AIAction } from "../panels/ImagePanel";
@@ -20,8 +31,11 @@ import { IconTooltip } from "../IconTooltip";
 import { FlyoutHost } from "./Flyout";
 import { Histogram } from "./Histogram";
 import {
-  DEFAULT_SYNC_SETTINGS,
+  allSettingsSelected,
+  setSyncSettings,
   SyncSettingsModal,
+  syncMatcher,
+  useSyncSettings,
   type SyncSettings,
 } from "../modals/SyncSettingsModal";
 
@@ -46,10 +60,13 @@ export function LoupeRailPanel({
   selectedIndex = 0,
   ai,
   faces,
+  selection,
 }: {
   activeRail: LoupeRailKey;
   // Drives the Key Faces grid / AI Actions panel inside this slot.
   selectedIndex?: number;
+  /** Filmstrip multi-selection: Sync copies to it, Reset clears all of it. */
+  selection?: Set<number>;
   // AI Actions panel state, lifted from the screen so grid and loupe share it.
   ai: LoupeAIState;
   // Survey: Key Faces become clickable (zoom every photo to that face).
@@ -101,9 +118,11 @@ export function LoupeRailPanel({
             {/* Footer is OUTSIDE the scroll area, so Sync/Reset stay pinned to the
           bottom of the panel regardless of how long the content scrolls. */}
             {EDITING_RAILS.includes(activeRail) && (
-              // Sync and Copy Settings (the gear) only applies to editing
-              // sliders; the retouching tools get a plain Sync button.
-              <EditingPanelFooter syncSettings={!RETOUCH_RAILS.includes(activeRail)} />
+              <EditingPanelFooter
+                tool={activeRail as Tool}
+                image={selectedIndex}
+                selection={selection ?? new Set([selectedIndex])}
+              />
             )}
           </div>
         </div>
@@ -159,51 +178,170 @@ function LoupeRailPanelBody({
 }
 
 /* ---------------- Shared footer: Bottom CTA (Figma 4011:28100) ----------------
- * [Sync | ⚙] [Reset]. Sync is a full-pill label button joined (1px gap) to a
- * 32px round gear that opens Sync and Copy Settings; Reset has no settings. */
+ * [Sync | ⚙] [Reset | ⌄]. Sync is a full-pill label button joined (1px gap) to
+ * a 32px round gear that opens Sync and Copy Settings; Reset is joined the same
+ * way to a chevron with the narrower "Reset <this tab>" option.
+ *
+ * Both act on the image's whole edit state (every editing + retouching value):
+ *   Sync  — copies the current image's settings (filtered by Sync and Copy
+ *           Settings) to the other selected filmstrip photos. Asks with the
+ *           settings modal first unless "Always use these settings" is on.
+ *   Reset — puts every edit and retouch on the selected photos back to default.
+ * Each is ONE Undo step, listed in every affected photo's History. */
 
 const RETOUCH_RAILS: LoupeRailKey[] = ["retouch", "background", "patch"];
 
-function EditingPanelFooter({ syncSettings: withSettings }: { syncSettings: boolean }) {
-  const [syncOpen, setSyncOpen] = useState(false);
-  const [syncSettings, setSyncSettings] = useState<SyncSettings>(DEFAULT_SYNC_SETTINGS);
-  const closeSync = useCallback(() => setSyncOpen(false), []);
+function EditingPanelFooter({
+  tool,
+  image,
+  selection,
+}: {
+  tool: Tool;
+  image: number;
+  selection: Set<number>;
+}) {
+  const history = useAlbumHistoryContext();
+  const settings = useSyncSettings();
+  const showToast = useCullStore((st) => st.showToast);
+  const [modal, setModal] = useState<"settings" | "sync" | null>(null);
+  const closeModal = useCallback(() => setModal(null), []);
+
+  // Photos acted on: the filmstrip selection (always incl. the current one).
+  const images = selection.has(image) && selection.size > 1 ? [...selection] : [image];
+  const targets = images.filter((i) => i !== image);
+  const photos = (n: number) => (n === 1 ? "1 photo" : `${n} photos`);
+
+  const runSync = (s: SyncSettings) => {
+    if (!history || targets.length === 0) return;
+    const effects = syncEffects(history, image, targets, syncMatcher(s));
+    if (effects.length === 0) {
+      showToast(`Settings already match on ${photos(targets.length)}`);
+      return;
+    }
+    history.record({
+      kind: "change",
+      op: "Sync",
+      value: `${allSettingsSelected(s) ? "All settings" : "Selected settings"} from ${imageName(image)}`,
+      view: "loupe",
+      tool,
+      images: targets,
+      effects,
+    });
+    showToast(`Synced to ${photos(targets.length)}`);
+  };
+
+  const resetAll = history ? resetEffects(history, images) : [];
+  const resetTab = history ? resetEffects(history, images, [tool]) : [];
+  const runReset = (effects: Effect[], what: string) => {
+    if (!history || effects.length === 0) return;
+    history.record({
+      kind: "change",
+      op: "Reset",
+      value: what,
+      view: "loupe",
+      tool,
+      images,
+      effects,
+    });
+    if (images.length > 1) showToast(`Reset ${photos(images.length)}`);
+  };
+
   return (
     <div className="flex items-start gap-3 px-4 py-3">
-      {!withSettings && (
-        <button type="button" className={`${PILL} rounded-full`}>
+      <div className="flex min-w-px flex-1 items-center gap-px">
+        <button
+          type="button"
+          disabled={targets.length === 0}
+          onClick={() => (settings.alwaysUse ? runSync(settings) : setModal("sync"))}
+          className={`${PILL} rounded-l-full`}
+        >
           Sync
         </button>
-      )}
-      {withSettings && (
-        <div className="flex min-w-px flex-1 items-center gap-px">
-          <button type="button" className={`${PILL} rounded-l-full`}>
-            Sync
+        <IconTooltip label="Sync settings">
+          <button
+            type="button"
+            aria-label="Sync settings"
+            onClick={() => setModal("settings")}
+            className={`${SIDE} rounded-r-full`}
+          >
+            <SettingsIcon className="size-4" strokeWidth={1.5} />
           </button>
-          <IconTooltip label="Sync settings">
-            <button
-              type="button"
-              aria-label="Sync settings"
-              onClick={() => setSyncOpen(true)}
-              className="flex size-8 shrink-0 items-center justify-center rounded-r-full bg-[#303030] p-2 text-[#e2e2e2] hover:bg-[#3a3a3a]"
-            >
-              <SettingsIcon className="size-4" strokeWidth={1.5} />
-            </button>
+        </IconTooltip>
+      </div>
+      <div className="flex min-w-px flex-1 items-center gap-px">
+        <button
+          type="button"
+          disabled={resetAll.length === 0}
+          onClick={() => runReset(resetAll, "All edits")}
+          className={`${PILL} rounded-l-full`}
+        >
+          Reset
+        </button>
+        <DropdownMenu.Root>
+          <IconTooltip label="Reset options">
+            <DropdownMenu.Trigger asChild>
+              <button
+                type="button"
+                aria-label="Reset options"
+                className={`${SIDE} rounded-r-full data-[state=open]:bg-[#3a3a3a]`}
+              >
+                <CaretDown size={16} weight="light" />
+              </button>
+            </DropdownMenu.Trigger>
           </IconTooltip>
-        </div>
-      )}
-      <button type="button" className={`${PILL} rounded-full`}>
-        Reset
-      </button>
-      {syncOpen && (
-        <SyncSettingsModal initial={syncSettings} onClose={closeSync} onSave={setSyncSettings} />
+          <DropdownMenu.Portal>
+            <DropdownMenu.Content
+              side="top"
+              align="end"
+              sideOffset={6}
+              collisionPadding={8}
+              className={MENU_PANEL}
+            >
+              <DropdownMenu.Item
+                disabled={resetAll.length === 0}
+                onSelect={() => runReset(resetAll, "All edits")}
+                className={MENU_CELL}
+              >
+                Reset All
+              </DropdownMenu.Item>
+              <DropdownMenu.Item
+                disabled={resetTab.length === 0}
+                onSelect={() => runReset(resetTab, TOOL_LABEL[tool])}
+                className={MENU_CELL}
+              >
+                Reset {TOOL_LABEL[tool]}
+              </DropdownMenu.Item>
+            </DropdownMenu.Content>
+          </DropdownMenu.Portal>
+        </DropdownMenu.Root>
+      </div>
+      {modal && (
+        <SyncSettingsModal
+          initial={settings}
+          onClose={closeModal}
+          sync={modal === "sync" ? { from: imageName(image), count: targets.length } : undefined}
+          onSave={(s) => {
+            setSyncSettings(s);
+            if (modal === "sync") runSync(s);
+          }}
+        />
       )}
     </div>
   );
 }
 
+// Figma dropdown spec (same cells as the photo context menu).
+const MENU_PANEL =
+  "z-[200] flex min-w-[160px] flex-col gap-0.5 rounded-lg border border-[#474747] bg-[#242424] p-1 shadow-2xl";
+const MENU_CELL =
+  "flex cursor-default select-none items-center rounded px-2 py-2 text-[12px] font-medium leading-4 text-[#ababab] outline-none data-[highlighted]:bg-[rgba(226,226,226,0.1)] data-[highlighted]:text-[#e2e2e2] data-[disabled]:pointer-events-none data-[disabled]:text-[#5a5a5a]";
+
+// The 32px round add-on joined to a pill (gear / chevron).
+const SIDE =
+  "flex size-8 shrink-0 items-center justify-center bg-[#303030] p-2 text-[#e2e2e2] hover:bg-[#3a3a3a]";
+
 const PILL =
-  "flex h-8 min-w-[52px] flex-1 items-center justify-center bg-[#303030] px-3 text-[12px] font-medium leading-4 text-[#e2e2e2] hover:bg-[#3a3a3a]";
+  "flex h-8 min-w-[52px] flex-1 items-center justify-center bg-[#303030] px-3 text-[12px] font-medium leading-4 text-[#e2e2e2] enabled:hover:bg-[#3a3a3a] disabled:cursor-not-allowed disabled:text-[#5a5a5a]";
 
 /**
  * Scroll container with a bottom fade overlay (Figma 4011:28099) that shows

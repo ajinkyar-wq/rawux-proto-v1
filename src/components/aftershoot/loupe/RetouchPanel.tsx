@@ -72,7 +72,8 @@ export function RetouchPanel() {
       {SECTIONS.map((s) => (
         <Section key={s.title} title={s.title}>
           {s.rows.map((label) => (
-            <SliderRow key={label} label={label} />
+            // Retouch amounts are one-directional: 0 (off) → 100, fill from the left.
+            <SliderRow key={label} label={label} initial={0} signed={false} />
           ))}
         </Section>
       ))}

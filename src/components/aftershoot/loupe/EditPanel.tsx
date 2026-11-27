@@ -1,5 +1,12 @@
-import { SliderScopeContext, useHistoryChoice, useHistorySlider } from "../history/album-history";
-import { useEffect, useRef, useState } from "react";
+import {
+  SliderHistoryContext,
+  SliderScopeContext,
+  useAlbumHistoryContext,
+  useHistoryChoice,
+  useHistoryValues,
+} from "../history/album-history";
+import { resetEffects } from "../history/edit-state";
+import { useContext, useEffect, useRef, useState } from "react";
 import { ArrowCounterClockwise, CaretDown, Eye, Eyedropper } from "@phosphor-icons/react";
 import { IconTooltip } from "../IconTooltip";
 import { useWbPickerActive, wbPicker } from "./wb-picker";
@@ -22,11 +29,11 @@ const COLOR_PROFILES = ["Adobe Portrait", "Adobe Standard", "Adobe Vivid", "Came
 const WB_PROFILES = ["As Shot", "Auto", "Daylight", "Cloudy", "Shade", "Tungsten", "Custom"];
 
 export function EditPanel() {
-  const [preset, setPreset] = useHistoryChoice("Preset", PRESET_NAMES, "Cinematic C1");
+  const [preset, setPreset] = useHistoryChoice("Preset", PRESET_NAMES, NOTHING_APPLIED);
   const [aiProfile, setAiProfile] = useHistoryChoice(
     "AI Profile",
     AI_PROFILE_NAMES,
-    "True to Life",
+    NOTHING_APPLIED,
   );
   const [colorProfile, setColorProfile] = useHistoryChoice(
     "Color Profile",
@@ -94,17 +101,17 @@ export function EditPanel() {
         <SliderRow label="Exposure" />
         <SliderRow label="Contrast" />
         <SliderRow label="Highlights" />
-        <SliderRow label="Shadows" initial={75} />
-        <SliderRow label="Whites" initial={75} />
-        <SliderRow label="Blacks" initial={75} />
+        <SliderRow label="Shadows" />
+        <SliderRow label="Whites" />
+        <SliderRow label="Blacks" />
       </Section>
 
       <Section title="Presence">
-        <SliderRow label="Texture" initial={60} />
-        <SliderRow label="Clarity" initial={55} />
-        <SliderRow label="Dehaze" initial={35} />
-        <SliderRow label="Vibrance" gradient="rainbow" initial={75} />
-        <SliderRow label="Saturation" gradient="rainbow" initial={0} />
+        <SliderRow label="Texture" />
+        <SliderRow label="Clarity" />
+        <SliderRow label="Dehaze" />
+        <SliderRow label="Vibrance" gradient="rainbow" />
+        <SliderRow label="Saturation" gradient="rainbow" />
       </Section>
 
       <Section title="Curves">
@@ -119,7 +126,7 @@ export function EditPanel() {
         <ColorGrading />
       </Section>
 
-      <Section title="Detail">
+      <Section title="Detail" scopes={["Sharpening", "Manual noise reduction"]}>
         <Subsection title="SHARPENING">
           <SliderRow label="Amount" />
           <SliderRow label="Radius" />
@@ -136,7 +143,10 @@ export function EditPanel() {
         </Subsection>
       </Section>
 
-      <Section title="Calibration">
+      <Section
+        title="Calibration"
+        scopes={["Shadows", "Red primary", "Green primary", "Blue primary"]}
+      >
         <Subsection title="SHADOWS">
           <SliderRow label="Tint" gradient="shadowTint" />
         </Subsection>
@@ -352,13 +362,18 @@ export function Section({
   children,
   comingSoon = false,
   first = false,
+  scopes = [],
 }: {
   title: string;
   children: React.ReactNode;
   comingSoon?: boolean;
   first?: boolean;
+  /** Subsection scopes inside this section (Detail → Sharpening, …), so the
+   *  section's Reset clears them too. */
+  scopes?: string[];
 }) {
   const [open, setOpen] = useState(true);
+  const sectionReset = useSectionReset(title, scopes);
   return (
     <section className={`flex flex-col gap-3 ${first ? "" : "border-t border-white/5 pt-3"}`}>
       <div className="flex h-6 items-center justify-between">
@@ -390,7 +405,9 @@ export function Section({
             <button
               type="button"
               title="Reset section"
-              className="rounded p-0.5 text-neutral-500 hover:bg-white/5 hover:text-white"
+              disabled={!sectionReset?.canReset}
+              onClick={sectionReset?.reset}
+              className="rounded p-0.5 text-neutral-500 enabled:hover:bg-white/5 enabled:hover:text-white disabled:opacity-40"
             >
               <ArrowCounterClockwise size={16} weight="light" />
             </button>
@@ -404,6 +421,33 @@ export function Section({
       )}
     </section>
   );
+}
+
+// A section's ↺: every value stored under its scope (and its subsections /
+// tabs, e.g. "Color Mixer · Hue") on the current image, as ONE Undo step.
+function useSectionReset(title: string, scopes: string[]) {
+  const history = useAlbumHistoryContext();
+  const where = useContext(SliderHistoryContext);
+  if (!history || !where) return null;
+  const owned = [title, ...scopes];
+  const match = (key: string) => {
+    const scope = key.slice(key.indexOf(":") + 1, key.indexOf("/"));
+    return owned.some((s) => scope === s || scope.startsWith(`${s} · `));
+  };
+  const effects = resetEffects(history, [where.image], [where.tool], match);
+  return {
+    canReset: effects.length > 0,
+    reset: () =>
+      history.record({
+        kind: "change",
+        op: "Reset",
+        value: title,
+        view: "loupe",
+        tool: where.tool,
+        images: [where.image],
+        effects,
+      }),
+  };
 }
 
 function Subsection({ title, children }: { title: string; children: React.ReactNode }) {
@@ -507,26 +551,31 @@ function ColorGrading() {
         </button>
       </div>
 
-      <SliderRow label="Hue" gradient="rainbow" />
-      <SliderRow label="Saturation" gradient="red" />
-      <SliderRow label="Luminance" />
-
-      <button
-        type="button"
-        onClick={() => setShowWheel((v) => !v)}
-        className="flex items-center gap-1.5 text-[11px] text-neutral-400 hover:text-white"
+      {/* Each tonal range keeps its own values ("Color Grading · Midtones"). */}
+      <SliderScopeContext.Provider
+        value={`Color Grading · ${GRADING_RANGES.find((r) => r.key === range)?.label}`}
       >
-        <CaretDown
-          size={12}
-          weight="light"
-          className={`transition-transform ${showWheel ? "" : "-rotate-90"}`}
-        />
-        <span className="h-3 w-3 rounded-sm bg-neutral-500" />
-      </button>
+        <SliderRow label="Hue" gradient="rainbow" />
+        <SliderRow label="Saturation" gradient="red" />
+        <SliderRow label="Luminance" />
 
-      {showWheel && <ColorWheel />}
+        <button
+          type="button"
+          onClick={() => setShowWheel((v) => !v)}
+          className="flex items-center gap-1.5 text-[11px] text-neutral-400 hover:text-white"
+        >
+          <CaretDown
+            size={12}
+            weight="light"
+            className={`transition-transform ${showWheel ? "" : "-rotate-90"}`}
+          />
+          <span className="h-3 w-3 rounded-sm bg-neutral-500" />
+        </button>
 
-      <SliderRow label="Blending" initial={100} />
+        {showWheel && <ColorWheel />}
+      </SliderScopeContext.Provider>
+
+      <SliderRow label="Blending" />
       <SliderRow label="Balance" />
     </div>
   );
@@ -631,9 +680,19 @@ function RangeDot({
 function ColorWheel() {
   const SIZE = 200; // px
   const HANDLE = 10; // px
-  const [pos, setPos] = useState({ x: 0.5, y: 0.5 }); // normalized 0..1 from top-left
+  // Normalized 0..1 from top-left, stored per image + tonal range; one Undo
+  // step per drag.
+  const wheel = useHistoryValues(
+    "Wheel",
+    { x: 0.5, y: 0.5 },
+    (p) => `${Math.round((p.x - 0.5) * 200)}, ${Math.round((0.5 - p.y) * 200)}`,
+  );
+  const pos = wheel.value;
   const wheelRef = useRef<HTMLDivElement>(null);
   const draggingRef = useRef(false);
+  const latestWheel = useRef(wheel);
+  latestWheel.current = wheel;
+  const setPos = (p: { x: number; y: number }) => latestWheel.current.onChange(p);
 
   const updateFromClientXY = (clientX: number, clientY: number) => {
     const el = wheelRef.current;
@@ -662,7 +721,9 @@ function ColorWheel() {
       if (draggingRef.current) updateFromClientXY(e.clientX, e.clientY);
     };
     const handleUp = () => {
+      if (!draggingRef.current) return;
       draggingRef.current = false;
+      latestWheel.current.onCommit();
     };
     document.addEventListener("mousemove", handleMove);
     document.addEventListener("mouseup", handleUp);

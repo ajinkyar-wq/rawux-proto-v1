@@ -1,5 +1,6 @@
 import { createContext, useCallback, useContext, useMemo, useRef, useState } from "react";
 import { photoName } from "../duplicates";
+import { AI_PROFILE_NAMES, PRESET_NAMES } from "../loupe/BrowsePanels";
 import type { ViewMode } from "../Toolbar";
 import type { LoupeRailKey } from "../loupe/loupe-rail-config";
 
@@ -125,25 +126,25 @@ type PastOp =
     }
   | { kind: "set"; tool: Tool; op: string; key: string; values: string[] };
 const PAST_OPS: PastOp[] = [
-  { kind: "slide", tool: "edit", scope: "Light", label: "Exposure", lo: 42, hi: 64 },
-  { kind: "slide", tool: "edit", scope: "Light", label: "Contrast", lo: 44, hi: 62 },
-  { kind: "slide", tool: "edit", scope: "Light", label: "Highlights", lo: 24, hi: 48 },
-  { kind: "slide", tool: "edit", scope: "Light", label: "Shadows", lo: 70, hi: 95 },
-  { kind: "slide", tool: "edit", scope: "Light", label: "Whites", lo: 70, hi: 88 },
-  { kind: "slide", tool: "edit", scope: "Light", label: "Blacks", lo: 62, hi: 80 },
+  { kind: "slide", tool: "edit", scope: "Light", label: "Exposure", lo: 44, hi: 58 },
+  { kind: "slide", tool: "edit", scope: "Light", label: "Contrast", lo: 46, hi: 60 },
+  { kind: "slide", tool: "edit", scope: "Light", label: "Highlights", lo: 36, hi: 50 },
+  { kind: "slide", tool: "edit", scope: "Light", label: "Shadows", lo: 54, hi: 70 },
+  { kind: "slide", tool: "edit", scope: "Light", label: "Whites", lo: 48, hi: 60 },
+  { kind: "slide", tool: "edit", scope: "Light", label: "Blacks", lo: 42, hi: 54 },
   {
     kind: "slide",
     tool: "edit",
     scope: "White Balance",
     label: "Temperature",
     max: 10000,
-    lo: 44,
-    hi: 60,
+    lo: 46,
+    hi: 56,
   },
-  { kind: "slide", tool: "edit", scope: "White Balance", label: "Tint", lo: 46, hi: 60 },
-  { kind: "slide", tool: "edit", scope: "Presence", label: "Clarity", lo: 52, hi: 68 },
-  { kind: "slide", tool: "edit", scope: "Presence", label: "Vibrance", lo: 66, hi: 85 },
-  { kind: "slide", tool: "edit", scope: "Presence", label: "Dehaze", lo: 30, hi: 48 },
+  { kind: "slide", tool: "edit", scope: "White Balance", label: "Tint", lo: 50, hi: 60 },
+  { kind: "slide", tool: "edit", scope: "Presence", label: "Clarity", lo: 50, hi: 62 },
+  { kind: "slide", tool: "edit", scope: "Presence", label: "Vibrance", lo: 52, hi: 66 },
+  { kind: "slide", tool: "edit", scope: "Presence", label: "Dehaze", lo: 48, hi: 58 },
   {
     kind: "set",
     tool: "edit",
@@ -170,10 +171,30 @@ const PAST_OPS: PastOp[] = [
     key: "mask",
     values: ["Subject · +0.3 Exposure", "Sky · -0.4 Highlights", "Background · -12 Clarity"],
   },
-  { kind: "slide", tool: "retouch", scope: "Face Skin", label: "Smoothen", lo: 55, hi: 72 },
-  { kind: "slide", tool: "retouch", scope: "Teeth", label: "Whiten", lo: 54, hi: 66 },
-  { kind: "slide", tool: "retouch", scope: "Eyes", label: "Brighten", lo: 54, hi: 64 },
+  { kind: "slide", tool: "retouch", scope: "Face Skin", label: "Smoothen", lo: 20, hi: 45 },
+  { kind: "slide", tool: "retouch", scope: "Teeth", label: "Whiten", lo: 15, hi: 35 },
+  { kind: "slide", tool: "retouch", scope: "Eyes", label: "Brighten", lo: 10, hi: 30 },
 ];
+
+// Starting look: [scope, label, centre, ± spread] in slider track units
+// (50 = zero on a ± slider; ±5 ≈ ±10 on the readout). Kept gentle.
+const START_LOOK: [string, string, number, number][] = [
+  ["White Balance", "Temperature", 50, 2],
+  ["White Balance", "Tint", 55, 3],
+  ["Light", "Exposure", 52, 4],
+  ["Light", "Contrast", 53, 4],
+  ["Light", "Highlights", 44, 5],
+  ["Light", "Shadows", 58, 6],
+  ["Light", "Whites", 53, 4],
+  ["Light", "Blacks", 47, 4],
+  ["Presence", "Texture", 53, 3],
+  ["Presence", "Clarity", 53, 4],
+  ["Presence", "Dehaze", 51, 3],
+  ["Presence", "Vibrance", 56, 5],
+  ["Presence", "Saturation", 51, 3],
+];
+const START_PRESETS = ["Cinematic C1", "Portra 400", "Fuji 400H Soft", "Ektar 100 Soft"];
+const START_PROFILES = ["True to Life"];
 
 // Small seeded PRNG so each image's past edits are stable across reloads.
 function rng(seed: number) {
@@ -224,9 +245,14 @@ function buildSeed(story = true) {
       images.map((i) => fx(i, RATING_KEY, stars)),
     );
   const slide = (image: number, tool: Tool, scope: string, label: string, pos: number, max = 100) =>
-    change([image], "loupe", tool, sliderOp(scope, label), sliderDisplay(pos, max), [
-      fx(image, sliderKey(tool, scope, label), pos),
-    ]);
+    change(
+      [image],
+      "loupe",
+      tool,
+      sliderOp(scope, label),
+      sliderDisplay(pos, max, tool !== "retouch"),
+      [fx(image, sliderKey(tool, scope, label), pos)],
+    );
   const view = (image: number, from: ViewMode, to: ViewMode) =>
     entries.push({
       id: nextId(),
@@ -246,6 +272,23 @@ function buildSeed(story = true) {
       to: { view: v, image: to },
     });
   const light = (l: string) => sliderKey("edit", "Light", l);
+
+  // Every image's starting look (the AI edit it was delivered with): a preset,
+  // an AI Profile and slightly different slider positions per image. Stored as
+  // values, not steps — Reset clears them back to neutral (zero), not to this.
+  for (let img = 0; img < ALBUM_IMAGE_COUNT; img++) {
+    const r = rng(img + 7919);
+    const pick = <T>(xs: readonly T[]) => xs[Math.floor(r() * xs.length)];
+    values[vkey(img, sliderKey("edit", "", "AI Profile"))] = AI_PROFILE_NAMES.indexOf(
+      pick(START_PROFILES),
+    );
+    values[vkey(img, sliderKey("edit", "", "Preset"))] = PRESET_NAMES.indexOf(pick(START_PRESETS));
+    for (const [scope, label, centre, spread] of START_LOOK) {
+      values[vkey(img, sliderKey("edit", scope, label))] = Math.round(
+        centre + (r() * 2 - 1) * spread,
+      );
+    }
+  }
 
   // 0. Earlier editing on every image (oldest steps on the stack).
   for (let img = 0; img < ALBUM_IMAGE_COUNT; img++) {
@@ -303,8 +346,8 @@ function buildSeed(story = true) {
   slide(0, "edit", "Light", "Contrast", 56);
   slide(0, "edit", "Light", "Highlights", 38);
   change([0], "loupe", "crop", "Crop", "4 : 5 · Straighten 1.2°", [fx(0, "crop", 1)]);
-  slide(0, "retouch", "Face Skin", "Smoothen", 65);
-  slide(0, "retouch", "Teeth", "Whiten", 60);
+  slide(0, "retouch", "Face Skin", "Smoothen", 35);
+  slide(0, "retouch", "Teeth", "Whiten", 25);
   change([0], "loupe", "edit", "Preset", "True to Life", [fx(0, "preset", 1)]);
   // 4. Next image in Loupe: white balance, then rate it with a number key.
   goto("loupe", 0, 1);
@@ -330,7 +373,7 @@ function buildSeed(story = true) {
   rate([3], "survey", 2);
   // 7. Loupe on image 3: edit, Reset, edit again.
   view(3, "survey", "loupe");
-  slide(3, "edit", "Light", "Whites", 85);
+  slide(3, "edit", "Light", "Whites", 62);
   change([3], "loupe", "edit", "Reset", "All edits", [fx(3, light("Whites"), undefined)]);
   slide(3, "edit", "Light", "Exposure", 54);
   // 8. Back to image 0, re-adjust Highlights.
@@ -344,13 +387,13 @@ function buildSeed(story = true) {
   slide(E, "edit", "Light", "Exposure", 58);
   slide(E, "edit", "Light", "Contrast", 55);
   slide(E, "edit", "Light", "Highlights", 35);
-  slide(E, "edit", "Light", "Shadows", 95);
+  slide(E, "edit", "Light", "Shadows", 70);
   slide(E, "edit", "White Balance", "Temperature", 54, 10000);
   slide(E, "edit", "White Balance", "Tint", 52);
   change([E], "loupe", "crop", "Crop", "3 : 2 · Straighten -0.8°", [fx(E, "crop", 2)]);
   change([E], "loupe", "mask", "Mask", "Subject · +0.4 Exposure", [fx(E, "mask", 1)]);
-  slide(E, "retouch", "Face Skin", "Smoothen", 62);
-  slide(E, "retouch", "Eyes", "Brighten", 59);
+  slide(E, "retouch", "Face Skin", "Smoothen", 32);
+  slide(E, "retouch", "Eyes", "Brighten", 22);
   change([E], "loupe", "ai", "Flag", "Pick", [fx(E, "flag", 1)]);
   change([E], "loupe", "edit", "Preset", "Soft Film", [fx(E, "preset", 2)]);
   slide(E, "edit", "Presence", "Clarity", 61);
@@ -370,8 +413,8 @@ function buildSeed(story = true) {
   });
   rate([E], "loupe", 4);
   slide(E, "edit", "Light", "Exposure", 61);
-  slide(E, "edit", "Light", "Whites", 82);
-  slide(E, "retouch", "Teeth", "Whiten", 58);
+  slide(E, "edit", "Light", "Whites", 60);
+  slide(E, "retouch", "Teeth", "Whiten", 28);
   slide(E, "edit", "Light", "Highlights", 30);
   // 12. Back to Grid — the album opens here (SEED_END).
   view(E, "loupe", "grid");
@@ -392,6 +435,17 @@ export function useAlbumHistory(seeded = true) {
 
   const getValue = useCallback(
     (image: number, key: string): number | undefined => values[vkey(image, key)],
+    [values],
+  );
+
+  // Every stored key on one image (anything not listed is at its default).
+  const imageKeys = useCallback(
+    (image: number): string[] => {
+      const prefix = `${image}|`;
+      return Object.keys(values)
+        .filter((k) => k.startsWith(prefix))
+        .map((k) => k.slice(prefix.length));
+    },
     [values],
   );
 
@@ -465,6 +519,7 @@ export function useAlbumHistory(seeded = true) {
       cursor,
       imageStep,
       getValue,
+      imageKeys,
       setLive,
       record,
       undo,
@@ -477,6 +532,7 @@ export function useAlbumHistory(seeded = true) {
       cursor,
       imageStep,
       getValue,
+      imageKeys,
       setLive,
       record,
       undo,
